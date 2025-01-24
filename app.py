@@ -3,7 +3,7 @@ import requests
 import base64
 import os
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=".")
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
 
 
