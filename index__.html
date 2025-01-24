@@ -1,7 +1,7 @@
 <!DOCTYPE html>
-<!-- saved from url=(0022)http://127.0.0.1:5000/ -->
-<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-    
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Criar Work Item</title>
     <style>
@@ -84,9 +84,17 @@
         <h1>Criar Work Item</h1>
 
         <!-- Exibe mensagens de flash -->
-        
-          
-        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul>
+              {% for category, message in messages %}
+                <li {% if category == 'error' %}style="color: red;"{% else %}style="color: green;"{% endif %}>
+                  {{ message }}
+                </li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
 
         <form method="POST" enctype="multipart/form-data">
             <!-- Novos campos logo abaixo do título -->
@@ -108,13 +116,20 @@
             <textarea id="descricao" name="descricao" rows="4"></textarea><br>
 
             <label for="evidencia">Anexar Evidências:</label><br>
-            <input type="file" id="evidencia" name="evidencia" multiple=""><br>
+            <input type="file" id="evidencia" name="evidencia" multiple><br>
 
             <button type="submit">Criar Work Item</button>
         </form>
 
         <!-- Exibe a lista de evidências anexadas se houver -->
-        
+        {% if evidencias %}
+        <h3>Evidências Adicionadas:</h3>
+        <div class="evidencias-lista">
+            {% for evidencia in evidencias %}
+            <div class="evidencia-item">{{ evidencia }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
-
-</body></html>
+</body>
+</html>
