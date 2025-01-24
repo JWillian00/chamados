@@ -75,9 +75,9 @@ def index():
             flash("Erro ao criar o work item. Tente novamente.", "error")
 
        
-        return render_template("formulario.html", evidencias=evidencias)
+        return render_template("index.html", evidencias=evidencias)
 
-    return render_template("formulario.html", evidencias=evidencias)
+    return render_template("index.html", evidencias=evidencias)
 
 if __name__ == "__main__":
     app.run(debug=True)
