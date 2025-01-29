@@ -2,9 +2,15 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import requests
 import base64
 import os
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__, template_folder=".", static_folder='image')
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
+
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgresql://postgres:[Blink182!@#]@db.lumpydwhyeseuxjkglgc.supabase.co:5432/postgres"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
 
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -12,7 +18,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Função para enviar imagem ao Imgur
 def upload_to_imgur(image_file):
-    CLIENT_ID = '2bb212b2d974050'  
+    CLIENT_ID = '2bb212b2d974050'
     url = 'https://api.imgur.com/3/upload'
     headers = {'Authorization': f'Client-ID {CLIENT_ID}'}
     
@@ -124,5 +130,5 @@ def index():
    
 
 if __name__ == "__main__":
-    #app.run(debug=True)
-    pass
+    app.run(debug=True)
+    
