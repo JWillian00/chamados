@@ -7,6 +7,7 @@ app = Flask(__name__, template_folder=".", static_folder='image')
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
 
 
+
 # Função para enviar imagem ao Imgur
 def upload_to_imgur(image_file):
     CLIENT_ID = '2bb212b2d974050'
@@ -89,6 +90,7 @@ def index():
         for evidencia_file in evidencia_files:
             if evidencia_file:
                 # Salvar o arquivo temporariamente
+                app.config['UPLOAD_FOLDER'] = 'uploads'
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], evidencia_file.filename)
                 evidencia_file.save(file_path)
                 
