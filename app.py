@@ -41,7 +41,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email):
     {descricao}
     """
 
-    url = f"https://dev.azure.com/{organization}/{project}/_apis/wit/workitems/${work_item_type}?api-version=6.0"
+    url = f"https://dev.azure.com/{organization}/{project}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     
     token = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"  
     encoded_token = base64.b64encode(f":{token}".encode("utf-8")).decode("utf-8")
@@ -117,9 +117,9 @@ def index():
         else:
             flash("Nenhuma evidência foi anexada.", "error")
 
-        return render_template("index.html", evidencias=imgur_links)
+        return render_template("templates/index.html", evidencias=imgur_links)
 
-    return render_template("index.html", evidencias=evidencias)
+    return render_template("templates/index.html", evidencias=evidencias)
    
 
 if __name__ == "__main__":
