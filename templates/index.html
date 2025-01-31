@@ -1,11 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-br">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Criar Work Item</title>
     <style>
-        
         body {
             display: flex;
             justify-content: center;
@@ -20,9 +19,8 @@
             background-color: #f9f9f9; 
         }
 
-        
         .container {
-            background-color: #fff; /* Fundo branco para a área do formulário */
+            background-color: #fff; 
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -86,13 +84,149 @@
             margin-bottom: 10px;
             border-radius: 5px;
         }
+
+        #image-preview-container {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 10px; 
+            justify-content: center; 
+        }
+
+        .image-thumbnail-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover; 
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 5px;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .delete-btn:hover {
+            background-color: red;
+        }
+
+        /* Botão popup */
+        .popup-btn {
+            position: 200px; 
+            top: 20px; 
+            right: 30px; 
+            height: 35px;
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 8px;
+            font-size: 14px; 
+            cursor: pointer;
+            border-radius: 5px; 
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); 
+        }
+
+        .popup-btn:hover {
+            background-color: #0056b3;
+        }
+
+        /* Estilo para o Popup */
+        .popup {
+            display: none; /* Inicialmente invisível */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40vw; /* Tamanho ajustado */
+            height: auto; /* Ajuste para que o popup se ajuste ao conteúdo */
+            max-height: 80vh; /* Limita a altura do popup */
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            z-index: 2;
+            border-radius: 8px;
+            text-align: center;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow-y: auto; /* Permite rolagem quando necessário */
+        }
+
+        /* Estilo para o fundo que escurece */
+        .popup-overlay {
+            display: none; /* Inicialmente invisível */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1;
+        }
+
+        /* Container para os botões */
+        .popup-btn-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px; /* Ajustar a margem dos botões */
+        }
+
+        /* Estilo para o input de ID */
+        .input-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="number"] {
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 50%;
+            margin-left: 10px;
+        }
+
+        .popup h2 {
+            margin-top: 0;
+            margin-bottom: 20px;  
+        }
+
+        .popup .consulta-dados {
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .popup p {
+            font-weight: bold;
+        }
+
+        .popup pre {
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Criar Work Item</h1>
 
-        <!-- Exibe as mensagens-->
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 <ul>
@@ -104,7 +238,6 @@
         {% endwith %}
 
         <form method="POST" enctype="multipart/form-data">
-            <!-- Campos de entrada -->
             <label for="empresa">Selecione a empresa:</label><br>
             <select id="empresa" name="empresa">
                 <option value="tiscoski">Tiscoski</option>
@@ -130,10 +263,127 @@
             <textarea id="descricao" name="descricao" rows="4"></textarea><br>
 
             <label for="evidencia">Anexar Evidências:</label><br>
-            <input type="file" id="evidencia" name="evidencia" multiple=""><br>
+            <input type="file" id="evidencia" name="evidencia" multiple="" onchange="previewImages(event)"><br>
+
+            <div id="image-preview-container"></div>
 
             <button type="submit">Criar Work Item</button>
         </form>
+
+        <!-- Botão para abrir o popup -->
+        <button class="popup-btn" onclick="openPopup()">Consulte seu chamado aqui!</button>
+
+        <!-- Popup -->
+        <div class="popup-overlay" id="popup-overlay"></div>
+        <div class="popup" id="popup">
+            <h2>Consulta de Chamado</h2>
+
+            <!-- Campo de Entrada para o ID do Chamado -->
+            <div class="input-container">
+                <label for="id-chamado">Informe o ID do chamado: </label>
+                <input type="number" id="id-chamado" placeholder="Digite o ID">
+            </div>
+
+            <!-- Dados da Consulta (serão centralizados) -->
+            <div class="consulta-dados">
+                <p><strong>Alterado por:</strong> <span id="change-by">Não disponível</span></p>
+                <p><strong>Estado chamado:</strong> <span id="state">Não disponível</span></p>
+                <p><strong>Status:</strong> <span id="reason">Não disponível</span></p>
+                <p><strong>Coluna:</strong> <span id="board-column">Não disponível</span></p>
+                <p><strong>Comentários adicionados:</strong></p>
+                <pre id="comentarios">Não disponível</pre>
+            </div>
+
+            <!-- Botões -->
+            <div class="popup-btn-container">
+                <button class="popup-btn close-btn" onclick="closePopup()">Voltar</button>
+                <button class="popup-btn" onclick="consultarChamado()">Consultar</button>
+            </div>
+        </div>
     </div>
+
+    <script>
+        // Função para abrir o popup
+        function openPopup() {
+            document.getElementById("popup").style.display = "flex"; // Exibe o popup
+            document.getElementById("popup-overlay").style.display = "block"; // Exibe o fundo escuro
+        }
+
+        // Função para fechar o popup
+        function closePopup() {
+            document.getElementById("popup").style.display = "none"; // Oculta o popup
+            document.getElementById("popup-overlay").style.display = "none"; // Oculta o fundo escuro
+        }
+
+        // Função para consultar o chamado
+        function consultarChamado() {
+            const idChamado = document.getElementById("id-chamado").value;
+            if (idChamado) {
+                alert("Consultando o chamado com ID: " + idChamado);
+                // Adicione o código de consulta real aqui
+            } else {
+                alert("Por favor, informe o ID do chamado.");
+            }
+        }
+
+        // Função para pré-visualizar as imagens
+        function previewImages(event) {
+            const previewContainer = document.getElementById("image-preview-container");
+
+            // Limpa as miniaturas anteriores (se houver)
+            previewContainer.innerHTML = '';
+
+            const files = event.target.files;
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const reader = new FileReader();
+
+                reader.onload = function(e) {
+                    const container = document.createElement("div");
+                    container.classList.add("image-thumbnail-container");
+
+                    const img = document.createElement("img");
+                    img.src = e.target.result;
+                    img.classList.add("image-thumbnail");
+
+                    const deleteBtn = document.createElement("button");
+                    deleteBtn.classList.add("delete-btn");
+                    deleteBtn.innerHTML = "X";
+                    deleteBtn.onclick = function() {
+                        previewContainer.removeChild(container);
+                    };
+
+                    container.appendChild(img);
+                    container.appendChild(deleteBtn);
+                    previewContainer.appendChild(container);
+                };
+
+                reader.readAsDataURL(file); // Lê o arquivo como URL de dados (base64)
+            }
+        }
+
+        // Função para consultar o chamado via fetch
+        function consultarChamado() {
+            const idChamado = document.getElementById("id-chamado").value;
+            if (idChamado) {
+                fetch(`/consultar/${idChamado}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data) {
+                            document.getElementById("change-by").innerText = data.change_by;
+                            document.getElementById("state").innerText = data.state;
+                            document.getElementById("reason").innerText = data.reason;
+                            document.getElementById("board-column").innerText = data.board_column;
+                            document.getElementById("comentarios").innerText = data.comentarios;
+                        } else {
+                            alert("Erro ao consultar o chamado");
+                        }
+                    })
+                    .catch(error => alert("Erro ao consultar o chamado"));
+            } else {
+                alert("Por favor, informe o ID do chamado.");
+            }
+        }
+    </script>
 </body>
 </html>

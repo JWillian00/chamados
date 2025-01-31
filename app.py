@@ -3,18 +3,63 @@ import requests
 import base64
 import os
 
+     
 app = Flask(__name__, template_folder=".", static_folder='image')
-app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
+app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB" #key tsk
+     
+def consultar_chamado(id_chamado):
+    organization = "BRAVEO"
+    project = "e-Commerce%20Tiscoski"
+    url = f"https://dev.azure.com/{organization}/{project}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
+
+    token = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
+    encoded_token = base64.b64encode(f":{token}".encode("utf-8")).decode("utf-8")
+
+    headers = {
+        "Authorization": f"Basic {encoded_token}"
+    }
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()  # Levanta um erro em caso de falha na requisição
+
+        data = response.json()
+        fields = data.get("fields", {})
+
+        change_by = fields.get("System.ChangedBy", "Não disponível")
+        state = fields.get("System.State", "Não disponível")
+        reason = fields.get("System.Reason", "Não disponível")
+        board_column = fields.get("System.BoardColumn", "Não disponível")
+
+        # Pegando o histórico de mudanças (comentários)
+        comentarios = fields.get("System.History", [])
+
+        # Se o histórico for uma lista, pegamos o último comentário
+        if isinstance(comentarios, list) and comentarios:
+            ultimo_comentario = comentarios[-1]  # Último comentário da lista
+        else:
+            ultimo_comentario = "Não disponível"
+
+        return {
+            "change_by": change_by,
+            "state": state,
+            "reason": reason,
+            "board_column": board_column,
+            "comentarios": ultimo_comentario  # Exibindo apenas o último comentário
+        }
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao consultar o chamado: {e}")
+        return None
 
 
 
-# Função para enviar imagem ao Imgur
 def upload_to_imgur(image_file):
     CLIENT_ID = '2bb212b2d974050'
     url = 'https://api.imgur.com/3/upload'
     headers = {'Authorization': f'Client-ID {CLIENT_ID}'}
     
-    # Enviar o arquivo para o Imgur
+   
     with open(image_file, 'rb') as image:
         files = {'image': image}
         response = requests.post(url, headers=headers, files=files)
@@ -68,41 +113,41 @@ def create_work_item(titulo, descricao, empresa, plataforma, email):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    evidencias = []  # Lista para armazenar os links das imagens do Imgur
+    evidencias = []  
     
     
 
     if request.method == "POST":
         titulo = request.form["titulo"]
         descricao = request.form["descricao"]
-        empresa = request.form["empresa"]  # Captura a empresa selecionada
-        plataforma = request.form["plataforma"]  # Captura a plataforma
+        empresa = request.form["empresa"]  
+        plataforma = request.form["plataforma"]  
         email = request.form["email"]
 
         if not titulo or not descricao or not empresa or not plataforma or not email:
             flash("Título e descrição são obrigatórios.", "error")
-            return redirect(url_for("index"))  # Retorna para a mesma página
+            return redirect(url_for("index"))  
 
         evidencia_files = request.files.getlist("evidencia")
-        imgur_links = []  # Lista para armazenar as URLs das imagens
-        img_tags = []  # Lista para armazenar as tags <img>
+        imgur_links = []  
+        img_tags = [] 
 
         for evidencia_file in evidencia_files:
             if evidencia_file:
-                # Salvar o arquivo temporariamente
+                
                 app.config['UPLOAD_FOLDER'] = 'uploads'
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], evidencia_file.filename)
                 evidencia_file.save(file_path)
                 
-                # Enviar o arquivo para o Imgur e obter o link
+                
                 imgur_link = upload_to_imgur(file_path)
                 if imgur_link:
-                    # Adiciona a tag <img> diretamente para exibir a imagem
+                    
                     img_tag = f'<img src="{imgur_link}" alt="Evidência" style="max-width: 100%; height: auto;">'
                     img_tags.append(img_tag)
                     imgur_links.append(imgur_link)
 
-        # Adiciona todas as tags de imagem à descrição
+        
         if img_tags:
             descricao += "\n" + "\n".join(img_tags)  
       
@@ -111,7 +156,7 @@ def index():
 
             if result:
                 flash("Work item criado com sucesso!", "success")
-                return redirect(url_for("index"))  # Redireciona para evitar reenvio do formulário
+                return redirect(url_for("index"))  # if para evitar looping de formulario
             else:
                 flash("Erro ao criar o work item. Tente novamente.", "error")
         else:
@@ -120,10 +165,18 @@ def index():
         return render_template("templates/index.html", evidencias=imgur_links)
 
     return render_template("templates/index.html", evidencias=evidencias)
-   
+
+@app.route("/consultar/<int:id_chamado>", methods=["GET"])
+def consultar(id_chamado):
+    # Chama a função que consulta o chamado
+    chamado_info = consultar_chamado(id_chamado)
+    if chamado_info:
+        return chamado_info
+    else:
+        return {"error": "Chamado não encontrado"}, 404   
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 5000)) #utiliza a porta do render para deploy
     app.run(host="0.0.0.0", port=port)
     app.run(debug=True)
     
