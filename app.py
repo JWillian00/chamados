@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import requests
 import base64
 import os
-
+from envio_email import enviar_email
      
 app = Flask(__name__, template_folder=".", static_folder='image')
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB" #key tsk
@@ -26,26 +26,31 @@ def consultar_chamado(id_chamado):
         data = response.json()
         fields = data.get("fields", {})
 
-        change_by = fields.get("System.ChangedBy", "Não disponível")
+        change_by = fields.get("System.ChangedBy", {}).get("displayName", " Não disponível")
         state = fields.get("System.State", "Não disponível")
         reason = fields.get("System.Reason", "Não disponível")
         board_column = fields.get("System.BoardColumn", "Não disponível")
 
+        fechado_por = ""
+        if state.lower() == "closed":
+            fechado_por = change_by
+
         # Pegando o histórico de mudanças (comentários)
-        comentarios = fields.get("System.History", [])
+        #comentarios = fields.get("System.History", [])
 
         # Se o histórico for uma lista, pegamos o último comentário
-        if isinstance(comentarios, list) and comentarios:
-            ultimo_comentario = comentarios[-1]  # Último comentário da lista
-        else:
-            ultimo_comentario = "Não disponível"
+        #if isinstance(comentarios, list) and comentarios:
+          #  ultimo_comentario = comentarios[-1]  # Último comentário da lista
+      #  else:
+          #  ultimo_comentario = "Não disponível"
 
         return {
             "change_by": change_by,
+            "fechado_por": fechado_por,
             "state": state,
             "reason": reason,
             "board_column": board_column,
-            "comentarios": ultimo_comentario  # Exibindo apenas o último comentário
+           # "comentarios": ultimo_comentario  # Exibindo apenas o último comentário
         }
 
     except requests.exceptions.RequestException as e:
@@ -155,6 +160,8 @@ def index():
             result = create_work_item(titulo, descricao, empresa, email, plataforma)
 
             if result:
+                id_chamado = result["id"]
+                enviar_email(email, id_chamado)
                 flash("Work item criado com sucesso!", "success")
                 return redirect(url_for("index"))  # if para evitar looping de formulario
             else:

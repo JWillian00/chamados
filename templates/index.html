@@ -286,12 +286,12 @@
 
             <!-- Dados da Consulta (serão centralizados) -->
             <div class="consulta-dados">
-                <p><strong>Alterado por:</strong> <span id="change-by">Não disponível</span></p>
-                <p><strong>Estado chamado:</strong> <span id="state">Não disponível</span></p>
-                <p><strong>Status:</strong> <span id="reason">Não disponível</span></p>
-                <p><strong>Coluna:</strong> <span id="board-column">Não disponível</span></p>
-                <p><strong>Comentários adicionados:</strong></p>
-                <pre id="comentarios">Não disponível</pre>
+                <p><strong>Alterado por:</strong> <span id="change-by"></span></p>
+                <p><strong>Estado chamado:</strong> <span id="state"></span></p>
+                <p><strong>Status:</strong> <span id="reason"></span></p>
+                <p><strong>Coluna:</strong> <span id="board-column"></span></p>
+                <p><strong></strong></p>
+                <!--<pre id="comentarios"></pre> -->
             </div>
 
             <!-- Botões -->
@@ -374,7 +374,7 @@
                             document.getElementById("state").innerText = data.state;
                             document.getElementById("reason").innerText = data.reason;
                             document.getElementById("board-column").innerText = data.board_column;
-                            document.getElementById("comentarios").innerText = data.comentarios;
+                            //document.getElementById("comentarios").innerText = data.comentarios;
                         } else {
                             alert("Erro ao consultar o chamado");
                         }
