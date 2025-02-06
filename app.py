@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template, flash, redirect, url_for, jsonify
+from flask import Flask, request, render_template, flash, redirect, url_for, jsonify, Response
 from rotas import create_work_item, consultar_chamado
 from envio_email import enviar_email
 import os
 from enviar_img import upload_to_imgur
 from deep_translator import GoogleTranslator
+from rotas import consultar_comentarios, adicionar_comentario_card
 
 app = Flask(__name__)
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
@@ -91,6 +92,46 @@ def consultar_chamado_route():
             return jsonify({"error": f"Erro ao traduzir: {str(e)}"})
         print(dados)
         return jsonify(dados)
+@app.route("/consultar_comentarios", methods=["GET"])
+def consultar_comentarios_route():
+    id_chamado = request.args.get("id_chamado")
+    plataforma = request.args.get("plataforma")
+
+    if not id_chamado or not plataforma:
+        return jsonify({"error": "ID do chamado e plataforma são obrigatórios."})
+
+    resultado = consultar_comentarios(id_chamado, plataforma)
+
+    if isinstance(resultado, Response):
+        
+        resultado = resultado.json
+        
+    if isinstance(resultado, list):
+        return jsonify({"comentarios": resultado})
+
+    if isinstance(resultado, dict) and "error" in resultado:
+        return jsonify({"error": resultado(["error"])})
+    else:
+        return jsonify({"comentarios": resultado.get("comentarios", [])})
+    
+
+@app.route("/adicionar_comentario", methods=["POST"])
+def adicionar_comentario():
+    
+    data = request.get_json()
+    id_chamado = data.get("id_chamado")
+    comentario = data.get("comentario")
+    plataforma = data.get("plataforma")
+
+    if not comentario:
+        return jsonify({"error": "Escreva um comentário."})
+
+    resultado = adicionar_comentario_card(id_chamado, comentario, plataforma)
+
+    if "error" in resultado:
+        return jsonify({"error": resultado["error"]})
+    else:
+        return jsonify({"mensagem": "Comentário adicionado com sucesso!"})
 
 
 if __name__ == "__main__":

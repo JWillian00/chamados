@@ -221,6 +221,77 @@
             white-space: pre-wrap;
             word-wrap: break-word;
         }
+        .form-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+    .form-group label {
+            width: 30%; 
+            text-align: left;
+            padding-right: 10px;
+            font-weight: bold;
+        }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .comentario-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30vw;
+            max-width: 400px;
+            height: auto;
+            max-height: 70vh;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            z-index: 3;
+            border-radius: 8px;
+            text-align: center;
+            overflow-y: auto;
+        }
+
+        
+        #comentario-popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2;
+        }
+
+        
+        #novo-comentario {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        
+        .popup-btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -238,6 +309,7 @@
         {% endwith %}
 
         <form method="POST" enctype="multipart/form-data">
+        <div class="form-group">
             <label for="empresa">Selecione a empresa:</label><br>
             <select id="empresa" name="empresa">
                 <option value="tiscoski">Tiscoski</option>
@@ -247,25 +319,36 @@
                 <option value="Dismelo">Dismelo</option>
                 <option value="Distrimix">Distrimix</option>
             </select><br>
+        </div>  
 
-            <label for="plataforma">Plataforma:</label><br>
-            <select id="plataforma" name="plataforma">
-                <option value="tiscoski">SF Commerce</option>                
-                <option value="click">Click</option>
-            </select><br>
+            <div class="form-group">
+                <label for="plataforma">Plataforma:</label><br>
+                <select id="plataforma" name="plataforma">
+                    <option value="tiscoski">SF Commerce</option>                
+                    <option value="click">Click</option>
+                </select><br>
+            </div>
 
-            <label for="email">E-mail:</label><br>
-            <input type="email" id="email" name="email"><br>
+            <div class="form-group">
+                <label for="email">E-mail:</label><br>
+                <input type="email" id="email" name="email"><br>
+            </div>
 
-            <label for="titulo2">Título:</label><br>
-            <input type="text" id="titulo2" name="titulo2"><br>
-
+            <div class="form-group">
+                <label for="titulo2">Título:</label><br>
+                <input type="text" id="titulo2" name="titulo2"><br>
+            </div>
+            
+            
+            <div class="form-group">
             <label for="descricao">Descrição:</label><br>
             <textarea id="descricao" name="descricao" rows="4"></textarea><br>
+            </div>  
 
+            <div class ="form-group">
             <label for="evidencia">Anexar Evidências:</label><br>
             <input type="file" id="evidencia" name="evidencia" multiple onchange="previewImages(event)"><br>
-
+            </div>
             <div id="image-preview-container"></div>
 
             <button type="submit">Criar Work Item</button>
@@ -274,6 +357,24 @@
 
         <!-- Popup -->
         <div class="popup-overlay" id="popup-overlay"></div>
+        <div class="popup-overlay" id="comentario-popup-overlay"></div>
+
+        <div class="popup comentario-popup" id="comentario-popup">
+            <h2>Comentários do Chamado</h2>
+            
+            <div id="comentarios-container">
+                <p id="comentarios-texto">Carregando comentários...</p>
+            </div>
+
+            <!-- Campo para digitar um novo comentário -->
+            <textarea id="novo-comentario" placeholder="Digite seu comentário..." rows="3"></textarea>
+
+            <!-- Botões -->
+            <div class="popup-btn-container">
+                <button class="popup-btn" onclick="enviarComentario()">Enviar</button>
+                <button class="popup-btn close-btn" onclick="fecharPopupComentario()">Fechar</button>
+            </div>
+        </div>
         <div class="popup" id="popup">
             <h2>Consulta de Chamado</h2>
 
@@ -318,6 +419,7 @@
             <div class="popup-btn-container">
                 <button class="popup-btn close-btn" onclick="closePopup()">Voltar</button>
                 <button class="popup-btn" onclick="consultarChamado()">Consultar</button>
+                <button class="popup-btn-comentario" onclick="abrirPopupComentario()">Ver comentários</button>
             </div>
         </div>
     </div>

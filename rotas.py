@@ -2,7 +2,7 @@ import requests
 import base64
 import os
 from enviar_img import upload_to_imgur
-from flask import flash
+from flask import flash, jsonify
 
 # Configurações de cada empresa
 CONFIG = {
@@ -24,6 +24,39 @@ PLATAFORMA_MAPEADA = {
     "sf commerce": "tiscoski"
     
 }
+
+def consultar_comentarios(id_chamado, plataforma):
+
+    plataforma = plataforma.lower().strip()
+
+    if plataforma in PLATAFORMA_MAPEADA:
+        empresa = PLATAFORMA_MAPEADA[plataforma]
+    else:
+        return {"error": "Plataforma inválida."}	
+
+    config = CONFIG[empresa]
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
+    
+    headers = get_headers(config["token"])
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        comentarios_data = response.json()
+        comentarios = comentarios_data.get("comments",[])
+
+        #print("retorno consultar:", comentarios_data)
+
+        comentarios_list = []
+        for comentario in comentarios:
+            autor = comentario.get("createdBy", {}).get("displayName", "Desconhecido")
+            texto_comentario = comentario.get("text", "")
+            comentarios_list.append({"autor": autor, "comentario": texto_comentario})
+
+        return jsonify(comentarios_list)
+        
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Erro ao buscar comentários: {str(e)}"}
 
 def get_headers(token):
     encoded_token = base64.b64encode(f":{token}".encode("utf-8")).decode("utf-8")
@@ -60,18 +93,27 @@ def consultar_chamado(id_chamado, plataforma):
         }
         
     except requests.exceptions.RequestException as e:
-        return {"error": f"Erro ao consultar o Chamado: {str(e)}"}
+        return {"error": f"Verifique o ID digitado: {id_chamado}"}
 
 
 
 def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_type="issue", evidencia_file=None):
+
+
+    if plataforma == "sf commerce" and empresa != "tiscoski":
+        flash("Verifique a plataforma selecionada", "error")
+        return{"error": "Verifique a plataforma selecionada"}
+
     empresa = empresa.lower().strip()  
     plataforma = plataforma.lower().strip()  # Remove espaços extras
 
     
 
     if plataforma in PLATAFORMA_MAPEADA:
-        empresa = PLATAFORMA_MAPEADA[plataforma]    
+        empresa = PLATAFORMA_MAPEADA[plataforma]
+
+    if empresa not in CONFIG:
+        return {"error": "Empresa inválida, verifique os dados da empresa."}    
 
     config = CONFIG[empresa]
     imgur_links = []
@@ -129,3 +171,32 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_ty
         print(response.text)
         return {"error": f"Erro ao criar o Chamado!: {str(e)}"}
     
+def adicionar_comentario_card (id_chamado, comentario, plataforma):
+    
+    if not plataforma:
+        return {"error": "Plataforma inválida."}
+    
+    plataforma = plataforma.lower().strip()
+
+    if plataforma in PLATAFORMA_MAPEADA:
+        empresa = PLATAFORMA_MAPEADA[plataforma]
+    else:
+        return {"error": "Plataforma inválida."}
+    
+    config = CONFIG[empresa]
+    
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
+    
+    headers = get_headers(config["token"])
+    playload = {
+        "text": comentario
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=playload)
+        response.raise_for_status()
+
+        return {"sucess": True}
+
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Erro ao adicionar comentário: {str(e)}"}
