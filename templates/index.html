@@ -3,16 +3,16 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Criar Work Item</title>
+    <title>Abertura de Chamado</title>
     <style>
-        body {
+         body {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             font-family: Arial, sans-serif;
-            background-image: url('image/fundo_chamados.png'); 
+            background-image: url('/static/image/fundo_chamados.png'); 
             background-position: center;
             background-size: cover; 
             background-attachment: fixed; 
@@ -111,7 +111,7 @@
             color: white;
             border: none;
             padding: 10px;
-            font-size: 5px;
+            font-size: 12px;
             cursor: pointer;
             border-radius: 50%;
         }
@@ -225,7 +225,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Criar Work Item</h1>
+        <h1>Abertura de Chamados</h1>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
@@ -241,36 +241,35 @@
             <label for="empresa">Selecione a empresa:</label><br>
             <select id="empresa" name="empresa">
                 <option value="tiscoski">Tiscoski</option>
-                <option value="bodegamix">Ibiapina</option>                
-                <option value="click">Oniz</option>
+                <option value="Ibiapina">Ibiapina</option>                
+                <option value="Oniz">Oniz</option>
+                <option value="Pulmer">Pulmer</option>
+                <option value="Dismelo">Dismelo</option>
+                <option value="Distrimix">Distrimix</option>
             </select><br>
 
             <label for="plataforma">Plataforma:</label><br>
             <select id="plataforma" name="plataforma">
-                <option value="tiscoski">SF Commerce Cloud</option>
-                <option value="bodegamix">BodegaMix Web</option>
-                <option value="bodegamix">BodegaMix Aplicativo</option>                  
+                <option value="tiscoski">SF Commerce</option>                
                 <option value="click">Click</option>
             </select><br>
 
             <label for="email">E-mail:</label><br>
             <input type="email" id="email" name="email"><br>
 
-            <label for="titulo">Título:</label><br>
-            <input type="text" id="titulo" name="titulo"><br>
+            <label for="titulo2">Título:</label><br>
+            <input type="text" id="titulo2" name="titulo2"><br>
 
             <label for="descricao">Descrição:</label><br>
             <textarea id="descricao" name="descricao" rows="4"></textarea><br>
 
             <label for="evidencia">Anexar Evidências:</label><br>
-            <input type="file" id="evidencia" name="evidencia" multiple="" onchange="previewImages(event)"><br>
+            <input type="file" id="evidencia" name="evidencia" multiple onchange="previewImages(event)"><br>
 
             <div id="image-preview-container"></div>
 
             <button type="submit">Criar Work Item</button>
         </form>
-
-        <!-- Botão para abrir o popup -->
         <button class="popup-btn" onclick="openPopup()">Consulte seu chamado aqui!</button>
 
         <!-- Popup -->
@@ -278,15 +277,36 @@
         <div class="popup" id="popup">
             <h2>Consulta de Chamado</h2>
 
-            <!-- Campo de Entrada para o ID do Chamado -->
+            <div class="input-container">
+                <label for="plataforma-consulta">Selecione a Plataforma:</label>
+                <select id="plataforma-consulta" name="plataforma-consulta">
+                    <option value="sf commerce">SF Commerce</option>   
+                    <option value="click">Click Vendas</option>  
+                </select>
+            </div>
+
+            
             <div class="input-container">
                 <label for="id-chamado">Informe o ID do chamado: </label>
                 <input type="number" id="id-chamado" placeholder="Digite o ID">
             </div>
 
-            <!-- Dados da Consulta (serão centralizados) -->
+            <div id="loader" style="display: none; text-align: center;">
+                <img src="https://cdn.pixabay.com/animation/2023/10/22/03/31/03-31-43-608_512.gif" 
+                     alt="Carregando..." 
+                     style="width: 50px; height: 50px;">
+                <p>Buscando informações...</p>
+            </div>
+            <div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; text-align: center;">
+                <img src="https://cdn.pixabay.com/animation/2023/10/22/03/31/03-31-43-608_512.gif" 
+                     alt="Carregando..." 
+                     style="width: 50px; height: 50px;">
+                <p style="color: white; font-size: 18px;">Criando chamado...</p>
+            </div>
+
+            
             <div class="consulta-dados">
-                <p><strong>Alterado por:</strong> <span id="change-by"></span></p>
+                <p><strong>Título:</strong> <span id="titulo"></span></p>
                 <p><strong>Estado chamado:</strong> <span id="state"></span></p>
                 <p><strong>Status:</strong> <span id="reason"></span></p>
                 <p><strong>Coluna:</strong> <span id="board-column"></span></p>
@@ -294,7 +314,7 @@
                 <!--<pre id="comentarios"></pre> -->
             </div>
 
-            <!-- Botões -->
+            
             <div class="popup-btn-container">
                 <button class="popup-btn close-btn" onclick="closePopup()">Voltar</button>
                 <button class="popup-btn" onclick="consultarChamado()">Consultar</button>
@@ -302,88 +322,10 @@
         </div>
     </div>
 
-    <script>
-        // Função para abrir o popup
-        function openPopup() {
-            document.getElementById("popup").style.display = "flex"; // Exibe o popup
-            document.getElementById("popup-overlay").style.display = "block"; // Exibe o fundo escuro
-        }
+    <script src="{{ url_for('static', filename='js/popup.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/consultar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/previewImages.js') }}"></script>
 
-        // Função para fechar o popup
-        function closePopup() {
-            document.getElementById("popup").style.display = "none"; // Oculta o popup
-            document.getElementById("popup-overlay").style.display = "none"; // Oculta o fundo escuro
-        }
-
-        // Função para consultar o chamado
-        function consultarChamado() {
-            const idChamado = document.getElementById("id-chamado").value;
-            if (idChamado) {
-                alert("Consultando o chamado com ID: " + idChamado);
-                // Adicione o código de consulta real aqui
-            } else {
-                alert("Por favor, informe o ID do chamado.");
-            }
-        }
-
-        // Função para pré-visualizar as imagens
-        function previewImages(event) {
-            const previewContainer = document.getElementById("image-preview-container");
-
-            // Limpa as miniaturas anteriores (se houver)
-            previewContainer.innerHTML = '';
-
-            const files = event.target.files;
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const reader = new FileReader();
-
-                reader.onload = function(e) {
-                    const container = document.createElement("div");
-                    container.classList.add("image-thumbnail-container");
-
-                    const img = document.createElement("img");
-                    img.src = e.target.result;
-                    img.classList.add("image-thumbnail");
-
-                    const deleteBtn = document.createElement("button");
-                    deleteBtn.classList.add("delete-btn");
-                    deleteBtn.innerHTML = "X";
-                    deleteBtn.onclick = function() {
-                        previewContainer.removeChild(container);
-                    };
-
-                    container.appendChild(img);
-                    container.appendChild(deleteBtn);
-                    previewContainer.appendChild(container);
-                };
-
-                reader.readAsDataURL(file); // Lê o arquivo como URL de dados (base64)
-            }
-        }
-
-        // Função para consultar o chamado via fetch
-        function consultarChamado() {
-            const idChamado = document.getElementById("id-chamado").value;
-            if (idChamado) {
-                fetch(`/consultar/${idChamado}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data) {
-                            document.getElementById("change-by").innerText = data.change_by;
-                            document.getElementById("state").innerText = data.state;
-                            document.getElementById("reason").innerText = data.reason;
-                            document.getElementById("board-column").innerText = data.board_column;
-                            //document.getElementById("comentarios").innerText = data.comentarios;
-                        } else {
-                            alert("Erro ao consultar o chamado");
-                        }
-                    })
-                    .catch(error => alert("Erro ao consultar o chamado"));
-            } else {
-                alert("Por favor, informe o ID do chamado.");
-            }
-        }
-    </script>
+    </div>
 </body>
 </html>

@@ -1,0 +1,136 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background: linear-gradient(to right, #280A3B, #02FB79);
+    margin: 0;
+}
+
+h1 {
+    color: #1E0A2F;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.container {
+    display: flex;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 10px 10px 20px rgba(0, 0, 0, 0.2);
+    width: 800px;
+    max-width: 90%;
+}
+
+.form-container {
+    flex: 1;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+.info-container {
+    flex: 1;
+    background: #3D007A;
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;    
+    position: relative;        
+}
+
+.logo {    
+    width: 200px;
+    height: auto; 
+    text-align: center; 
+    margin: 0 auto;
+    display: block;
+}
+
+.btn-consulta-chamado{
+    position: absolute;
+    width: 300px;  
+    padding: 10px;    
+    background-color: #1E0A2F;
+    color: #fff;   
+    border: #fff solid 1px;    
+    left: 50%;
+    bottom: 25px;
+    transform: translateX(-50%) ;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;    
+    transition: background 0.3s;
+}
+
+.btn-consulta-chamado:hover{
+    background-color: #029E50;
+    color: #1E0A2F;
+}     
+
+
+.form-group {
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 8px;
+    background: #fff;
+    transition: border-color 0.3s;
+}
+.form-group i {
+    margin-right: 10px;
+    color: #555;
+}
+
+.form-group input, .form-group select, .form-group textarea {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    padding: 5px;
+}
+
+.form-group:focus-within {
+    border-color: #029E50;
+    box-shadow: 0 0 5px rgba(2, 158, 80, 0.5);
+}
+
+textarea {
+    resize: none;
+    height: 80px;
+}
+.btn-envia-chamado {
+    width: auto;
+    padding: 12px;
+    background-color: #1E0A2F;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 10px;
+    transition: background 0.3s;
+}
+
+.btn-envia-chamado:hover {
+    background-color: #029E50;
+    color: #1E0A2F;
+}
+
+p {
+    margin-top: 20px;
+    font-weight: bold;
+    color: #fff;
+    line-height: .2;
+}
+
+.fa-heart {    
+    color:red;
+}
+

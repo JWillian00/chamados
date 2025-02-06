@@ -20,7 +20,7 @@ def enviar_email(destinatario, id_chamado):
 
 
                     Atenciosamente,
-                    Equipe de Suporte"""
+                    Suporte T.I BRAVEO"""
 
     msg = MIMEMultipart()
     msg['From'] = remendente            

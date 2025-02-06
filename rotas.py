@@ -1,0 +1,131 @@
+import requests
+import base64
+import os
+from enviar_img import upload_to_imgur
+from flask import flash
+
+# Configurações de cada empresa
+CONFIG = {
+    "tiscoski": {
+        "organization": "BRAVEO",
+        "project": "e-Commerce%20Tiscoski",
+        "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
+    },
+    "ibiapina": {
+        "organization": "BRAVEO",
+        "project": "Click%20Veplex",
+        "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
+    }
+}
+
+
+PLATAFORMA_MAPEADA = {
+    "click": "ibiapina", 
+    "sf commerce": "tiscoski"
+    
+}
+
+def get_headers(token):
+    encoded_token = base64.b64encode(f":{token}".encode("utf-8")).decode("utf-8")
+    return {
+        "Content-Type": "application/json-patch+json",
+        "Authorization": f"Basic {encoded_token}"
+    }
+def consultar_chamado(id_chamado, plataforma):
+    plataforma = plataforma.lower().strip()
+
+    if plataforma in PLATAFORMA_MAPEADA:
+        empresa = PLATAFORMA_MAPEADA[plataforma]
+    else:
+        return {"error": "Plataforma inválida."}	
+
+    config = CONFIG[empresa]
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
+    
+    headers = get_headers(config["token"])
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+        chamado_data = response.json()
+
+        titulo = chamado_data.get("fields", {}).get("System.Title", "Título não encontrado")
+        
+        return {
+            "titulo": titulo,
+            "estado_chamado": chamado_data.get('fields', {}).get('System.State', "N/A"),
+            "status": chamado_data.get('fields', {}).get('System.Reason', "N/A"),
+            "coluna": chamado_data.get('fields', {}).get('System.BoardColumn', "N/A"),
+        }
+        
+    except requests.exceptions.RequestException as e:
+        return {"error": f"Erro ao consultar o Chamado: {str(e)}"}
+
+
+
+def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_type="issue", evidencia_file=None):
+    empresa = empresa.lower().strip()  
+    plataforma = plataforma.lower().strip()  # Remove espaços extras
+
+    
+
+    if plataforma in PLATAFORMA_MAPEADA:
+        empresa = PLATAFORMA_MAPEADA[plataforma]    
+
+    config = CONFIG[empresa]
+    imgur_links = []
+
+    if evidencia_file:
+        for file in evidencia_file:
+            
+            if isinstance(file, str):
+                
+                imgur_links.append(file)
+            else:
+                
+                upload_path = os.path.join("uploads", file.filename)
+                file.save(upload_path)
+
+                
+                imgur_link = upload_to_imgur(upload_path)
+                print(f"Enviando arquivo: {upload_path}")
+
+                if imgur_link:
+                    imgur_links.append(imgur_link)
+
+                os.remove(upload_path)
+                print(f"Imagens enviadas: {imgur_link}")
+
+    else:
+        print("Nenhuma evidência foi anexada.")
+
+    descricao_formatada = f"""
+    <strong>Empresa:</strong> {empresa}<br>
+    <strong>Plataforma:</strong> {plataforma}<br>
+    <strong>E-mail:</strong> {email}<br>
+    <strong>Descrição:</strong> {descricao}
+    """
+
+    # Adicionando as imagens à descrição
+    if imgur_links:
+        for link in imgur_links:
+            descricao_formatada += f'<br><br><strong>Evidência:</strong><br><img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">'
+
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
+    headers = get_headers(config["token"])
+    payload = [
+        {"op": "add", "path": "/fields/System.Title", "value": titulo},
+        {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
+        {"op": "add", "path": "/fields/System.State", "value": "Doing"},
+        #{"op": "add", "path": "/fields/System.BoardLane", "value": "Sustentação"}
+    ]
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(response.text)
+        return {"error": f"Erro ao criar o Chamado!: {str(e)}"}
+    
