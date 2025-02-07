@@ -15,8 +15,7 @@ def enviar_email(destinatario, id_chamado):
                     🔹 ID do Chamado: {id_chamado}
 
                     Nossa equipe analisará sua solicitação em breve. 
-                    Caso precise de mais informações, responda a este e-mail.
-
+                    
 
 
                     Atenciosamente,

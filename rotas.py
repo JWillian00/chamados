@@ -101,8 +101,8 @@ def consultar_chamado(id_chamado, plataforma):
 def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_type="issue", evidencia_file=None):
     empresa_selecionada = empresa.strip()
 
-    print(f"Plataforma recebida: '{plataforma}'")
-    print(f"Empresa selecionada após strip e lower: '{empresa_selecionada}'")
+    print(f" '{plataforma}'")
+    print(f" '{empresa_selecionada}'")
 
     if plataforma == "e-commerce":        
         if empresa_selecionada not in ["tiscoski", "Oniz"]:
