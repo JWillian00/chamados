@@ -6,12 +6,12 @@ from flask import flash, jsonify
 
 # Configurações de cada empresa
 CONFIG = {
-    "tiscoski": {
+    "board_ecomm": {
         "organization": "BRAVEO",
-        "project": "e-Commerce%20Tiscoski",
+        "project": "E-commerce%20Team",
         "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
     },
-    "ibiapina": {
+    "board_click": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex",
         "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
@@ -20,8 +20,9 @@ CONFIG = {
 
 
 PLATAFORMA_MAPEADA = {
-    "click": "ibiapina", 
-    "sf commerce": "tiscoski"
+    "click": "board_click", 
+    "E-commerce": "board_ecomm",     
+     
     
 }
 
@@ -98,22 +99,26 @@ def consultar_chamado(id_chamado, plataforma):
 
 
 def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_type="issue", evidencia_file=None):
+    empresa_selecionada = empresa.strip()
 
+    print(f"Plataforma recebida: '{plataforma}'")
+    print(f"Empresa selecionada após strip e lower: '{empresa_selecionada}'")
 
-    if plataforma == "sf commerce" and empresa != "tiscoski":
-        flash("Verifique a plataforma selecionada", "error")
-        return{"error": "Verifique a plataforma selecionada"}
-
-    empresa = empresa.lower().strip()  
-    plataforma = plataforma.lower().strip()  # Remove espaços extras
-
+    if plataforma == "e-commerce":        
+        if empresa_selecionada not in ["tiscoski", "Oniz"]:
+            flash("Apenas as empresas Tiscoski e Oniz podem criar chamados na plataforma E-commerce.", "error")
+            return {"error": "Plataforma restrita a empresas Tiscoski e Oniz."}
+    elif plataforma == "click":
+        #empresa_selecionada = empresa.strip().lower()
+        pass   
     
 
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
-
-    if empresa not in CONFIG:
-        return {"error": "Empresa inválida, verifique os dados da empresa."}    
+    else:
+        return {"error": "Plataforma inválida."}
+    #if empresa not in CONFIG:
+     #   return {"error": "Empresa inválida, verifique os dados da empresa."}    
 
     config = CONFIG[empresa]
     imgur_links = []
@@ -143,7 +148,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_ty
         print("Nenhuma evidência foi anexada.")
 
     descricao_formatada = f"""
-    <strong>Empresa:</strong> {empresa}<br>
+    <strong>Empresa:</strong> {empresa_selecionada}<br>
     <strong>Plataforma:</strong> {plataforma}<br>
     <strong>E-mail:</strong> {email}<br>
     <strong>Descrição:</strong> {descricao}
