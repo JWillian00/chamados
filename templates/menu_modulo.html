@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Menu</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('/static/image/fundo_chamados.png'); 
+            background-position: center;
+            background-size: cover; 
+            background-attachment: fixed; 
+            background-color: #f9f9f9;
+            padding: 5cm;
+            box-sizing: border-box;
+        }
+
+        .menu-container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100vw;  
+            height: 80vh; 
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; 
+            align-items: flex-start; 
+            position: relative;
+        }
+
+        .menu-wrapper {
+            display: flex;
+            gap: 10px; 
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #007bff;
+            color: white;
+            width: 120px; 
+            height: 120px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .menu-item:hover {
+            background-color: #0056b3;
+        }
+
+        .label {
+            margin-top: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu-container">
+        <div class="menu-wrapper">
+            <!-- Botão 'Abrir Chamado' -->
+            <a href="/" class="menu-item">
+                <span class="icon">📄</span>
+            </a>
+            <div class="label">Abertura Chamado</div>
+
+            <!-- Botão 'Relatório' -->
+            <a href="#" class="menu-item">
+                <span class="icon">📊</span>
+            </a>
+            <div class="label">Relatório</div>
+        </div>
+    </div>
+</body>
+</html>

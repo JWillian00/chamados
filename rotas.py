@@ -4,23 +4,25 @@ import os
 from enviar_img import upload_to_imgur
 from flask import flash, jsonify
 
-# Configurações de cada empresa
+
 CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
         "project": "E-commerce%20Team",
         "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
     },
-    "board_click": {
+    "board_sustentacao": {
         "organization": "BRAVEO",
-        "project": "Click%20Veplex",
+        "project": "Sustentacao%20Equipe%20Vendas",
         "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
     }
 }
 
 
 PLATAFORMA_MAPEADA = {
-    "click": "board_click", 
+    "click": "board_sustentacao",
+    "upVendas": "board_sustentacao", 
+    "SalesForce": "board_sustentacao", 
     "E-commerce": "board_ecomm",     
      
     
@@ -85,6 +87,7 @@ def consultar_chamado(id_chamado, plataforma):
         chamado_data = response.json()
 
         titulo = chamado_data.get("fields", {}).get("System.Title", "Título não encontrado")
+        print("Retorno Consulta API", chamado_data)
         
         return {
             "titulo": titulo,
@@ -98,12 +101,9 @@ def consultar_chamado(id_chamado, plataforma):
 
 
 
-def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_type="issue", evidencia_file=None):
+def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work_item_type="issue", evidencia_file=None):
     empresa_selecionada = empresa.strip()
-
-    print(f" '{plataforma}'")
-    print(f" '{empresa_selecionada}'")
-
+    
     if plataforma == "e-commerce":        
         if empresa_selecionada not in ["tiscoski", "Oniz"]:
             flash("Apenas as empresas Tiscoski e Oniz podem criar chamados na plataforma E-commerce.", "error")
@@ -161,12 +161,19 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, work_item_ty
 
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     headers = get_headers(config["token"])
+
+    estado_inicial = "New" if empresa == "board_sustentacao" else "Doing"
+
     payload = [
         {"op": "add", "path": "/fields/System.Title", "value": titulo},
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
-        {"op": "add", "path": "/fields/System.State", "value": "Doing"},
+        {"op": "add", "path": "/fields/System.State", "value": estado_inicial},
         #{"op": "add", "path": "/fields/System.BoardLane", "value": "Sustentação"}
     ]
+
+
+    if empresa == "board_sustentacao" and filial:
+        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
 
     try:
         response = requests.post(url, json=payload, headers=headers)

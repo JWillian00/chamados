@@ -18,6 +18,7 @@ def index():
         titulo = request.form.get("titulo2")
         descricao = request.form.get("descricao")
         evidencia_files = request.files.getlist('evidencia')
+        filial = request.form.get("filial")
 
         print(f"Empresa: {empresa}, Plataforma: {plataforma}, E-mail: {email}, Título: {titulo}, Descrição: {descricao}")
 
@@ -47,7 +48,7 @@ def index():
             descricao += "<br><br>" + "<br>".join([f'<img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">' for link in imgur_links])
 
         
-        result = create_work_item(titulo, descricao, empresa, plataforma, email)
+        result = create_work_item(titulo, descricao, empresa, plataforma, email, filial)
         print("Resultado da criação", result)
 
         if isinstance(result, dict) and "error" in result:
@@ -137,3 +138,5 @@ def adicionar_comentario():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000)) # Utiliza a porta do render para deploy
     app.run(host="0.0.0.0", port=port, debug=True)
+
+ 

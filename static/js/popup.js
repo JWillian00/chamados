@@ -87,14 +87,14 @@ function abrirPopupComentario() {
         return;
     }
 
-    // Exibe o popup
+ 
     document.getElementById("comentario-popup").style.display = "block";
     document.getElementById("comentario-popup-overlay").style.display = "block";
     
-    // Limpa os comentários antigos ao abrir o popup
+   
     document.getElementById("comentarios-texto").innerHTML = '';
 
-    // Faz a busca dos comentários através da API
+    
     fetch(`/consultar_comentarios?id_chamado=${idChamado}&plataforma=${plataforma}`)
     .then(response => response.json())
     .then(data => {
@@ -102,7 +102,7 @@ function abrirPopupComentario() {
             alert(data.error);
         } else {
             const comentariosContainer = document.getElementById('comentarios-texto');
-            const comentarios = data.comentarios || []; // Garantir que existe um array de comentários
+            const comentarios = data.comentarios || []; 
 
             if (comentarios.length > 0) {
                 comentarios.forEach(comentario => {
@@ -118,23 +118,23 @@ function abrirPopupComentario() {
     });
 }
 
-// Função para fechar o popup de comentários
+
 function fecharPopupComentario() {
     document.getElementById("comentario-popup").style.display = "none";
     document.getElementById("comentario-popup-overlay").style.display = "none";
 }
 
-// Função para enviar comentário (simulação)
+
 function enviarComentario() {
     const comentarioTexto = document.getElementById("novo-comentario").value;
-    const idChamado = document.getElementById("id-chamado").value; // ID do chamado, que você já tem no campo do ID do chamado.
+    const idChamado = document.getElementById("id-chamado").value; 
 
-    if (!comentarioTexto.trim()) {  // Verifica se o comentário está vazio ou apenas com espaços
+    if (!comentarioTexto.trim()) {  
         alert("Por favor, insira um comentário.");
-        return;  // Não envia a requisição se o campo estiver vazio
+        return;  
     }
 
-    // Enviar o comentário para o backend
+    
     fetch("/adicionar_comentario", {
         method: "POST",
         headers: {
@@ -149,9 +149,9 @@ function enviarComentario() {
     .then(data => {
         if (data.success) {
             alert("Comentário adicionado com sucesso!");
-            // Fechar o popup ou limpar o campo
-            document.getElementById("novo-comentario").value = "";  // Limpa o campo de comentário
-            document.getElementById("comentario-popup").style.display = "none";  // Fecha o popup
+            
+            document.getElementById("novo-comentario").value = "";  
+            document.getElementById("comentario-popup").style.display = "none"; 
         } else {
             alert("Erro ao adicionar comentário: " + data.error);
         }
