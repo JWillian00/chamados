@@ -5,30 +5,10 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
-import os  # Para acessar as variáveis de ambiente
 
-# Acessando as variáveis de ambiente no Render
-firebase_private_key = os.getenv("FIREBASE_PRIVATE_KEY")
-firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
-firebase_client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
 
-# Criando o dicionário de credenciais a partir das variáveis de ambiente
-creds = {
-    "type": "service_account",
-    "project_id": firebase_project_id,
-    "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
-    "private_key": firebase_private_key.replace('\\n', '\n'),  # Corrige a formatação da chave privada
-    "client_email": firebase_client_email,
-    "client_id": os.getenv("FIREBASE_CLIENT_ID"),
-    "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
-    "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
-    "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_CERT_URL"),
-    "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL")
-}
-
-# Inicializando o Firebase com as credenciais do ambiente
-cred = credentials.Certificate(creds)
-firebase_admin.initialize_app(cred)
+cre = credentials.Certificate("chave_firebase.json")
+firebase_admin.initialize_app(cre)
 db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
@@ -47,6 +27,7 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
 
     doc_ref = chamados_ref.document()  
     doc_ref.set(novo_chamado)  
+    
     id_banco_fb = doc_ref.id  
 
     print(f"ID Firebase: {id_banco_fb}")
@@ -62,8 +43,11 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         if isinstance(data_fechamento, str):
             try:
                 data_fechamento = datetime.strptime(data_fechamento, "%Y-%m-%dT%H:%M:%S.%fZ")
+
                 data_fechamento = pytz.utc.localize(data_fechamento)
                 hora_brasil = data_fechamento.astimezone(pytz.timezone("America/Sao_Paulo"))
+
+                
                 data_fechamento = hora_brasil
             except ValueError:
                 print(f"⚠ Erro ao converter a data_fechamento para datetime: {data_fechamento}")
