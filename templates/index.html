@@ -141,16 +141,16 @@
             background-color: #0056b3;
         }
 
-        /* Estilo para o Popup */
+        
         .popup {
-            display: none; /* Inicialmente invisível */
+            display: none; 
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40vw; /* Tamanho ajustado */
-            height: auto; /* Ajuste para que o popup se ajuste ao conteúdo */
-            max-height: 80vh; /* Limita a altura do popup */
+            width: 40vw; 
+            height: auto; 
+            max-height: 80vh; 
             background-color: white;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             padding: 20px;
@@ -159,12 +159,12 @@
             text-align: center;
             flex-direction: column;
             justify-content: flex-start;
-            overflow-y: auto; /* Permite rolagem quando necessário */
+            overflow-y: auto; 
         }
 
-        /* Estilo para o fundo que escurece */
+       
         .popup-overlay {
-            display: none; /* Inicialmente invisível */
+            display: none; 
             position: fixed;
             top: 0;
             left: 0;
@@ -174,15 +174,15 @@
             z-index: 1;
         }
 
-        /* Container para os botões */
+       
         .popup-btn-container {
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-top: 20px; /* Ajustar a margem dos botões */
+            margin-top: 20px; 
         }
 
-        /* Estilo para o input de ID */
+        
         .input-container {
             display: flex;
             justify-content: center;
@@ -291,6 +291,34 @@
             display: flex;
             justify-content: space-between;
             margin-top: 10px;
+        }
+        #senha-popup {
+            display: none;  /* Inicialmente escondido */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;  /* Aumentando o z-index para garantir que o popup esteja acima de outros elementos */
+            border-radius: 8px;
+            text-align: center;
+            opacity: 0;  /* Inicialmente invisível */
+            transition: opacity 0.3s ease-in-out;  /* Efeito de transição suave */
+        }
+        #senha-popup input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        #senha-popup .popup-btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -436,6 +464,15 @@
                 <!--<pre id="comentarios"></pre> -->
             </div>
 
+            <div id="senha-popup" style="display: none;">
+                <h2>Insira a Senha</h2>
+                <input type="password" id="senha-input" placeholder="Digite a senha" />
+                <div class="popup-btn-container">
+                    <button class="popup-btn" onclick="validarSenha()">OK</button>
+                    <button class="popup-btn" onclick="fecharSenhaPopup()">Voltar</button>
+                </div>
+            </div>
+
             
             <div class="popup-btn-container">
                 <button class="popup-btn close-btn" onclick="closePopup()">Voltar</button>
@@ -448,6 +485,7 @@
     <script src="{{ url_for('static', filename='js/popup.js') }}"></script>
     <script src="{{ url_for('static', filename='js/consultar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/previewImages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/senha_relatorio.js') }}" defer></script>
 
     </div>
 </body>

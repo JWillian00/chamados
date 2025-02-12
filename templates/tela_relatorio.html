@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('/static/image/fundo_chamados.png');
+            background-position: center;
+            background-size: cover;
+            background-attachment: fixed;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 80vw;
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .filters label {
+            font-weight: bold;
+        }
+
+        .filters input, .filters select {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .table-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            background: white;
+            padding: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table, th, td {
+            border: 1px solid black;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        .buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+        }
+
+        .btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background-color: #0056b3;
+        }
+
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">   
+    <form id="form-relatorio" action="/relatorio" method="POST">
+        <div class="filters">
+            <label>Data Inicial: <input type="date" name="data_inicial"></label>
+            <label>Data Final: <input type="date" name="data_final"></label>
+            <label>Filtrar por: </label>
+            <label><input type="radio" name="filtro_data" value="fechamento"> Data Fechamento</label>
+            <label><input type="radio" name="filtro_data" value="abertura" checked> Data Abertura</label>
+            <label>Filial: <input type="text" name="filial"></label>
+            <label>Email: <input type="email" name="email"></label>
+            <label>Empresa: <input type="text" name="empresa"></label>
+            <label>Plataforma: <input type="text" name="plataforma"></label>
+            <label>Título: <input type="text" name="titulo"></label>
+        </div>        
+    </form>        
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Data Inicial</th>                        
+                        <th>Data Fechamento</th>
+                        <th>Filial</th>
+                        <th>Email</th>
+                        <th>Empresa</th>
+                        <th>Plataforma</th>
+                        <th>Título</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for chamado in chamados %}
+                        <tr>
+                            <td>{{ chamado.id_chamado }}</td>  
+                            <td>{{ chamado.data_criacao }}</td> 
+                            <td>{{ chamado.data_fechamento }}</td>                            
+                            <td>{{ chamado.filial }}</td>
+                            <td>{{ chamado.email }}</td>
+                            <td>{{ chamado.empresa }}</td>
+                            <td>{{ chamado.plataforma }}</td>
+                            <td>{{ chamado.titulo }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>        
+        <div class="buttons">
+            <button class="btn" onclick="gerarRelatorio()">Gerar Relatório</button>
+            <button class="btn" onclick="exportarExcel()">Exportar para Excel</button>
+            <button class="btn" onclick="exportarExcelEmail()">Exportar para Excel e Enviar por E-mail</button>
+            <button class="btn" onclick="window.location.href = '/'">Voltar</button>
+        </div>
+    </div>
+
+    <div class="loading" id="loading">Gerando relatório...</div>
+    <script src="{{ url_for('static', filename='js/gerar_relatorio.js') }}"></script>
+   
+</body>
+</html>

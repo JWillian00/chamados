@@ -3,6 +3,7 @@ import base64
 import os
 from enviar_img import upload_to_imgur
 from flask import flash, jsonify
+from firebase import salvar_chamado
 
 
 CONFIG = {
@@ -34,8 +35,8 @@ def consultar_comentarios(id_chamado, plataforma):
 
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
-    else:
-        return {"error": "Plataforma inválida."}	
+    #else:
+     #   return {"error": "Plataforma inválida."}	
 
     config = CONFIG[empresa]
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
@@ -70,14 +71,14 @@ def get_headers(token):
 def consultar_chamado(id_chamado, plataforma):
     plataforma = plataforma.lower().strip()
 
-    if plataforma in PLATAFORMA_MAPEADA:
-        empresa = PLATAFORMA_MAPEADA[plataforma]
-    else:
-        return {"error": "Plataforma inválida."}	
+    empresa = PLATAFORMA_MAPEADA.get(plataforma)
 
+    if not empresa:
+        #empresa = PLATAFORMA_MAPEADA[plataforma]
+        return {"error": "Plataforma inválida."}
     config = CONFIG[empresa]
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
-    
+     
     headers = get_headers(config["token"])
 
     try:
@@ -154,7 +155,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
     <strong>Descrição:</strong> {descricao}
     """
 
-    # Adicionando as imagens à descrição
+    
     if imgur_links:
         for link in imgur_links:
             descricao_formatada += f'<br><br><strong>Evidência:</strong><br><img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">'
@@ -174,15 +175,25 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
 
     if empresa == "board_sustentacao" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
-
+    elif empresa == "board_ecomm" and plataforma == "e-commerce": #corrigir depois
+        payload.append({"op": "add", "path": "WEF_765C82827AD64DB0A5A33CDF65F2664C_Kanban.Lane", "value": "Sustentação"})
     try:
+
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
+
+        if response.status_code == 200:
+            chamado_data = response.json()
+            id_chamado = chamado_data.get("id")
+            salvar_chamado(empresa_selecionada, plataforma, email, titulo, descricao, filial, id_chamado)
+
         return response.json()
+    
     except requests.exceptions.RequestException as e:
         print(response.text)
         return {"error": f"Erro ao criar o Chamado!: {str(e)}"}
     
+        
 def adicionar_comentario_card (id_chamado, comentario, plataforma):
     
     if not plataforma:
@@ -212,3 +223,4 @@ def adicionar_comentario_card (id_chamado, comentario, plataforma):
 
     except requests.exceptions.RequestException as e:
         return {"error": f"Erro ao adicionar comentário: {str(e)}"}
+    
