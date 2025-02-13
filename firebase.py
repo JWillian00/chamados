@@ -7,27 +7,8 @@ from datetime import datetime
 import pytz
 import os  # Para acessar as variáveis de ambiente
 
-# Acessando as variáveis de ambiente no Render
-firebase_private_key = os.getenv("FIREBASE_PRIVATE_KEY")
-firebase_project_id = os.getenv("FIREBASE_PROJECT_ID")
-firebase_client_email = os.getenv("FIREBASE_CLIENT_EMAIL")
-
-# Criando o dicionário de credenciais a partir das variáveis de ambiente
-creds = {
-    "type": "service_account",
-    "project_id": firebase_project_id,
-    "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
-    "private_key": firebase_private_key.replace('\\n', '\n'),  # Corrige a formatação da chave privada
-    "client_email": firebase_client_email,
-    "client_id": os.getenv("FIREBASE_CLIENT_ID"),
-    "auth_uri": os.getenv("FIREBASE_AUTH_URI"),
-    "token_uri": os.getenv("FIREBASE_TOKEN_URI"),
-    "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_CERT_URL"),
-    "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_CERT_URL")
-}
-
-# Inicializando o Firebase com as credenciais do ambiente
-cred = credentials.Certificate(creds)
+firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+cred = credentials.Certificate(firebase_config)
 firebase_admin.initialize_app(cred)
 db = firestore.client()
 
