@@ -8,8 +8,9 @@ import pytz
 import json
 
 
-cre = credentials.Certificate("chave_firebase.json")
-firebase_admin.initialize_app(cre)
+firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
