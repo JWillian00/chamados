@@ -14,7 +14,7 @@ CONFIG = {
     },
     "board_sustentacao": {
         "organization": "BRAVEO",
-        "project": "Sustentacao%20Equipe%20Vendas",
+        "project": "Click%20Veplex",
         "token": "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
     }
 }
@@ -22,8 +22,6 @@ CONFIG = {
 
 PLATAFORMA_MAPEADA = {
     "click": "board_sustentacao",
-    "upVendas": "board_sustentacao", 
-    "SalesForce": "board_sustentacao", 
     "E-commerce": "board_ecomm",     
      
     
@@ -152,6 +150,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
     <strong>Empresa:</strong> {empresa_selecionada}<br>
     <strong>Plataforma:</strong> {plataforma}<br>
     <strong>E-mail:</strong> {email}<br>
+    <strong>Filial:</strong> {filial}<br>
     <strong>Descrição:</strong> {descricao}
     """
 
@@ -163,20 +162,21 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     headers = get_headers(config["token"])
 
-    estado_inicial = "New" if empresa == "board_sustentacao" else "Doing"
+    estado_inicial = "New" #if empresa == "board_sustentacao" else "Doing"
 
     payload = [
         {"op": "add", "path": "/fields/System.Title", "value": titulo},
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
         {"op": "add", "path": "/fields/System.State", "value": estado_inicial},
+        #{"op": "add", "path": "/fields/Custom.Unidade", "value": filial}
         #{"op": "add", "path": "/fields/System.BoardLane", "value": "Sustentação"}
     ]
 
-
+    
     if empresa == "board_sustentacao" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
-    elif empresa == "board_ecomm" and plataforma == "e-commerce": #corrigir depois
-        payload.append({"op": "add", "path": "WEF_765C82827AD64DB0A5A33CDF65F2664C_Kanban.Lane", "value": "Sustentação"})
+    elif empresa == "board_ecomm" and filial:
+        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
     try:
 
         response = requests.post(url, json=payload, headers=headers)
