@@ -6,6 +6,7 @@ from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
 import json
+import os
 
 
 firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
