@@ -7,6 +7,9 @@ from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
 from gerar_relatorio import gerar_relatorio
 from firebase import db
+from datetime import datetime
+from firebase_admin import firestore
+
 
 app = Flask(__name__)
 app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
@@ -191,12 +194,13 @@ def adicionar_comentario():
     else:
         return jsonify({"mensagem": "Comentário adicionado com sucesso!"})
     
+
+
 @app.route('/relatorio', methods=['GET', 'POST'])
 def relatorio():
+    timestamp = firestore.SERVER_TIMESTAMP
     if request.method == 'POST':
-       
         dados = request.json
-      
         data_inicial = dados.get('data_inicial', '')
         data_final = dados.get('data_final', '')
         filtro_data = dados.get('filtro_data', '')
@@ -205,51 +209,87 @@ def relatorio():
         empresa = dados.get('empresa', '')
         plataforma = dados.get('plataforma', '')
         titulo = dados.get('titulo', '')
-       
+        
         chamados_ref = db.collection('chamados')
+        query = chamados_ref        
         
-        query = chamados_ref
+        def parse_date(data_str):
+            try:
+                return datetime.strptime(data_str, "%Y-%m-%d") if data_str else None
+            except ValueError:
+                print(f"⚠ Erro ao converter a data: {data_str}")
+                return None
+
+      
+        data_inicial = parse_date(data_inicial)
+        data_final = parse_date(data_final)    
        
+
+        
         if data_inicial and data_final:
-            query = query.where('data_criacao', '>=', data_inicial).where('data_criacao', '<=', data_final)
-        
-        if filtro_data:
-            
-            if filtro_data == 'fechamento':
-                query = query.where('data_fechamento', '!=', None)  
-            else:
-                query = query.where('data_abertura', '!=', None)  
+            print(f"Aplicando filtro de data_criacao entre {data_inicial} e {data_final}")
+            query = query.where('data_criacao', '>=', firestore.Client().from_datetime(data_inicial))
 
+            query = query.where('data_criacao', '<=', firestore.Timestamp.from_datetime(data_final))
+        elif data_inicial:
+            print(f"Aplicando filtro de data_criacao a partir de {data_inicial}")
+            query = query.where("data_criacao", ">=", firestore.Timestamp.from_datetime(data_inicial))
+        elif data_final:
+            print(f"Aplicando filtro de data_criacao até {data_final}")
+            query = query.where("data_criacao", "<=", firestore.Timestamp.from_datetime(data_final))
+
+        # Filtro por data de fechamento, caso o filtro_data seja 'fechamento'
+        if filtro_data == 'fechamento':
+            if data_inicial and data_final:
+                print(f"Aplicando filtro de data_fechamento entre {data_inicial} e {data_final}")
+                query = query.where('data_fechamento', '>=', firestore.Timestamp.from_datetime(data_inicial))
+                query = query.where('data_fechamento', '<=', firestore.Timestamp.from_datetime(data_final))
+            elif data_inicial:
+                print(f"Aplicando filtro de data_fechamento a partir de {data_inicial}")
+                query = query.where('data_fechamento', '>=', firestore.Timestamp.from_datetime(data_inicial))
+            elif data_final:
+                print(f"Aplicando filtro de data_fechamento até {data_final}")
+                query = query.where('data_fechamento', '<=', firestore.Timestamp.from_datetime(data_final))
+
+        # Filtros adicionais
         if filial:
-            query = query.where('filial', '==', filial)
-
+            print(f"Aplicando filtro de filial: {filial}")
+            query = query.where("filial", "==", filial)
         if email:
-            query = query.where('email', '==', email)
-
+            print(f"Aplicando filtro de email: {email}")
+            query = query.where("email", "==", email)
         if empresa:
-            query = query.where('empresa', '==', empresa)
-
+            print(f"Aplicando filtro de empresa: {empresa}")
+            query = query.where("empresa", "==", empresa)
         if plataforma:
-            query = query.where('plataforma', '==', plataforma)
-
+            print(f"Aplicando filtro de plataforma: {plataforma}")
+            query = query.where("plataforma", "==", plataforma)
         if titulo:
-            query = query.where('titulo', '==', titulo)
+            print(f"Aplicando filtro de título: {titulo}")
+            query = query.where("titulo", "==", titulo)
 
-        
-        resultados = query.stream()
+        # Executando a consulta no Firestore
+        results = query.stream()
 
-       
+        # Coletando os resultados
         chamados = []
-        for doc in resultados:
+        for doc in results:
             chamado = doc.to_dict()
-            chamado['id_chamado'] = doc.id  
+            print(f"Encontrado chamado: {chamado['id_chamado']}")  # Verificar dados
+            chamado["id_chamado"] = doc.id
+            
+            # Converte o timestamp para string 'YYYY-MM-DD'
+            chamado["data_criacao"] = chamado.get("data_criacao", "").strftime("%Y-%m-%d") if chamado.get("data_criacao") else ""
+            chamado["data_fechamento"] = chamado.get("data_fechamento", "").strftime("%Y-%m-%d") if chamado.get("data_fechamento") else ""
+            
             chamados.append(chamado)
 
-       
+        print(f"Total de chamados encontrados: {len(chamados)}")
+
         return jsonify({"chamados": chamados})
 
-    
     return render_template('tela_relatorio.html')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000)) # Utiliza a porta do render para deploy
     app.run(host="0.0.0.0", port=port, debug=True)
