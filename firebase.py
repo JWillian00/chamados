@@ -5,6 +5,7 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
+import json
 
 
 cre = credentials.Certificate("chave_firebase.json")
@@ -73,7 +74,7 @@ def job_monitora_chamado():
             chamados_abertos = db.collection("chamados_braveo").stream()
             chamados_pendentes = [doc for doc in chamados_abertos if not doc.to_dict().get("data_fechamento")]
 
-            print(f"Chamados encontrados: {len(chamados_pendentes)}")  
+            print(f"📟 Chamados encontrados: {len(chamados_pendentes)}")  
 
             if not chamados_pendentes:
                 print("✅ Nenhum chamado pendente encontrado.")
@@ -117,6 +118,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
 
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(12)  
+        time.sleep(15)  
 
 threading.Thread(target=job_monitora_chamado, daemon=True).start()

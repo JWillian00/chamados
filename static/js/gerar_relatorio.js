@@ -34,6 +34,7 @@ function gerarRelatorio() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log("retorno servidor: ", data);
         document.getElementById('loading').style.display = 'none';
 
         // Renderiza os dados na tabela
