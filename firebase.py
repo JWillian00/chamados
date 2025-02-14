@@ -5,11 +5,20 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
+<<<<<<< HEAD
 import json
 
 
 cre = credentials.Certificate("chave_firebase.json")
 firebase_admin.initialize_app(cre)
+=======
+import os  # Para acessar as variáveis de ambiente
+import json
+
+firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred)
+>>>>>>> cf878e959c97b093d4c4f7e3b95e4af396f52be5
 db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
@@ -118,6 +127,10 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
 
         print("⏳ Aguardando próximo ciclo...")
+<<<<<<< HEAD
         time.sleep(15)  
+=======
+        time.sleep(60)  
+>>>>>>> cf878e959c97b093d4c4f7e3b95e4af396f52be5
 
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
