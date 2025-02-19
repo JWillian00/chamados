@@ -9,11 +9,10 @@ import pytz
 import json
 import os
 
-#cre = credentials.Certificate("chamadosbraveo.json")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "chamadosbraveo.json"
-#initialize_app(cre)
-#firebase_admin.initialize_app(cre)
-db = firestore.Client()
+firebase_config = json.loads(os.getenv("FIREBASE_CREDENTIALS"))
+cred = credentials.Certificate(firebase_config)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
