@@ -1,16 +1,19 @@
-import firebase_admin
+from firebase_admin import initialize_app
 from firebase_admin import credentials, firestore
 import time
 import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
+#from google.cloud import firestore
 import json
+import os
 
-
-cre = credentials.Certificate("chave_firebase.json")
-firebase_admin.initialize_app(cre)
-db = firestore.client()
+#cre = credentials.Certificate("chamadosbraveo.json")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "chamadosbraveo.json"
+#initialize_app(cre)
+#firebase_admin.initialize_app(cre)
+db = firestore.Client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
@@ -118,6 +121,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
 
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(15)  
+        time.sleep(15000)  
 
 threading.Thread(target=job_monitora_chamado, daemon=True).start()

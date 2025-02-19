@@ -67,14 +67,21 @@ def get_headers(token):
         "Authorization": f"Basic {encoded_token}"
     }
 def consultar_chamado(id_chamado, plataforma):
-    plataforma = plataforma.lower().strip()
+    plataforma = plataforma.strip()
 
     empresa = PLATAFORMA_MAPEADA.get(plataforma)
 
     if not empresa:
-        #empresa = PLATAFORMA_MAPEADA[plataforma]
+        empresa = PLATAFORMA_MAPEADA[plataforma]
         return {"error": "Plataforma inválida."}
+    
+
     config = CONFIG[empresa]
+
+    if not config:
+        return {"error": "Plataforma inválida."}
+    
+
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
      
     headers = get_headers(config["token"])
@@ -199,7 +206,7 @@ def adicionar_comentario_card (id_chamado, comentario, plataforma):
     if not plataforma:
         return {"error": "Plataforma inválida."}
     
-    plataforma = plataforma.lower().strip()
+    #plataforma = plataforma.lower().strip()
 
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
