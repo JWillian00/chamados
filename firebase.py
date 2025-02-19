@@ -10,8 +10,8 @@ import json
 import os
 
 firebase_config = json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-cred = credentials.Certificate(firebase_config)
-firebase_admin.initialize_app(cred)
+#cred = credentials.Certificate(firebase_config)
+#firebase_admin.initialize_app(cred)
 db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
