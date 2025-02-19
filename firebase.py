@@ -1,4 +1,4 @@
-from firebase_admin import initialize_app
+from firebase_admin
 from firebase_admin import credentials, firestore
 import time
 import threading
