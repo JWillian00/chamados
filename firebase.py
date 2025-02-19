@@ -9,10 +9,28 @@ import pytz
 import json
 import os
 
-firebase_config = json.loads(os.getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-#cred = credentials.Certificate(firebase_config)
-#firebase_admin.initialize_app(cred)
-db = firestore.Client()
+
+## ALTERAÇÃO PARA CONEXÃO COM BANCO FIREBASE NO RENDER
+firebase_config = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+if not firebase_config:
+    raise Exception("Erro ao capturar VA")
+
+try:
+    cred_dict = json.loads(firebase_config)
+    
+    cred_path = "/tmp/firebase-credentials.json"
+    with open(cred_path, "w") as f:
+        json.dump(cred_dict, f)
+    
+    if not firebase_admin._apps:
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+
+    db = firestore.client()
+
+except json.JSONDecodeError:
+    raise Exception("O conteúdo da variável GOOGLE_APPLICATION_CREDENTIALS não é um JSON válido.")
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
@@ -120,6 +138,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
 
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(15000)  
+        time.sleep(300)  
 
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
