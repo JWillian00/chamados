@@ -6,6 +6,7 @@ from flask import flash, jsonify
 from firebase import salvar_chamado
 
 
+
 CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
@@ -22,9 +23,17 @@ CONFIG = {
 
 PLATAFORMA_MAPEADA = {
     "click": "board_sustentacao",
-    "E-commerce": "board_ecomm",     
-     
+    "e-commerce": "board_ecomm",
+    "E-commerce": "board_ecomm",
+    "E-Commerce": "board_ecomm",
+    "Click": "board_sustentacao",
+    "board_sustentacao": "click",
+    "board_ecomm": "e-commerce"
     
+}
+PLATAFORMA_REVERSE_MAPEADA = {
+    "board_sustentacao": "click",
+    "board_ecomm": "e-commerce"
 }
 
 def consultar_comentarios(id_chamado, plataforma):
@@ -33,8 +42,8 @@ def consultar_comentarios(id_chamado, plataforma):
 
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
-    #else:
-     #   return {"error": "Plataforma inválida."}	
+    else:
+       return {"error": "Plataforma inválida."}	
 
     config = CONFIG[empresa]
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
@@ -67,44 +76,30 @@ def get_headers(token):
         "Authorization": f"Basic {encoded_token}"
     }
 def consultar_chamado(id_chamado, plataforma):
-    plataforma = plataforma.strip()
-
-    empresa = PLATAFORMA_MAPEADA.get(plataforma)
-
+    empresa = PLATAFORMA_MAPEADA.get(plataforma.lower().strip())
     if not empresa:
-        empresa = PLATAFORMA_MAPEADA[plataforma]
         return {"error": "Plataforma inválida."}
-    
 
     config = CONFIG[empresa]
-
-    if not config:
-        return {"error": "Plataforma inválida."}
-    
-
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
-     
     headers = get_headers(config["token"])
 
     try:
         response = requests.get(url, headers=headers)
         response.raise_for_status()
-
         chamado_data = response.json()
+       # print("Retorno Consulta API", chamado_data)
 
-        titulo = chamado_data.get("fields", {}).get("System.Title", "Título não encontrado")
-        print("Retorno Consulta API", chamado_data)
-        
         return {
-            "titulo": titulo,
+            "titulo": chamado_data.get("fields", {}).get("System.Title", "Título não encontrado"),
             "estado_chamado": chamado_data.get('fields', {}).get('System.State', "N/A"),
             "status": chamado_data.get('fields', {}).get('System.Reason', "N/A"),
             "coluna": chamado_data.get('fields', {}).get('System.BoardColumn', "N/A"),
+            "plataforma": empresa,
         }
         
     except requests.exceptions.RequestException as e:
-        return {"error": f"Verifique o ID digitado: {id_chamado}"}
-
+        return {"error": f"Erro ao consultar o chamado: {str(e)}"}
 
 
 def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work_item_type="issue", evidencia_file=None):
@@ -201,33 +196,37 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
         return {"error": f"Erro ao criar o Chamado!: {str(e)}"}
     
         
-def adicionar_comentario_card (id_chamado, comentario, plataforma):
-    
-    if not plataforma:
-        return {"error": "Plataforma inválida."}
-    
-    #plataforma = plataforma.lower().strip()
+def adicionar_comentario_card(id_chamado, comentario, plataforma ): 
+   
+    plataforma = plataforma.lower().strip()
+    print(f"Plataforma recebida: {plataforma}")
 
+    # Verifica se a plataforma é um board e converte para a plataforma correspondente
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
+        print(f"Plataforma convertida: {plataforma}")
     else:
-        return {"error": "Plataforma inválida."}
-    
-    config = CONFIG[empresa]
-    
+        print(f"Empresa não encontrada para a plataforma: {plataforma}")
+        return {"error": "Plataforma inválida."}	
+
+    config = CONFIG[plataforma]   
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
-    
-    headers = get_headers(config["token"])
-    playload = {
-        "text": comentario
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Basic {base64.b64encode(f':{config['token']}'.encode()).decode()}"
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=playload)
-        response.raise_for_status()
-
-        return {"sucess": True}
-
-    except requests.exceptions.RequestException as e:
-        return {"error": f"Erro ao adicionar comentário: {str(e)}"}
+    payload = {
+        "text": comentario
+    }
     
+    try:       
+        
+        response = requests.post(url, headers=headers, json=payload)
+        response.raise_for_status()        
+        return {"success": True}
+    except requests.exceptions.RequestException as e:
+        print(f"Erro na requisição: {e}")
+        print(f"Resposta da API: {response.text}")
+        return {"error": f"Erro ao adicionar comentário: {str(e)}"}
+

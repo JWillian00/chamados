@@ -163,7 +163,7 @@ def consultar_comentarios_route():
     if not id_chamado or not plataforma:
         return jsonify({"error": "ID do chamado e plataforma são obrigatórios."})
 
-    resultado = consultar_comentarios(id_chamado, plataforma)
+    resultado = consultar_comentarios(id_chamado, plataforma="click")
 
     if isinstance(resultado, Response):
         
@@ -173,28 +173,32 @@ def consultar_comentarios_route():
         return jsonify({"comentarios": resultado})
 
     if isinstance(resultado, dict) and "error" in resultado:
-        return jsonify({"error": resultado(["error"])})
+        return jsonify({"error": resultado["error"]})
     else:
         return jsonify({"comentarios": resultado.get("comentarios", [])})
     
 
 @app.route("/adicionar_comentario", methods=["POST"])
 def adicionar_comentario():
-    
     data = request.get_json()
     id_chamado = data.get("id_chamado")
     comentario = data.get("comentario")
-    plataforma = data.get("plataforma")
+    plataforma = data.get("plataforma")  
+    
 
-    if not comentario:
-        return jsonify({"error": "Escreva um comentário."})
+    if not id_chamado or not comentario:
+        return jsonify({"error": "ID do chamado e comentário são obrigatórios."})
+
+    if not plataforma:
+        chamado_info = consultar_chamado(id_chamado, plataforma="click")
+        if "error" in chamado_info:
+            return jsonify({"error": f"Não foi possível determinar a plataforma do chamado {id_chamado}."})
+        plataforma = chamado_info.get("plataforma")
+    if not isinstance(plataforma, str):
+            return jsonify({"error": "Plataforma inválida. Deve ser uma string."})
 
     resultado = adicionar_comentario_card(id_chamado, comentario, plataforma)
-
-    if "error" in resultado:
-        return jsonify({"error": resultado["error"]})
-    else:
-        return jsonify({"mensagem": "Comentário adicionado com sucesso!"})
+    return jsonify(resultado)
     
 
 
@@ -225,5 +229,3 @@ def relatorio():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000)) # Utiliza a porta do render para deploy
     app.run(host="0.0.0.0", port=port, debug=True)
-
- 

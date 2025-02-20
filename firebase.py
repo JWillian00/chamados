@@ -1,4 +1,4 @@
-from firebase_admin import initialize_app
+import firebase_admin
 from firebase_admin import credentials, firestore
 import time
 import threading
@@ -9,11 +9,9 @@ import pytz
 import json
 import os
 
-#cre = credentials.Certificate("chamadosbraveo.json")
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "chamadosbraveo.json"
-#initialize_app(cre)
-#firebase_admin.initialize_app(cre)
-db = firestore.Client()
+cre = credentials.Certificate("chave_firebase.json")
+firebase_admin.initialize_app(cre)
+db = firestore.client()
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
