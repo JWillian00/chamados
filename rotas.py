@@ -211,9 +211,11 @@ def adicionar_comentario_card(id_chamado, comentario, plataforma ):
 
     config = CONFIG[plataforma]   
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workItems/{id_chamado}/comments?api-version=7.1-preview.4"
+    token = config['token']
+    authorization_value = f"Basic {base64.b64encode(f':{token}'.encode('utf-8')).decode('utf-8')}"
     headers = {
     "Content-Type": "application/json",
-    "Authorization": f"Basic {base64.b64encode(f':{config['token']}'.encode('utf-8')).decode('utf-8')}"
+    "Authorization": authorization_value
     }
 
 
