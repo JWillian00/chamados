@@ -377,6 +377,18 @@
             margin-bottom: 10px;
             border-radius: 5px;
         }
+        #comentario-indicador {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            display: none;
+        }
+
+        #comentario-indicador img {
+            width: 310px;
+            height: 30px;
+        }
 
     </style>
 </head>
@@ -482,8 +494,13 @@
                 <button class="popup-btn close-btn" onclick="fecharPopupComentario()">Fechar</button>
             </div>
         </div>
-        <div class="popup" id="popup">
+        <div class="popup" id="popup">           
+
             <h2>Consulta de Chamado</h2>
+
+            <div id="comentario-indicador" style="display: none; position: absolute; top: 20px; right: 20px;">
+                <img src="/static/image/mensagem_gif.gif" alt="Comentários" style="width: 30px; height: 30px;">
+            </div>
 
             <div class="input-container">
                 <label for="plataforma-consulta">Selecione a Plataforma:</label>
