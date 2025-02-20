@@ -9,7 +9,7 @@ import pytz
 import json
 import os
 
-cre = credentials.Certificate("chamadosbraveo.json")
+cre = credentials.Certificate("chave_firebase.json")
 firebase_admin.initialize_app(cre)
 db = firestore.client()
 
