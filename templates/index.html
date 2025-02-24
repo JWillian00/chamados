@@ -391,6 +391,26 @@
             width: 310px;
             height: 30px;
         }
+        .form-group.botao-container {
+            width: auto;  /* Ajusta a largura do botão */
+            padding: 5;
+            font-size: 14px;
+            margin-bottom: 15px;
+            margin-top: -65px;
+            margin-left: 500px;
+            cursor: pointer;
+        }
+
+        .form-group button {
+            width: auto;  /* Ajusta a largura do botão */
+            padding: 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .form-group button:hover {
+            background-color: #0056b3;
+        }
 
     </style>
 </head>
@@ -452,18 +472,18 @@
 
             <div class="form-group">
                 <label for="email">E-mail:</label><br>
-                <input type="email" id="email" name="email"><br>
+                <input type="email" id="email" name="email" value="{{email}}"><br>
             </div>
 
             <div class="form-group">
                 <label for="titulo2">Título:</label><br>
-                <input type="text" id="titulo2" name="titulo2"><br>
+                <input type="text" id="titulo2" name="titulo2" value="{{titulo}}"><br>
             </div>
             
             
             <div class="form-group">
             <label for="descricao">Descrição:</label><br>
-            <textarea id="descricao" name="descricao" rows="4"></textarea><br>
+            <textarea id="descricao" name="descricao" rows="4" value="{{descricao}}"></textarea><br>
             </div>  
 
             <div class ="form-group">
@@ -472,9 +492,13 @@
             </div>
             <div id="image-preview-container"></div>
 
+            <div class="form-group">
             <button id="btnEnviar" type="submit">Enviar Chamado</button>
+            </div>
         </form>
+        <div class="form-group botao-container">
         <button class="popup-btn" onclick="openPopup()">Consulte seu chamado aqui!</button>
+        </div>
 
         <!-- Popup -->
         <div class="popup-overlay" id="popup-overlay"></div>

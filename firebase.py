@@ -5,6 +5,7 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
+#from google.cloud import firestore
 import json
 import os
 

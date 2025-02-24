@@ -61,13 +61,16 @@ def index():
             return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
         else:
             flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
+            email = ""
+            titulo = ""
+            descricao = ""
             if result:
                 id_chamado = result.get("id")
                 enviar_email(email, id_chamado)
                 return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
                 #return redirect(url_for("index"))
 
-        return redirect(url_for("index"))
+        return redirect(url_for("index", titulo=titulo, descricao=descricao,email=email))
 
     return render_template("index.html")
 

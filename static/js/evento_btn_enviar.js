@@ -10,13 +10,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.error('Formulário não encontrado.');
                 return;
             }
-
+            
             btn.disabled = true;
             btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Registrando chamado, aguarde...';
-
+            
             const formData = new FormData(form);
 
-            try {
+            try {                
                 const response = await fetch(form.action || window.location.href, {
                     method: form.method || 'POST',
                     body: formData
@@ -25,25 +25,24 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (!response.ok) {
                     throw new Error('Erro ao enviar o chamado');
                 }
-
+        
                 const result = await response.json();
                 console.log('Resposta do servidor:', result);
-
+           
                 if (result.flash_messages && result.flash_messages.length > 0) {
                     const flashMessagesContainer = document.getElementById('flash-messages');
 
                     if (flashMessagesContainer) {
-                        flashMessagesContainer.innerHTML = ''; // Limpa mensagens anteriores
+                        flashMessagesContainer.innerHTML = ''; 
 
                         result.flash_messages.forEach(([category, message]) => {
                             const messageElement = document.createElement('div');
                             messageElement.classList.add('alert');
 
-                            // Adiciona a classe CSS correta com base na categoria da mensagem
                             if (category === 'error') {
-                                messageElement.classList.add('alert-danger'); // Para Bootstrap
+                                messageElement.classList.add('alert-danger'); 
                             } else if (category === 'success') {
-                                messageElement.classList.add('alert-success');
+                                messageElement.classList.add('alert-success'); 
                             }
 
                             messageElement.innerText = message;
@@ -54,8 +53,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     }
                 }
 
-                if (result.success) {
-                    form.reset();
+                if (result.flash_messages && result.flash_messages.some(([category]) => category === 'success')) {
+                    form.reset(); 
+                    document.getElementById('image-preview-container').innerHTML = ''; 
                 }
 
             } catch (error) {
@@ -68,7 +68,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Passo 3: Adiciona classes CSS automaticamente com base no texto da mensagem
     const flashMessages = document.querySelectorAll('#flash-messages div');
     flashMessages.forEach(function (msg) {
         if (msg.textContent.includes('sucesso')) {
