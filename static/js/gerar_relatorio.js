@@ -1,10 +1,18 @@
 function gerarRelatorio() {
-    // Exibe o loading
+    // Exibe o loader
     document.getElementById('loading').style.display = 'flex';
 
-    // Coleta os dados dos filtros do formulário
-    let data_inicial = document.querySelector('input[name="data_inicial"]').value || '';
-    let data_final = document.querySelector('input[name="data_final"]').value || '';
+    // Captura os valores dos filtros
+    let data_inicial = document.querySelector('input[name="data_inicial"]').value;
+    let data_final = document.querySelector('input[name="data_final"]').value;
+
+    // Verifica se as datas foram preenchidas
+    if (!data_inicial) {
+        alert("Por favor, informe a data de abertura do chamado.");
+        document.getElementById('loading').style.display = 'none';
+        return;
+    }
+
     let filtro_data = document.querySelector('input[name="filtro_data"]:checked') ? document.querySelector('input[name="filtro_data"]:checked').value : '';
     let filial = document.querySelector('input[name="filial"]').value || '';
     let email = document.querySelector('input[name="email"]').value || '';
@@ -12,7 +20,7 @@ function gerarRelatorio() {
     let plataforma = document.querySelector('input[name="plataforma"]').value || '';
     let titulo = document.querySelector('input[name="titulo"]').value || '';
 
-    // Cria um objeto com os dados coletados
+    // Dados para enviar ao backend
     let dados = {
         data_inicial: data_inicial,
         data_final: data_final,
@@ -23,6 +31,7 @@ function gerarRelatorio() {
         plataforma: plataforma,
         titulo: titulo
     };
+    console.log("Dados para enviar ao backend: ", dados);
 
     // Envia os dados para o backend usando fetch (requisição POST)
     fetch('/relatorio', {
@@ -34,8 +43,13 @@ function gerarRelatorio() {
     })
     .then(response => response.json())
     .then(data => {
-        console.log("retorno servidor: ", data);
+        console.log("Retorno do servidor: ", data);
         document.getElementById('loading').style.display = 'none';
+
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
 
         // Renderiza os dados na tabela
         let tbody = document.querySelector('tbody');

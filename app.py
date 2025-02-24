@@ -208,14 +208,15 @@ def adicionar_comentario():
 @app.route('/relatorio', methods=['GET', 'POST'])
 def relatorio():
     if request.method == 'POST':
-        data_inicial = request.args.get('data_inicial', None)
-        data_final = request.args.get('data_final', None)
-        filtro_data = request.args.get('filtro_data', None)
-        filial = request.args.get('filial', None)
-        email = request.args.get('email', None)
-        empresa = request.args.get('empresa', None)
-        plataforma = request.args.get('plataforma', None)
-        titulo = request.args.get('titulo', None)
+        data = request.get_json()
+        data_inicial = data.get('data_inicial')
+        data_final = data.get('data_final')
+        filtro_data = data.get('filtro_data')
+        filial = data.get('filial')
+        email = data.get('email')
+        empresa = data.get('empresa')
+        plataforma = data.get('plataforma')
+        titulo = data.get('titulo')
 
         
         resultado = gerar_relatorio(data_inicial, data_final, filtro_data, filial, email, empresa, plataforma, titulo)
