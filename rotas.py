@@ -4,7 +4,7 @@ import os
 from enviar_img import upload_to_imgur
 from flask import flash, jsonify
 from firebase import salvar_chamado
-
+import time
 
 
 CONFIG = {
@@ -200,8 +200,7 @@ def adicionar_comentario_card(id_chamado, comentario, plataforma ):
    
     plataforma = plataforma.lower().strip()
     print(f"Plataforma recebida: {plataforma}")
-
-    # Verifica se a plataforma é um board e converte para a plataforma correspondente
+    
     if plataforma in PLATAFORMA_MAPEADA:
         empresa = PLATAFORMA_MAPEADA[plataforma]
         print(f"Plataforma convertida: {plataforma}")

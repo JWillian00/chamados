@@ -7,8 +7,8 @@ function consultarChamado() {
 
     loader.style.display = "block";
     consultaDados.style.display = "none";
-    comentarioIndicador.style.display = "none"; // Ocultar o GIF inicialmente
-
+    comentarioIndicador.style.display = "none"; 
+    
     fetch("/consultar", {
         method: "POST",
         headers: {
@@ -24,25 +24,25 @@ function consultarChamado() {
         if (data.error) {
             alert("Erro ao consultar o chamado: " + data.error);
         } else {
-            // Preencher os dados do chamado
+            
             document.getElementById("titulo").innerText = data.titulo;
             document.getElementById("state").innerText = data.estado_chamado;
             document.getElementById("reason").innerText = data.status;
             document.getElementById("board-column").innerText = data.coluna;
 
-            // Verificar se há comentários
+            
             fetch(`/consultar_comentarios?id_chamado=${idChamado}&plataforma=${plataforma}`)
                 .then(response => response.json())
                 .then(resultado => {
                     if (resultado.comentarios && resultado.comentarios.length > 0) {
-                        comentarioIndicador.style.display = "block"; // Mostrar o GIF se houver comentários
+                        comentarioIndicador.style.display = "block";
                     } else {
-                        comentarioIndicador.style.display = "none"; // Ocultar o GIF se não houver comentários
+                        comentarioIndicador.style.display = "none"; 
                     }
                 })
                 .catch(error => {
                     console.error("Erro ao buscar comentários:", error);
-                    comentarioIndicador.style.display = "none"; // Ocultar o GIF em caso de erro
+                    comentarioIndicador.style.display = "none"; 
                 });
         }
 
