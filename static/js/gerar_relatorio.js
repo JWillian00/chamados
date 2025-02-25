@@ -7,11 +7,11 @@ function gerarRelatorio() {
     let data_final = document.querySelector('input[name="data_final"]').value;
 
     // Verifica se as datas foram preenchidas
-    if (!data_inicial) {
-        alert("Por favor, informe a data de abertura do chamado.");
-        document.getElementById('loading').style.display = 'none';
-        return;
-    }
+   // if (!data_inicial) {
+     //   alert("Por favor, informe a data de abertura do chamado.");
+       // document.getElementById('loading').style.display = 'none';
+       // return;
+    //}
 
     let filtro_data = document.querySelector('input[name="filtro_data"]:checked') ? document.querySelector('input[name="filtro_data"]:checked').value : '';
     let filial = document.querySelector('input[name="filial"]').value || '';
