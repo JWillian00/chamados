@@ -450,6 +450,7 @@
                 <select id="plataforma" name="plataforma">
                     <option value="E-commerce">E-commerce</option>                
                     <option value="click">Click</option>
+                    <option value="Bodegamix">Bodegamix</option>
                 </select><br>
             </div>
 
@@ -533,6 +534,7 @@
                 <select id="plataforma-consulta" name="plataforma-consulta">
                     <option value=" E-commerce">E-commerce</option>   
                     <option value="click">Click</option>
+                    <option value="Bodegamix">Bodegamix</option>
                 </select>
             </div>
 
@@ -601,8 +603,7 @@
               atualizarPreview();
             };
             reader.readAsDataURL(file);
-          }
-          // Resetar o campo para permitir novas seleções sem substituir as antigas
+          }         
           event.target.value = "";
         });
       

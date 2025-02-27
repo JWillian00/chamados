@@ -1,38 +1,42 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import requests
 
 def enviar_email(destinatario, id_chamado):
-    #email = requests.form["email"]
     nome_solicitante = destinatario.split("@")[0] if destinatario else "Usuário"
-    remendente = "jonathanwillian710@gmail.com"
-    senha = "cvtz zvul ipxn afdx"
+    remetente = "jonathanwillian710@gmail.com"  
+    senha = "ipwz cujh frdv ivjj"
 
     assunto = "Chamado Criado com Sucesso!"
-    corpo = f"""Olá {nome_solicitante} ,
-                    Seu chamado foi criado com sucesso!
-                    🔹 ID do Chamado: {id_chamado}
+    corpo = f"""Olá {nome_solicitante},
 
-                    Nossa equipe analisará sua solicitação em breve. 
-                    
+Seu chamado foi criado com sucesso! 🚀
 
+🔹 **ID do Chamado:** {id_chamado}
 
-                    Atenciosamente,
-                    Suporte T.I BRAVEO"""
+Nossa equipe analisará sua solicitação em breve.
+
+Atenciosamente,  
+Suporte T.I BRAVEO"""
 
     msg = MIMEMultipart()
-    msg['From'] = remendente            
-    msg['To'] = destinatario
-    msg['Subject'] = assunto
-    msg.attach(MIMEText(corpo, 'plain'))
+    msg["From"] = remetente  
+    msg["To"] = destinatario
+    msg["Subject"] = assunto
+    msg.attach(MIMEText(corpo, "plain", "utf-8"))  
 
     try:
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login(remendente, senha)
-            server.sendmail(remendente, destinatario, msg.as_string())
+            server.login(remetente, senha)
+            server.sendmail(remetente, destinatario, msg.as_string())
+        
+        print(f"✅ E-mail enviado com sucesso para {destinatario}")
         return True
+
+    except smtplib.SMTPAuthenticationError:
+        print("❌ Erro de autenticação! Verifique a senha de aplicativo.")
+        return False
     except Exception as e:
-        print(f"Erro ao enviar email: {e}")
+        print(f"❌ Erro ao enviar email: {e}")
         return False

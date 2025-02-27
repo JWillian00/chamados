@@ -141,6 +141,7 @@ def consultar_chamado_route():
 
    
     resultado = consultar_chamado(id_chamado, plataforma)
+    print(f"Resultado da consulta: {resultado}")
     
 
     if "error" in resultado:
@@ -198,7 +199,7 @@ def adicionar_comentario():
             return jsonify({"error": f"Não foi possível determinar a plataforma do chamado {id_chamado}."})
         plataforma = chamado_info.get("plataforma")
     if not isinstance(plataforma, str):
-            return jsonify({"error": "Plataforma inválida. Deve ser uma string."})
+            return jsonify({"error": "Plataforma inválida"})
 
     resultado = adicionar_comentario_card(id_chamado, comentario, plataforma)
     return jsonify(resultado)
