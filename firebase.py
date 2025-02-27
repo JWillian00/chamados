@@ -16,24 +16,10 @@ firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 if not firebase_json:
     raise ValueError("A variável 'GOOGLE_APPLICATION_CREDENTIALS' não foi configurada corretamente.")
 
-
-try:
-    firebase_credentials = json.loads(firebase_json)
-except json.JSONDecodeError:
-    raise ValueError("O conteúdo da variável 'GOOGLE_APPLICATION_CREDENTIALS' não é um JSON válido.")
-
-
-with tempfile.NamedTemporaryFile(delete=False, mode='w') as temp_file:
-    json.dump(firebase_credentials, temp_file)
-    temp_file_path = temp_file.name
-
-
-cred = credentials.Certificate(temp_file_path)
+# Usando as credenciais diretamente sem a necessidade de um arquivo temporário
+cred = credentials.Certificate(json.loads(firebase_json))
 firebase_admin.initialize_app(cred)
 db = firestore.client()
-
-# Remove o arquivo temporário após o uso
-os.remove(temp_file_path)
 
 print("✅ Firebase conectado com sucesso!")
  
