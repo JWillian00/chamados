@@ -27,8 +27,10 @@ with tempfile.NamedTemporaryFile(delete=False) as temp_file:
  
 print("✅ Firebase conectado com sucesso!")
  
+ 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
+   
     novo_chamado = {
         "empresa": empresa,
         "plataforma": plataforma,
@@ -37,11 +39,12 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
         "descricao": descricao,
         "filial": filial,
         "id_chamado": id_chamado,  
-        "data_criacao": firestore.SERVER_TIMESTAMP 
+        "data_criacao": firestore.SERVER_TIMESTAMP
     }
  
     doc_ref = chamados_ref.document()  
     doc_ref.set(novo_chamado)  
+   
     id_banco_fb = doc_ref.id  
  
     print(f"ID Firebase: {id_banco_fb}")
@@ -52,7 +55,13 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
     query = chamados_ref.where("id_chamado", "==", id_chamado).stream()
  
     for doc in query:
+        chamado = doc.to_dict()
         doc_ref = chamados_ref.document(doc.id)
+
+        if "data_fechamento" in chamado:
+            print(f"Chamado ja fechado")
+            return False
+                
  
         if isinstance(data_fechamento, str):
             try:
@@ -61,11 +70,12 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
                 data_fechamento = pytz.utc.localize(data_fechamento)
                 hora_brasil = data_fechamento.astimezone(pytz.timezone("America/Sao_Paulo"))
  
-                
+               
                 data_fechamento = hora_brasil
             except ValueError:
                 print(f"⚠ Erro ao converter a data_fechamento para datetime: {data_fechamento}")
                 return False
+        data_fechamento_formatada = data_fechamento.strftime("%d/%m/%Y %H:%M:%S")
  
         doc_ref.update({
             "estado": estado,
@@ -75,6 +85,12 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         })
  
         print(f"✅ Chamado fechado atualizado no Firebase: {id_chamado}")
+
+        email_solicitante = chamado.get("email")
+        if email_solicitante:
+            enviar_email_fechamento(email_solicitante, id_chamado, estado, data_fechamento_formatada, usuario)
+        else:
+            print(f"⚠ Email do solicitante não encontrado para o chamado {id_chamado}")
         return True
     print(f"⚠ Chamado não encontrado no Firebase: {id_chamado}")
     return False
@@ -131,6 +147,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
  
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(300)  
+        time.sleep(10)  
  
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
