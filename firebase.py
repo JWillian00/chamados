@@ -7,11 +7,26 @@ from datetime import datetime
 import pytz
 #from google.cloud import firestore
 import json
-
-
-cre = credentials.Certificate("chave_firebase.json")
-firebase_admin.initialize_app(cre)
-db = firestore.client()
+import os
+import tempfile
+from envia_email_chamado import enviar_email_fechamento
+ 
+firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+ 
+ 
+if not firebase_json:
+    raise ValueError("A variável 'GOOGLE_APPLICATION_CREDENTIALS' não foi configurada corretamente.")
+ 
+ 
+with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+    temp_file.write(firebase_json.encode('utf-8'))
+    temp_file_path = temp_file.name
+    cred = credentials.Certificate(temp_file_path)
+    firebase_admin.initialize_app(cred)
+    db = firestore.client()
+    os.remove(temp_file_path)
+ 
+print("✅ Firebase conectado com sucesso!")
 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
