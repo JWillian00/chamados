@@ -10,18 +10,34 @@ import pytz
 import json
 import os
 import tempfile
+from google.cloud import firestore
  
-firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+google_credentials_content = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
-if not firebase_json:
-    raise ValueError("A variável 'GOOGLE_APPLICATION_CREDENTIALS' não foi configurada corretamente.")
+if google_credentials_content:
+    try:
+        # Cria um arquivo temporário
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            # Escreve o conteúdo da variável GOOGLE_APPLICATION_CREDENTIALS no arquivo temporário
+            temp_file.write(google_credentials_content.encode('utf-8'))
+            temp_file_path = temp_file.name
 
-# Usando as credenciais diretamente sem a necessidade de um arquivo temporário
-cred = credentials.Certificate(json.loads(firebase_json))
-firebase_admin.initialize_app(cred)
-db = firestore.client()
+        # Agora, use o caminho do arquivo temporário para autenticar com o Firebase
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
 
-print("✅ Firebase conectado com sucesso!")
+        # Exemplo de conexão com o Firestore
+        db = firestore.Client()
+
+        # Agora você pode fazer operações no Firestore
+        print("Conexão bem-sucedida com o Firebase!")
+
+        # Após a conexão, exclua o arquivo temporário
+        os.remove(temp_file_path)
+
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+else:
+    print("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS não está definida.")
  
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
