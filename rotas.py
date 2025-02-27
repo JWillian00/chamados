@@ -130,12 +130,10 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
             if isinstance(file, str):
                 
                 imgur_links.append(file)
-            else:
-                
+            else:                
                 upload_path = os.path.join("uploads", file.filename)
                 file.save(upload_path)
-
-                
+                                
                 imgur_link = upload_to_imgur(upload_path)
                 print(f"Enviando arquivo: {upload_path}")
 
@@ -170,6 +168,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
         {"op": "add", "path": "/fields/System.Title", "value": titulo},
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
         {"op": "add", "path": "/fields/System.State", "value": estado_inicial},
+        {"op": "add", "path": "/fields/Custom.Equipe", "value": "TI Digital"},
         #{"op": "add", "path": "/fields/Custom.Unidade", "value": filial}
         #{"op": "add", "path": "/fields/System.BoardLane", "value": "Sustentação"}
     ]

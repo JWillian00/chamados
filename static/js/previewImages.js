@@ -1,33 +1,32 @@
 function previewImages(event) {
-    const files = event.target.files;
-    const previewContainer = document.getElementById('image-preview-container');
-    previewContainer.innerHTML = ''; 
+    var files = event.target.files;
+    var previewContainer = document.getElementById('image-preview-container');
 
     for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const reader = new FileReader();
+        let file = files[i];
 
-        reader.onload = function(e) {
-            const imgElement = document.createElement('img');
-            imgElement.src = e.target.result;
-            imgElement.classList.add('image-thumbnail'); 
+        if (file.type.startsWith('image/')) { // Verifica se é uma imagem
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let imgContainer = document.createElement('div');
+                imgContainer.classList.add('image-thumbnail-container');
 
-            const deleteButton = document.createElement('button');
-            deleteButton.innerText = 'X';
-            deleteButton.classList.add('delete-btn');
-            deleteButton.onclick = function() {
-                
-                previewContainer.removeChild(imageContainer);
+                let img = document.createElement('img');
+                img.src = e.target.result;
+                img.classList.add('image-thumbnail');
+
+                let deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'X';
+                deleteBtn.classList.add('delete-btn');
+                deleteBtn.onclick = function() {
+                    imgContainer.remove();
+                };
+
+                imgContainer.appendChild(img);
+                imgContainer.appendChild(deleteBtn);
+                previewContainer.appendChild(imgContainer);
             };
-
-            const imageContainer = document.createElement('div');
-            imageContainer.classList.add('image-thumbnail-container');
-            imageContainer.appendChild(imgElement);
-            imageContainer.appendChild(deleteButton);
-
-            previewContainer.appendChild(imageContainer);
-        };
-
-        reader.readAsDataURL(file); 
+            reader.readAsDataURL(file);
+        }
     }
 }

@@ -589,6 +589,39 @@
     <script src="{{ url_for('static', filename='js/evento_btn_enviar.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/senha_relatorio.js') }}" defer></script>
 
+    <script>
+        let imagensSelecionadas = [];
+      
+        document.getElementById("fileInput").addEventListener("change", function(event) {
+          const files = event.target.files;
+          for (let file of files) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+              imagensSelecionadas.push({ name: file.name, url: e.target.result });
+              atualizarPreview();
+            };
+            reader.readAsDataURL(file);
+          }
+          // Resetar o campo para permitir novas seleções sem substituir as antigas
+          event.target.value = "";
+        });
+      
+        function atualizarPreview() {
+          const previewDiv = document.getElementById("preview");
+          previewDiv.innerHTML = "";
+          imagensSelecionadas.forEach((img, index) => {
+            const div = document.createElement("div");
+            div.innerHTML = `<img src="${img.url}" width="100" style="margin:5px;"><button onclick="removerImagem(${index})">X</button>`;
+            previewDiv.appendChild(div);
+          });
+        }
+      
+        function removerImagem(index) {
+          imagensSelecionadas.splice(index, 1);
+          atualizarPreview();
+        }
+      </script>
+
     </div>
 </body>
 </html>
