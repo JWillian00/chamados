@@ -3,44 +3,23 @@ from firebase_admin import credentials, firestore
 import time
 import threading
 from consulta_status_chamado import verificar_status_chamado
-from envia_email_chamado import enviar_email_fechamento
 from datetime import datetime
 import pytz
 #from google.cloud import firestore
 import json
 import os
-import tempfile
-from google.cloud import firestore
+from envia_email_chamado import enviar_email_fechamento
  
-google_credentials_content = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-if google_credentials_content:
-    try:
-        # Cria um arquivo temporário
-        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-            # Escreve o conteúdo da variável GOOGLE_APPLICATION_CREDENTIALS no arquivo temporário
-            temp_file.write(google_credentials_content.encode('utf-8'))
-            temp_file_path = temp_file.name
-
-        # Agora, use o caminho do arquivo temporário para autenticar com o Firebase
-        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = temp_file_path
-
-        # Exemplo de conexão com o Firestore
-        db = firestore.Client()
-
-        # Agora você pode fazer operações no Firestore
-        print("Conexão bem-sucedida com o Firebase!")
-
-        # Após a conexão, exclua o arquivo temporário
-        os.remove(temp_file_path)
-
-    except Exception as e:
-        print(f"Ocorreu um erro: {e}")
-else:
-    print("A variável de ambiente GOOGLE_APPLICATION_CREDENTIALS não está definida.")
+#cre = credentials.Certificate("chamadosbraveo.json")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "chamadosbraveo.json"
+#initialize_app(cre)
+#firebase_admin.initialize_app(cre)
+db = firestore.Client()
+ 
  
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
+   
     novo_chamado = {
         "empresa": empresa,
         "plataforma": plataforma,
@@ -49,11 +28,12 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
         "descricao": descricao,
         "filial": filial,
         "id_chamado": id_chamado,  
-        "data_criacao": firestore.SERVER_TIMESTAMP 
+        "data_criacao": firestore.SERVER_TIMESTAMP
     }
  
     doc_ref = chamados_ref.document()  
     doc_ref.set(novo_chamado)  
+   
     id_banco_fb = doc_ref.id  
  
     print(f"ID Firebase: {id_banco_fb}")
@@ -156,6 +136,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
  
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(300)  
+        time.sleep(10)  
  
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
