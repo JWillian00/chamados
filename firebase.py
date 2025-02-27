@@ -12,20 +12,29 @@ import os
 import tempfile
  
 firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
- 
- 
+
 if not firebase_json:
     raise ValueError("A variável 'GOOGLE_APPLICATION_CREDENTIALS' não foi configurada corretamente.")
- 
- 
-with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-    temp_file.write(firebase_json.encode('utf-8'))
+
+
+try:
+    firebase_credentials = json.loads(firebase_json)
+except json.JSONDecodeError:
+    raise ValueError("O conteúdo da variável 'GOOGLE_APPLICATION_CREDENTIALS' não é um JSON válido.")
+
+
+with tempfile.NamedTemporaryFile(delete=False, mode='w') as temp_file:
+    json.dump(firebase_credentials, temp_file)
     temp_file_path = temp_file.name
-    cred = credentials.Certificate(temp_file_path)
-    firebase_admin.initialize_app(cred)
-    db = firestore.client()
-    os.remove(temp_file_path)
- 
+
+
+cred = credentials.Certificate(temp_file_path)
+firebase_admin.initialize_app(cred)
+db = firestore.client()
+
+# Remove o arquivo temporário após o uso
+os.remove(temp_file_path)
+
 print("✅ Firebase conectado com sucesso!")
  
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
