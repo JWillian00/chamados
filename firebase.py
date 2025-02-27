@@ -3,13 +3,13 @@ from firebase_admin import credentials, firestore
 import time
 import threading
 from consulta_status_chamado import verificar_status_chamado
+from envia_email_chamado import enviar_email_fechamento
 from datetime import datetime
 import pytz
 #from google.cloud import firestore
 import json
 import os
 import tempfile
-from envia_email_chamado import enviar_email_fechamento
  
 firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
  
@@ -27,10 +27,9 @@ with tempfile.NamedTemporaryFile(delete=False) as temp_file:
     os.remove(temp_file_path)
  
 print("✅ Firebase conectado com sucesso!")
-
+ 
 def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
     chamados_ref = db.collection("chamados_braveo")
-   
     novo_chamado = {
         "empresa": empresa,
         "plataforma": plataforma,
@@ -39,12 +38,11 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
         "descricao": descricao,
         "filial": filial,
         "id_chamado": id_chamado,  
-        "data_criacao": firestore.SERVER_TIMESTAMP
+        "data_criacao": firestore.SERVER_TIMESTAMP 
     }
  
     doc_ref = chamados_ref.document()  
     doc_ref.set(novo_chamado)  
-   
     id_banco_fb = doc_ref.id  
  
     print(f"ID Firebase: {id_banco_fb}")
@@ -147,6 +145,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
  
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(10)  
+        time.sleep(300)  
  
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
