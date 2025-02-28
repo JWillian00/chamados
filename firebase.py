@@ -145,6 +145,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
  
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(10)  
+        time.sleep(300)  
  
 threading.Thread(target=job_monitora_chamado, daemon=True).start()
