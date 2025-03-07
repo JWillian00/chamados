@@ -154,13 +154,14 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
 
     else:
         print("Nenhuma evidência foi anexada.")
+    descricao_com_quebras = descricao.replace("\n", "<br>")
 
     descricao_formatada = f"""
     <strong>Empresa:</strong> {empresa_selecionada}<br>
     <strong>Plataforma:</strong> {plataforma}<br>
     <strong>E-mail:</strong> {email}<br>
     <strong>Filial:</strong> {filial}<br>
-    <strong>Descrição:</strong> {descricao}
+    <strong>Descrição:</strong> {descricao_com_quebras}
     """
 
     

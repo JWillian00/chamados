@@ -61,7 +61,7 @@ def index():
             return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
         else:
             flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
-            email = ""
+            #email = ""
             titulo = ""
             descricao = ""
             if result:
@@ -122,6 +122,7 @@ def abertura():
             flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
             if result:
                 id_chamado = result.get("id")
+                email = result.get("email")
                 enviar_email(email, id_chamado)
                 return redirect(url_for("abertura"))
 
