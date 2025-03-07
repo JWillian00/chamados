@@ -140,7 +140,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
                 
                 imgur_links.append(file)
             else:                
-                upload_path = os.path.join("uploads", file.filename)
+                upload_path = os.path.join("/tmp", file.filename)
                 file.save(upload_path)
                                 
                 imgur_link = upload_to_imgur(upload_path)
