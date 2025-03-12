@@ -55,9 +55,9 @@ def upload_file_to_azure(file, config):
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/attachments?fileName={file.filename}&api-version=7.1-preview.3"
 
     headers = {
-        "Content-Type": "application/octet-stream",
-        "Authorization": f"Basic {base64.b64encode(f':{config['token']}'.encode('utf-8')).decode('utf-8')}"
-    }
+    "Content-Type": "application/octet-stream",
+    "Authorization": f"Basic {base64.b64encode(f':{config[\'token\']}'.encode('utf-8')).decode('utf-8')}"
+}
 
     try:
         response = requests.post(url, headers=headers, data=file.read())
