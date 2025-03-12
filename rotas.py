@@ -56,7 +56,7 @@ def upload_file_to_azure(file, config):
 
     headers = {
     "Content-Type": "application/octet-stream",
-    "Authorization": f"Basic {base64.b64encode(f':{config[\'token\']}'.encode('utf-8')).decode('utf-8')}"
+    "Authorization": "Basic " + base64.b64encode(f":{config['token']}".encode('utf-8')).decode('utf-8')
 }
 
     try:
