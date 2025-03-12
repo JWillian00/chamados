@@ -45,6 +45,34 @@ PLATAFORMA_REVERSE_MAPEADA = {
     "board_bodegamix": "Bodegamix"
 }
 
+MAX_FILE_SIZE = 60 * 1024 * 1024 
+
+def upload_file_to_azure(file, config):
+    if file.content_length > MAX_FILE_SIZE:
+        print("Tamanho do arquivo excede o limite permitido. 60MB")
+        return None
+
+
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/attachments?fileName={file.filename}&api-version=7.1-preview.3"
+
+    headers = {
+        "Content-Type": "application/octet-stream",
+        "Authorization": f"Basic {base64.b64encode(f':{config['token']}'.encode('utf-8')).decode('utf-8')}"
+    }
+    try:
+
+        response = requests.post(url, headers=headers, data=file.read())
+        if response.status_code == 201:
+            return response.json()["url"]
+        else:
+            print(f"Erro ao fazer upload: {response.text}")
+            return None
+
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao fazer upload: {str(e)}")
+        return None
+    
+
 def consultar_comentarios(id_chamado, plataforma):
 
     plataforma = plataforma.lower().strip()
@@ -111,7 +139,7 @@ def consultar_chamado(id_chamado, plataforma):
         return {"error": f"Erro ao consultar o chamado: {str(e)}"}
 
 
-def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work_item_type="issue", evidencia_file=None):
+def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work_item_type="issue", evidencia_files=None):
     empresa_selecionada = empresa.strip()
     
     if plataforma == "e-commerce":        
@@ -131,29 +159,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
      #   return {"error": "Empresa inválida, verifique os dados da empresa."}    
 
     config = CONFIG[empresa]
-    imgur_links = []
-
-    if evidencia_file:
-        for file in evidencia_file:
-            
-            if isinstance(file, str):
-                
-                imgur_links.append(file)
-            else:                
-                upload_path = os.path.join("uploads", file.filename)
-                file.save(upload_path)
-                                
-                imgur_link = upload_to_imgur(upload_path)
-                print(f"Enviando arquivo: {upload_path}")
-
-                if imgur_link:
-                    imgur_links.append(imgur_link)
-
-                os.remove(upload_path)
-                print(f"Imagens enviadas: {imgur_link}")
-
-    else:
-        print("Nenhuma evidência foi anexada.")
+    
     descricao_com_quebras = descricao.replace("\n", "<br>")
 
     descricao_formatada = f"""
@@ -164,10 +170,14 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
     <strong>Descrição:</strong> {descricao_com_quebras}
     """
 
-    
-    if imgur_links:
-        for link in imgur_links:
-            descricao_formatada += f'<br><br><strong>Evidência:</strong><br><img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">'
+    attachment_urls = []
+    if evidencia_files:
+        for file in evidencia_files:
+            file_url = upload_file_to_azure(file, config)
+            if file_url:
+                attachment_urls.append(file_url)
+                descricao_formatada += f'<br><br><strong>Evidência:</strong><br><img src="{file_url}" alt="Evidência" style="max-width: 100%; height: auto;">'
+
 
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     headers = get_headers(config["token"])
@@ -192,9 +202,16 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial, work
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
 
     try:
-
         response = requests.post(url, json=payload, headers=headers)
         response.raise_for_status()
+        chamado_data = response.json()
+        id_chamado = chamado_data.get("id") 
+
+        if id_chamado and attachment_urls:
+            for file_url in attachment_urls:
+                attach_payload = [{"op": "add", "path": "/relations/-", "value": {"rel": "AttachedFile", "url": file_url}}]
+                attach_url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado}?api-version=7.1"
+                requests.patch(attach_url, json=attach_payload, headers=headers)
 
         if response.status_code == 200:
             chamado_data = response.json()

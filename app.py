@@ -27,33 +27,14 @@ def index():
 
         print(f"Empresa: {empresa}, Plataforma: {plataforma}, E-mail: {email}, Título: {titulo}, Descrição: {descricao}")
 
-       
-        imgur_links = []
-
-       
+              
         if not email or not titulo or not descricao:
             flash("E-mail, título e descrição são obrigatórios.", "error")
             #return redirect(url_for("index"))
-            return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
-        for evidencia_file in evidencia_files:
-            if evidencia_file:
-                
-                app.config['UPLOAD_FOLDER'] = 'uploads'
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], evidencia_file.filename)
-                evidencia_file.save(file_path)
-
-                
-                imgur_link = upload_to_imgur(file_path)
-                if imgur_link and imgur_link not in imgur_links:
-                    imgur_links.append(imgur_link)
-                os.remove(file_path)
+            return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})       
 
         
-        if imgur_links:
-            descricao += "<br><br>" + "<br>".join([f'<img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">' for link in imgur_links])
-
-        
-        result = create_work_item(titulo, descricao, empresa, plataforma, email, filial)
+        result = create_work_item(titulo, descricao, empresa, plataforma, email, filial, evidencia_files=evidencia_files)
         print("Resultado da criação", result)
 
         if isinstance(result, dict) and "error" in result:
@@ -61,7 +42,6 @@ def index():
             return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
         else:
             flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
-            #email = ""
             titulo = ""
             descricao = ""
             if result:
