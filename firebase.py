@@ -70,7 +70,6 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         else:
             print(f"⚠ Email do solicitante não encontrado para o chamado {id_chamado}")
         return True
-        return True
     print(f"⚠ Chamado não encontrado no Firebase: {id_chamado}")
     return False
 
