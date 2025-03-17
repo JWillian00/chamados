@@ -6,6 +6,7 @@ from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
 import json
+from envia_email_chamado import enviar_email_fechamento
 
 
 cre = credentials.Certificate("chave_firebase.json")
@@ -62,6 +63,13 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         })
 
         print(f"✅ Chamado fechado atualizado no Firebase: {id_chamado}")
+
+        email_solicitante = chamado.get("email")
+        if email_solicitante:
+            enviar_email_fechamento(email_solicitante, id_chamado, estado, data_fechamento_formatada, usuario)
+        else:
+            print(f"⚠ Email do solicitante não encontrado para o chamado {id_chamado}")
+        return True
         return True
     print(f"⚠ Chamado não encontrado no Firebase: {id_chamado}")
     return False
