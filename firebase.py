@@ -1,4 +1,5 @@
 import firebase_admin
+from envia_email_chamado import enviar_email_fechamento
 from firebase_admin import credentials, firestore
 import time
 import threading
@@ -9,7 +10,6 @@ import pytz
 import json
 import os
 import tempfile
-from envia_email_chamado import enviar_email_fechamento
 
 firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
@@ -139,7 +139,7 @@ def job_monitora_chamado():
                             print(f"✔ Chamado {id_chamado} atualizado!")
                         else:
                             print(f"❌ Erro ao atualizar o chamado {id_chamado}.")
-                    else:
+                    else:jadhfjhasdfjhafjhjghfo~geh~ejqwghtq~ghuqfjq~eghfqeght~kojqgehf~eughqfçjqeghfqgehufqe/Jonathan Willa
                         print(f"⏳ Chamado {id_chamado} ainda não foi fechado.")
  
         except Exception as e:
