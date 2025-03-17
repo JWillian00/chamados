@@ -139,7 +139,7 @@ def job_monitora_chamado():
                             print(f"✔ Chamado {id_chamado} atualizado!")
                         else:
                             print(f"❌ Erro ao atualizar o chamado {id_chamado}.")
-                    else:jadhfjhasdfjhafjhjghfo~geh~ejqwghtq~ghuqfjq~eghfqeght~kojqgehf~eughqfçjqeghfqgehufqe/Jonathan Willa
+                    else:
                         print(f"⏳ Chamado {id_chamado} ainda não foi fechado.")
  
         except Exception as e:
