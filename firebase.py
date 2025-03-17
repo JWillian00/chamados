@@ -1,5 +1,5 @@
-import firebase_admin
 from envia_email_chamado import enviar_email_fechamento
+import firebase_admin
 from firebase_admin import credentials, firestore
 import time
 import threading
