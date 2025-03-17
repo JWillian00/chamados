@@ -9,6 +9,7 @@ import pytz
 import json
 import os
 import tempfile
+from envia_email_chamado import enviar_email_fechamento
 
 firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
