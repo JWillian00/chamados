@@ -1,4 +1,3 @@
-from envia_email_chamado import enviar_email_fechamento
 import firebase_admin
 from firebase_admin import credentials, firestore
 import time
@@ -6,6 +5,7 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
+from envia_email_chamado import enviar_email_fechamento
 #from google.cloud import firestore
 import json
 import os
