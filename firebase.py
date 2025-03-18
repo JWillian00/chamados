@@ -5,7 +5,6 @@ import threading
 from consulta_status_chamado import verificar_status_chamado
 from datetime import datetime
 import pytz
-from envia_email_chamado import enviar_email_fechamento
 #from google.cloud import firestore
 import json
 import os
@@ -84,7 +83,8 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         })
  
         print(f"✅ Chamado fechado atualizado no Firebase: {id_chamado}")
-
+        
+        from envia_email_chamado import enviar_email_fechamento
         email_solicitante = chamado.get("email")
         if email_solicitante:
             enviar_email_fechamento(email_solicitante, id_chamado, estado, data_fechamento_formatada, usuario)
