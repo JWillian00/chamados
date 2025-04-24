@@ -5,5 +5,8 @@
       "use": "@vercel/python"
     }
   ],
-  "outputDirectory": "static"
+  "outputDirectory": "static",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/app.py" }
+  ]
 }
