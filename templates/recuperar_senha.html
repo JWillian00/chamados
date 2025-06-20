@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recuperar Senha</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        #flash-messages {
+            margin-bottom: 5px;
+            padding: 1px;
+            list-style: none;
+            text-align: center;
+        }
+
+        #flash-messages li {
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .alert { 
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .alert-success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+        }
+
+        .alert-danger {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('/static/image/fundo_chamados.png');
+            background-position: center;
+            background-size: cover;
+            background-attachment: fixed;
+            background-color: #f9f9f9;
+        }
+
+        .reset-password-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            max-width: 150px;
+            height: auto;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 25px;
+            color: #666;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input {
+            width: calc(100% - 20px);
+            padding: 12px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .back-to-login {
+            margin-top: 25px;
+            font-size: 15px;
+            color: #555;
+        }
+
+        .back-to-login a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-to-login a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .reset-password-container {
+                padding: 30px 20px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            p {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reset-password-container">
+        <div id="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert {{ 'alert-success' if category == 'success' else 'alert-danger' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='image/logo_login.png') }}" alt="Logo" class="logo">
+        </div>
+        
+        <h2>Recuperar Senha</h2>
+        <p>Informe o seu e-mail cadastrado para receber as instruções de recuperação de senha.</p>
+        
+        <form id="recoverPasswordForm" method="POST" action="{{ url_for('solicitar_recuperacao_senha') }}">
+            <div class="input-group">
+                <label for="identifier">E-mail</label>
+                <input type="text" id="identifier" name="identifier" placeholder="Seu e-mail" required>
+            </div>
+            
+            <button type="submit" class="btn-submit">Enviar Instruções</button>
+        </form>
+        
+        <div class="back-to-login">
+            <a href="{{ url_for('tela_login') }}">Lembrou da senha? Voltar para o login</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const identifierInput = document.getElementById('identifier');
+            const recoverPasswordForm = document.getElementById('recoverPasswordForm');
+            
+            // Variável para controlar o modo (telefone ou email)
+            let currentMode = null; // null, 'phone', 'email'
+
+            // Função para formatar telefone
+            function formatPhone(value) {
+                // Remove todos os caracteres não numéricos
+                const numbers = value.replace(/\D/g, '');
+                
+                // Limita a 11 dígitos
+                const limited = numbers.substring(0, 11);
+                
+                // Aplica a máscara baseada na quantidade de dígitos
+                if (limited.length === 0) {
+                    return '';
+                } else if (limited.length === 1) {
+                    return `(${limited}`;
+                } else if (limited.length === 2) {
+                    return `(${limited})`;
+                } else if (limited.length <= 6) {
+                    return `(${limited.substring(0, 2)}) ${limited.substring(2)}`;
+                } else if (limited.length <= 10) {
+                    return `(${limited.substring(0, 2)}) ${limited.substring(2, 6)}-${limited.substring(6)}`;
+                } else {
+                    return `(${limited.substring(0, 2)}) ${limited.substring(2, 7)}-${limited.substring(7)}`;
+                }
+            }
+
+            // Função para detectar se é número
+            function isNumeric(char) {
+                return /^\d$/.test(char);
+            }
+
+            identifierInput.addEventListener('input', function(e) {
+                const value = e.target.value;
+                
+                // Se o campo estiver vazio, resetar o modo
+                if (value.length === 0) {
+                    currentMode = null;
+                    e.target.placeholder = "Seu e-mail ou (00) 00000-0000";
+                    return;
+                }
+
+                // Se ainda não definimos o modo, detectar baseado no primeiro caractere
+                if (currentMode === null) {
+                    const firstChar = value.charAt(0);
+                    
+                    if (isNumeric(firstChar)) {
+                        currentMode = 'phone';
+                    } else {
+                        currentMode = 'email';
+                    }
+                }
+
+                // Aplicar formatação baseada no modo atual
+                if (currentMode === 'phone') {
+                    const formatted = formatPhone(value);
+                    e.target.value = formatted;
+                    e.target.placeholder = "(00) 00000-0000";
+                } else if (currentMode === 'email') {
+                    e.target.placeholder = "seu@email.com";
+                    
+                    // Opcional: limpar caracteres inválidos para email
+                    const cleanEmail = value.replace(/[^a-zA-Z0-9@._-]/g, '');
+                    if (cleanEmail !== value) {
+                        e.target.value = cleanEmail;
+                    }
+                }
+            });
+
+            // Prevenir caracteres não numéricos no modo telefone
+            identifierInput.addEventListener('keydown', function(e) {
+                if (currentMode === 'phone') {
+                    // No modo telefone, permitir apenas números e teclas de controle
+                    const allowedKeys = [
+                        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+                        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+                        'Home', 'End', 'Control', 'Alt', 'Shift'
+                    ];
+                    
+                    // Permitir Ctrl+A, Ctrl+C, Ctrl+V, etc.
+                    if (e.ctrlKey || e.metaKey) {
+                        return;
+                    }
+                    
+                    if (!isNumeric(e.key) && !allowedKeys.includes(e.key)) {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            // Detectar quando o campo é limpo completamente
+            identifierInput.addEventListener('keyup', function(e) {
+                if (e.target.value.length === 0) {
+                    currentMode = null;
+                    e.target.placeholder = "Seu e-mail ou (00) 00000-0000";
+                }
+            });
+
+            // Validação do formulário
+            recoverPasswordForm.addEventListener('submit', function(event) {
+                const identifier = identifierInput.value.trim();
+
+                if (!identifier) {
+                    event.preventDefault();
+                    alert('Por favor, preencha o campo de e-mail ou telefone.');
+                    return;
+                }
+
+                if (currentMode === 'phone') {
+                    // Validação de telefone
+                    const cleanPhone = identifier.replace(/\D/g, '');
+                    if (cleanPhone.length < 10 || cleanPhone.length > 11) {
+                        event.preventDefault();
+                        alert('Por favor, digite um telefone válido com 10 ou 11 dígitos.');
+                        return;
+                    }
+                } else if (currentMode === 'email') {
+                    // Validação de email
+                    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    if (!emailPattern.test(identifier)) {
+                        event.preventDefault();
+                        alert('Por favor, digite um e-mail válido.');
+                        return;
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>

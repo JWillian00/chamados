@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Chamados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <style>
+        .neon-alert {
+            border: 3px solid #00f;
+            animation: neonBlink 1s infinite;
+            border-radius: 10px;
+        }
+        .status-aberto { 
+            background-color: #fef3c7; 
+            color: #92400e;
+        } 
+        .status-em_andamento { 
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .status-fechado { 
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        #visualizacao-anexo-conteudo img,
+        #visualizacao-anexo-conteudo video,
+        #visualizacao-anexo-conteudo iframe {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .comentario-card {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 0.375rem;
+        }
+
+        .comentario-card strong {
+            color: #1e40af;
+        }
+
+        @keyframes neonBlink {
+            0% { box-shadow: 0 0 10px #00f; }
+            50% { box-shadow: 0 0 20px #00f, 0 0 30px #00f; }
+            100% { box-shadow: 0 0 10px #00f; }
+        }
+
+        .status-aberto { 
+            background-color: #ffc107; 
+            color: #333; 
+        } 
+        .status-em_andamento { 
+            background-color: #17a2b8; 
+            color: white; 
+        }
+        .status-concluido { 
+            background-color: #28a745; 
+            color: white; 
+        } 
+        .status-fechado { 
+            background-color: #6c757d; 
+            color: white; 
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            margin: auto; /* Centraliza verticalmente */
+        }
+
+        .close-modal {
+            color: #aaa;
+            float: right;
+            font-size: 36px;
+            font-weight: bold;
+            position: absolute;
+            right: 20px;
+            top: 10px;
+            cursor: pointer;
+        }
+
+        .close-modal:hover,
+        .close-modal:focus {
+            color: black;
+            text-decoration: none;
+        }
+
+        .comentario-card {
+            background-color: #fff; 
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .comentario-card strong {
+            color: #007bff;
+            font-size: 1.1em;
+        }
+
+        .comentario-card small {
+            display: block;
+            color: #888;
+            font-size: 0.85em;
+            margin-bottom: 5px;
+        }
+
+        .comentario-card p {
+            color: #444;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .anexos-list a {
+            display: block;
+            color: #007bff;
+            text-decoration: none;
+            margin-top: 5px;
+            word-break: break-all; 
+        }
+
+        .anexos-list a:hover {
+            text-decoration: underline;
+        }
+       
+        /* MANTENHA ESTE BLOCO DO MODAL ANEXO, ELE É O CORRETO */
+        #visualizacao-anexo-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #visualizacao-anexo-modal > div { 
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            overflow: auto;
+            text-align: center;
+        }
+
+        #visualizacao-anexo-conteudo img,
+        #visualizacao-anexo-conteudo video {
+            max-width: 100%;
+            max-height: 80vh; 
+            display: block;
+            margin: 0 auto; 
+        }
+
+        #visualizacao-anexo-modal button {
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 20px;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+
+        #visualizacao-anexo-modal button:hover {
+            background: rgba(0,0,0,0.7);
+        }
+
+        #visualizacao-anexo-modal #btn-download-anexo {
+            position: static; 
+            transform: none;
+            margin-top: 20px;
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+
+        #visualizacao-anexo-modal .close-modal-anexo {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 28px;
+            cursor: pointer;
+            color: #555;
+            z-index: 10; 
+        }
+        #visualizacao-anexo-modal .close-modal-anexo:hover {
+            color: black;
+        }
+        .modal-content {
+            background: #fff;
+            padding: 25px 30px;
+            border-radius: 12px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+    </style>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <h1 class="text-2xl font-bold text-gray-900">📋 Consulta de Chamados</h1>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-gray-500">Acompanhe o status dos seus chamados</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                <span class="text-white text-sm font-bold" id="total-chamados">0</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Total de chamados</dt>
+                                <dd class="text-lg font-medium text-gray-900">Meus Chamados</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                                <span class="text-white text-sm">📄</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Abertos</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="abertos-count">0</dd>
+                               
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                <span class="text-white text-sm">⌛</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Em Andamento</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="andamento-count">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="p-5">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                                <span class="text-white text-sm">✅</span>
+                            </div>
+                        </div>
+                        <div class="ml-5 w-0 flex-1">
+                            <dl>
+                                <dt class="text-sm font-medium text-gray-500 truncate">Fechados</dt>
+                                <dd class="text-lg font-medium text-gray-900" id="fechados-count">0</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg mb-8">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">🔍 Pesquisar Chamado</h3>
+                <p class="mt-1 text-sm text-gray-500">Digite o ID ou título do chamado para buscar</p>
+            </div>
+            <div class="px-6 py-4">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <input type="text" 
+                               id="search-ticket-id" 
+                               placeholder="Digite o ID ou título do chamado..." 
+                               oninput="formatarChamadoID(this)"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button onclick="searchTicket()" 
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <i class="fas fa-search mr-2"></i>
+                        Pesquisar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">📋 Meus Chamados</h3>
+                <p class="mt-1 text-sm text-gray-500">Acompanhe o status dos seus chamados</p>
+            </div>
+            
+            <div class="overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table id="tickets-table" class="min-w-full divide-y divide-gray-200" style="display: none;">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioridade</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">E-mail Solicitante</th> <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Plataforma</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data de Criação</th> <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            </tbody>
+                    </table>
+                    </div>
+                
+                <div id="no-tickets-message" class="text-center py-12">
+                    <div class="mx-auto h-12 w-12 text-gray-400">
+                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                    </div>
+                    <h3 class="mt-2 text-sm font-medium text-gray-900">Nenhum chamado encontrado</h3>
+                    <p class="mt-1 text-sm text-gray-500">Não há chamados para o seu usuário no momento.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div id="modal-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] overflow-y-auto relative">
+            <span class="close-modal absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-3xl font-bold cursor-pointer" onclick="fecharModal()">&times;</span>
+            
+            <div id="modal-content-details">
+                <p>Carregando detalhes do chamado...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="visualizacao-anexo-modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-4 md:p-8 w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] overflow-hidden relative flex flex-col items-center">
+            <span class="close-modal-anexo absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-3xl font-bold cursor-pointer" onclick="fecharModalAnexo()">&times;</span>
+            
+            <div id="visualizacao-anexo-conteudo" class="w-full flex justify-center items-center overflow-hidden flex-grow my-4">
+                </div>
+
+            <div class="flex justify-between w-full p-2">
+                <button id="prev-anexo" onclick="navigateAttachment(-1)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-l disabled:opacity-50" style="display: none;">&#10094; Anterior</button>
+                <a id="btn-download-anexo" href="#" download class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mx-2">Download Anexo</a>
+                <button id="next-anexo" onclick="navigateAttachment(1)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-r disabled:opacity-50" style="display: none;">Próximo &#10095;</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let allTickets = []; 
+    let currentTicketAttachments = []; 
+    let currentAttachmentIndex = 0; 
+    const socket = io();
+
+    socket.on('novo_comentario', (data) => {
+        if (document.getElementById('modal-overlay').style.display === 'flex') {
+            const modalContent = document.getElementById('modal-content-details');
+            if (modalContent.innerHTML.includes(data.id_chamado)) {
+                openModal(data.id_chamado); 
+            }
+        }
+        toastr.info(`Novo comentário no chamado ${data.id_chamado}`);
+    });
+
+    socket.on('chamado_atualizado', (data) => {
+        fetchTickets(); 
+        toastr.info(`Chamado ${data.id} atualizado para ${data.status}`);
+    });
+
+    $(document).ready(function() {
+        fetchTickets();
+       
+        var socket = io.connect(window.location.origin);
+
+        socket.on('connect', function() {
+            console.log('Conectado ao servidor SocketIO');
+        });
+
+        socket.on('novo_chamado_criado', function(data) {
+            toastr.info(`Novo chamado #${data.id} criado: ${data.titulo}`);
+            fetchTickets();
+        });
+
+        socket.on('chamado_atualizado', function(data) {
+            toastr.success(`Chamado #${data.id} atualizado para status: ${data.status}`);
+            fetchTickets(); 
+        });
+
+    });
+
+    function fetchTickets() {
+        $.get("/api/meus-chamados", function(data) {
+            allTickets = data;
+            const chamadosVisiveis = allTickets.filter(ticket => ticket.status_chamado.toLowerCase() !== 'fechado');
+            renderTickets(chamadosVisiveis);
+            updateStats(allTickets);
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            console.error("Erro ao buscar chamados:", textStatus, errorThrown);
+            toastr.error("Erro ao carregar chamados.");
+        });
+    }
+
+    function updateStats(tickets) {
+        const total = tickets.length;
+        const abertos = tickets.filter(t => t.status_chamado === 'Aberto').length;
+        const andamento = tickets.filter(t => t.status_chamado.toLowerCase() === 'em andamento').length;
+
+        const fechados = tickets.filter(t => t.status_chamado === 'Fechado').length;
+
+        document.getElementById('total-chamados').innerText = tickets.length;
+        document.getElementById('abertos-count').innerText = tickets.filter(t => t.status_chamado.toLowerCase() === 'aberto').length;
+        document.getElementById('andamento-count').innerText = tickets.filter(t => t.status_chamado.toLowerCase() === 'em andamento').length;
+        document.getElementById('fechados-count').innerText = tickets.filter(t => ['fechado', 'concluido'].includes(t.status_chamado.toLowerCase())).length;
+    }
+
+    function renderTickets(ticketsToRender) {
+        const tableBody = $('#tickets-table tbody');    
+
+        tableBody.empty();
+        if (ticketsToRender.length > 0) {
+            $('#tickets-table').show();
+            $('#no-tickets-message').hide();
+            ticketsToRender.forEach(chamado => {
+                const dataCriacaoFormatada = moment(chamado.data_criacao).format("DD/MM/YYYY HH:mm");
+                const row = `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${chamado.id_chamado}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.titulo}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">
+                                ${chamado.status_chamado}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.prioridade}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.email_solicitante}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.empresa_chamado}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.plataforma_chamado}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dataCriacaoFormatada}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <a href="#" onclick="openModal('${chamado.id_chamado}')" class="text-blue-600 hover:text-blue-900">Detalhes</a>
+                        </td>
+                    </tr>
+                `;
+                tableBody.append(row);
+            });
+        } else {
+            $('#tickets-table').hide();
+            $('#no-tickets-message').show();
+        }
+    }
+
+    function formatarChamadoID(input) {
+        let value = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+        let formattedValue = '';
+        if (value.length > 3) {
+            formattedValue = value.substring(0, 3) + '-' + value.substring(3);
+        } else {
+            formattedValue = value;
+        }
+        input.value = formattedValue;
+    }
+
+    function searchTicket() {
+        const searchId = $('#search-ticket-id').val().trim();
+        if (searchId) {
+            const filteredTickets = allTickets.filter(ticket => 
+                ticket.id_chamado.includes(searchId) || 
+                ticket.titulo.toLowerCase().includes(searchId.toLowerCase())
+            );
+            if (filteredTickets.length > 0) {
+                renderTickets(filteredTickets);
+                toastr.success("Busca realizada com sucesso!");
+            } else {
+                renderTickets([]);
+                toastr.info("Nenhum chamado encontrado para a sua busca.");
+            }
+        } else {
+            renderTickets(allTickets);
+            toastr.info("Exibindo todos os chamados.");
+        }
+    }
+
+    function openModal(id_chamado) {
+        const modal = document.getElementById('modal-overlay');
+        const modalContent = document.getElementById('modal-content-details');
+                
+       
+        modalContent.innerHTML = '<p>Carregando detalhes do chamado...</p>';
+        modal.style.display = 'flex';
+
+        fetch(`/api/chamados/${id_chamado}`)
+            .then(response => response.json())
+            .then(chamado => {        
+                fetch(`/api/chamados/${id_chamado}/comentarios`)
+                    .then(response => response.json())
+                    .then(comentarios => {                      
+                        modalContent.innerHTML = `
+                            <h2 class="text-2xl font-bold mb-4">Detalhes do Chamado #${chamado.id_chamado}</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <p><strong>Título:</strong> ${chamado.titulo}</p>
+                                    <p><strong>Status:</strong> <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">${chamado.status_chamado}</span></p>
+                                    <p><strong>Prioridade:</strong> ${chamado.prioridade}</p>
+                                    <p><strong>Data de Criação:</strong> ${chamado.data_criacao}</p>
+                                </div>
+                                <div>
+                                    <p><strong>Empresa:</strong> ${chamado.empresa_chamado}</p>
+                                    <p><strong>Plataforma:</strong> ${chamado.plataforma_chamado}</p>
+                                    <p><strong>Filial:</strong> ${chamado.filial_chamado || 'Não informada'}</p>
+                                    <p><strong>Categoria:</strong> ${chamado.categoria || 'Não informada'}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold mb-2">Descrição</h3>
+                                <div class="bg-gray-50 p-4 rounded">${chamado.descricao}</div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold mb-2">Anexos</h3>
+                                <div id="anexos-list" class="flex flex-wrap gap-2">
+                                    ${chamado.anexos && chamado.anexos.length > 0 ? 
+                                        chamado.anexos.map(anexo => `
+                                            <a href="#" onclick="openAttachmentFromObject('${anexo.url}', '${anexo.filename}', '${anexo.mimetype}');" return false;" 
+                                            class="inline-flex items-center px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                                                <i class="fas fa-paperclip mr-2"></i> ${anexo.filename}
+                                            </a>
+                                        `).join('') : 
+                                        '<p class="text-gray-500">Nenhum anexo</p>'}
+                                </div>
+                            </div>
+                            
+                            <div class="mb-6">
+                                <h3 class="text-lg font-semibold mb-2">Adicionar Comentário</h3>
+                                <textarea id="novo-comentario" class="w-full p-2 border rounded mb-2" placeholder="Digite seu comentário..."></textarea>
+                                <input type="file" id="anexo-comentario" class="mb-2" multiple>
+                                <button onclick="adicionarComentario('${chamado.id_chamado}')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                    Enviar Comentário
+                                </button>
+                            </div>
+                            
+                            <div>
+                                <h3 class="text-lg font-semibold mb-2">Comentários</h3>
+                                <div id="comentarios-list" class="space-y-4">
+                                    ${comentarios.length > 0 ? 
+                                        comentarios.map(comentario => {
+                                            const dataComentarioFormatada = moment(comentario.data_hora).format("DD/MM/YYYY HH:mm");
+                                            return `
+                                            <div class="bg-gray-50 p-4 rounded">
+                                                <div class="flex justify-between items-start mb-2">
+                                                    <strong>${comentario.nome_usuario}</strong>
+                                                    <small class="text-gray-500">${dataComentarioFormatada}</small>
+                                                </div>
+                                                <p class="mb-2">${comentario.comentario_texto || ''}</p>
+                                                ${comentario.anexos && comentario.anexos.length > 0 ? `
+                                                    <div class="mt-2">
+                                                        <p class="text-sm text-gray-500 mb-1">Anexos:</p>
+                                                        <div class="flex flex-wrap gap-2">
+                                                            ${comentario.anexos.map(anexo => `
+                                                                <a href="#" onclick="openAttachmentFromObject('${anexo.url}', '${anexo.filename}', '${anexo.mimetype}'); return false;" 
+                                                                class="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200">
+                                                                    <i class="fas fa-paperclip mr-1"></i> ${anexo.filename}
+                                                                </a>
+                                                            `).join('')}
+                                                        </div>
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        `;
+                                        }).join('') : 
+                                        '<p class="text-gray-500">Nenhum comentário ainda</p>'}
+                                </div>
+                            </div>
+                        `;
+                    })
+                    .catch(error => {
+                        console.error('Erro ao buscar comentários:', error);
+                        modalContent.innerHTML += `<p class="text-red-500 mt-4">Erro ao carregar comentários</p>`;
+                    });
+            })
+            .catch(error => {
+                console.error('Erro ao buscar detalhes do chamado:', error);
+                modalContent.innerHTML = `<p class="text-red-500">Erro ao carregar detalhes do chamado</p>`;
+            });
+    }
+  
+    function adicionarComentario(id_chamado) {
+        const comentarioText = document.getElementById('novo-comentario').value;
+        const fileInput = document.getElementById('anexo-comentario');
+        const files = fileInput.files;
+
+        if (!comentarioText && files.length === 0) {
+            toastr.error('Digite um comentário ou adicione um anexo');
+            return;
+        }
+        
+        if (files.length > 0) {
+            const formData = new FormData();
+            for (let i = 0; i < files.length; i++) {
+                formData.append('images', files[i]);
+            }
+
+            fetch('/api/upload_images', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }                
+              
+                enviarComentario(id_chamado, comentarioText, data.image_urls);
+            })
+            .catch(error => {
+                console.error('Erro ao fazer upload dos anexos:', error);
+                toastr.error('Erro ao enviar anexos');
+            });
+        } else {
+            enviarComentario(id_chamado, comentarioText, []);
+        }
+    }
+
+    function enviarComentario(id_chamado, texto, anexos) {
+        fetch(`/api/chamados/${id_chamado}/comentarios`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                comentario_texto: texto,
+                anexos: anexos
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            toastr.success('Comentário adicionado com sucesso!');
+            document.getElementById('novo-comentario').value = '';
+            document.getElementById('anexo-comentario').value = '';            
+
+            openModal(id_chamado);
+        })
+        .catch(error => {
+            console.error('Erro ao adicionar comentário:', error);
+            toastr.error('Erro ao adicionar comentário');
+        });
+    }
+
+    function openAttachmentViewer(anexos) {
+        if (!anexos || anexos.length === 0) {
+            console.warn('Nenhum anexo disponível');
+            return;
+        }
+
+        currentTicketAttachments = anexos;
+        currentAttachmentIndex = 0;
+
+        renderAttachmentViewer();
+        document.getElementById('visualizacao-anexo-modal').style.display = 'flex';
+        atualizarBotoesNavegacao();
+    }
+
+    function fecharModal() {
+        document.getElementById('modal-overlay').style.display = 'none';
+    }
+
+    function fecharModalAnexo() {
+        document.getElementById('visualizacao-anexo-modal').style.display = 'none';
+    }
+
+    function renderAttachmentViewer() {
+        const viewer = document.getElementById('visualizacao-anexo-conteudo');
+        const anexo = currentTicketAttachments[currentAttachmentIndex];
+
+        if (!anexo || !anexo.url) {
+            viewer.innerHTML = "<p>Anexo inválido</p>";
+            return;
+        }
+
+        const url = anexo.url;
+        const ext = url.split('.').pop().toLowerCase();
+        let content = '';
+
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
+            content = `<img src="${url}" alt="Anexo" class="max-w-full max-h-96">`;
+        } else if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
+            content = `<video controls class="max-w-full max-h-96"><source src="${url}" type="video/${ext}">Seu navegador não suporta vídeo.</video>`;
+        } else {
+            content = `<iframe src="${url}" class="w-full h-96"></iframe>`;
+        }
+
+        viewer.innerHTML = content;
+        document.getElementById('btn-download-anexo').href = url;
+    }
+    function openAttachmentFromObject(url, filename = '', mimetype = '') {
+        currentTicketAttachments = [{
+            url: url,
+            filename: filename || url.split('/').pop(),
+            mimetype: mimetype
+        }];
+        currentAttachmentIndex = 0;
+        renderAttachmentViewer();
+        document.getElementById('visualizacao-anexo-modal').style.display = 'flex';
+        atualizarBotoesNavegacao();
+    }
+
+
+
+    function navigateAttachment(direction) {
+        if (!currentTicketAttachments.length) return;
+
+        currentAttachmentIndex += direction;
+        if (currentAttachmentIndex < 0) currentAttachmentIndex = 0;
+        if (currentAttachmentIndex >= currentTicketAttachments.length) currentAttachmentIndex = currentTicketAttachments.length - 1;
+
+        renderAttachmentViewer();
+        atualizarBotoesNavegacao();
+    }
+
+
+    function atualizarBotoesNavegacao() {
+        $('#prev-anexo').toggle(currentAttachmentIndex > 0);
+        $('#next-anexo').toggle(currentAttachmentIndex < currentTicketAttachments.length - 1);
+    }
+
+    // Event listeners para fechar modais ao clicar fora
+    document.getElementById('modal-overlay').addEventListener('click', function(e) {
+        if (e.target === this) {
+            fecharModal();
+        }
+    });
+
+    document.getElementById('visualizacao-anexo-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            fecharModalAnexo();
+        }
+    });
+
+
+    
+
+    // Configurar toastr
+    toastr.options = {
+        "closeButton": true,
+        "debug": false,
+        "newestOnTop": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "preventDuplicates": false,
+        "onclick": null,
+        "showDuration": "300",
+        "hideDuration": "1000",
+        "timeOut": "5000",
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+    };
+</script>
+</body>
+</html>

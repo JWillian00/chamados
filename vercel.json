@@ -2,11 +2,19 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
   ],
   "outputDirectory": "static",
   "rewrites": [
     { "source": "/(.*)", "destination": "/app.py" }
-  ]
+  ],
+  "build": {
+    "env": {
+      "PYTHON_VERSION": "3.10"
+    }
+  }
 }

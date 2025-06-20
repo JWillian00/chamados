@@ -1,10 +1,10 @@
 # run.py
 import time
-from app import app
+from app import app, socketio
 
 # Controle de tempo para evitar requisições duplicadas
 ultima_execucao = 0
-intervalo_minimo = 5  # em segundos
+intervalo_minimo = 2  # em segundos
 
 def controlar_requisicoes():
     global ultima_execucao
@@ -18,6 +18,5 @@ def controlar_requisicoes():
     return True
 
 if __name__ == "__main__":
-    # Verifica se pode rodar a aplicação
     if controlar_requisicoes():
-        app.run(host="0.0.0.0", port=5000, debug=True)
+        socketio.run(app, debug=True, allow_unsafe_werkzeug=True, host='0.0.0.0', port=5000)

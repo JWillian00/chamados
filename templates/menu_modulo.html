@@ -3,88 +3,1221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Menu</title>
+    <title>Braveodesk</title>
     <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+        * {
             margin: 0;
-            font-family: Arial, sans-serif;
-            background-image: url('/static/image/fundo_chamados.png'); 
-            background-position: center;
-            background-size: cover; 
-            background-attachment: fixed; 
-            background-color: #f9f9f9;
-            padding: 5cm;
+            padding: 0;
             box-sizing: border-box;
+        }         
+        #abertura {
+            max-height: calc(100vh - 120px); 
+            overflow-y: auto; 
+            padding: 30px; 
         }
 
-        .menu-container {
-            background-color: rgba(255, 255, 255, 0.8);
-            padding: 40px;
+        .form-group {
+            margin-bottom: 15px; 
+        }
+
+        .btn {
+            padding: 10px 20px; 
+        }
+
+        .btn2 { 
+            margin-top: 15px;
+            margin-bottom: 15px; 
+            padding: 8px 15px; 
+        }
+
+        #abertura .card {
+            padding: 20px;
+            margin-bottom: 10px;
+        }      
+
+        .whatsapp-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #25D366;
+            color: white;
+            padding: 15px 20px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            width: 100vw;  
-            height: 80vh; 
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             display: flex;
-            flex-direction: column;
-            justify-content: flex-start; 
-            align-items: flex-start; 
-            position: relative;
+            align-items: center;
+            z-index: 10000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+            max-width: 300px;
         }
 
-        .menu-wrapper {
+        .whatsapp-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .whatsapp-notification .whatsapp-icon {
+            font-size: 24px;
+            margin-right: 10px;
+        }
+
+        .whatsapp-notification .close-btn {
+            margin-left: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .toast-notification {
+            position: fixed;
+            top: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #4CAF50; /* verde para sucesso */
+            color: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            z-index: 9999;
+            opacity: 0;
+            transition: all 0.5s ease-in-out;
+            font-weight: bold;
+        }
+        .toast-notification.show {
+            top: 20px;
+            opacity: 1;
+        }
+
+        .alert {
+        padding: 12px 16px;
+        margin-bottom: 15px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        font-size: 14px;
+        line-height: 1.4;
+        position: relative;
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    #toast.show {
+    visibility: visible !important;
+    opacity: 1 !important;
+    }
+    .alert-success {
+        color: #155724;
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+    }
+
+    .alert-danger {
+        color: #721c24;
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+    }
+
+    .alert-info {
+        color: #0c5460;
+        background-color: #d1ecf1;
+        border-color: #bee5eb;
+    }
+
+    .alert-warning {
+        color: #856404;
+        background-color: #fff3cd;
+        border-color: #ffeaa7;
+    }
+
+    /* Animação para as mensagens */
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
             display: flex;
-            gap: 10px; 
+            height: 100vh;
+        }
+
+        /* Menu Lateral */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
             flex-direction: column;
-            align-items: center;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+            position: relative;
+            z-index: 1000;
+        }
+
+        .user-info {
+            padding: 20px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.1);
+        }
+
+        .user-name {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .user-role {
+            font-size: 12px;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .menu-list {
+            flex: 1;
+            padding: 20px 0;
         }
 
         .menu-item {
             display: flex;
             align-items: center;
-            justify-content: center;
-            background-color: #007bff;
-            color: white;
-            width: 120px; 
-            height: 120px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 32px;
-            font-weight: bold;
+            padding: 15px 20px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+            text-decoration: none;
+            color: white;
         }
 
         .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            border-left-color: #fff;
+            transform: translateX(5px);
+        }
+
+        .menu-item.active {
+            background: rgba(255,255,255,0.2);
+            border-left-color: #fff;
+        }
+
+        .menu-item .icon {
+            font-size: 20px;
+            margin-right: 15px;
+            width: 25px;
+            text-align: center;
+        }
+
+        .menu-item .text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Área Principal */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            position: relative;
+        }
+
+        .header {
+            height: 60px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .content-area {
+            flex: 1;
+            padding: 30px;
+            overflow-y: auto;
+            background: #f8f9fa;
+        }
+
+        .content-section {
+            display: none !important;
+            animation: slideIn 0.3s ease-in-out;
+        }
+
+        .content-section.active {
+            display: block !important;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+        .btn2 {
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s;
+            margin-top: -60px;
+            margin-bottom: 60px;
+        }
+
+        .btn2:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status.aberto {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .status.fechado {
+            background: #e8f5e8;
+            color: #2e7d32;
+        }
+
+        .status.andamento {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+        .status.reaberto {
+            background: #fff3e0;
+            color: #f50000;
+        }
+
+        .logout {
+            padding: 15px 20px;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            margin-top: auto;
+        }
+
+        .logout a {
+            color: white;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            transition: opacity 0.3s;
+        }
+
+        .logout a:hover {
+            opacity: 0.8;
+        }
+
+        .logout .icon {
+            margin-right: 10px;
+        }
+
+        /* Estilos específicos para abertura de chamado */
+        #flash-messages {
+            margin-bottom: 5px;
+            padding: 1px;
+            list-style: none;
+            text-align: center;
+        }
+
+        #flash-messages li {
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+        }
+
+        .error {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+        }
+
+        .alert-success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .alert-danger {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        #image-preview-container {
+            display: flex;
+            flex-wrap: wrap; 
+            gap: 10px; 
+            justify-content: center; 
+        }
+
+        .image-thumbnail-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .image-thumbnail {
+            width: 100px;
+            height: 100px;
+            object-fit: cover; 
+        }
+
+        .delete-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            font-size: 12px;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .delete-btn:hover {
+            background-color: red;
+        }
+
+        /* Botão popup */
+        .popup-btn {
+            position: relative; 
+            background-color: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 8px 12px;
+            font-size: 14px; 
+            cursor: pointer;
+            border-radius: 5px; 
+            transition: background-color 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1); 
+        }
+
+        .popup-btn:hover {
             background-color: #0056b3;
         }
 
-        .label {
-            margin-top: 10px;
-            font-size: 16px;
+        .popup {
+            display: none; 
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40vw; 
+            height: auto; 
+            max-height: 80vh; 
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            z-index: 2000;
+            border-radius: 8px;
+            text-align: center;
+            flex-direction: column;
+            justify-content: flex-start;
+            overflow-y: auto; 
+        }
+
+        .popup-overlay {
+            display: none; 
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1500;
+        }
+
+        .popup-btn-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-top: 20px; 
+        }
+
+        .input-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .input-container2 {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            margin-right: 100px;
+        }
+
+
+        .input-container input[type="number"] {
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 5px;
+            width: 50%;
+            margin-left: 10px;
+        }
+
+        .popup h2 {
+            margin-top: 0;
+            margin-bottom: 20px;  
+        }
+
+        .popup .consulta-dados {
+            display: flex; 
+            flex-direction: column; 
+            align-items: flex-start; 
+            margin-bottom: 20px;
+            font-weight: normal;
+            gap: 25px;
+        }
+
+        .popup .consulta-dados p {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            font-weight: normal;
+        }
+
+        .popup .consulta-dados p strong {
+            min-width: 150px;
+            margin-right: 10px;
+        }
+
+        .popup p {
             font-weight: bold;
-            color: #333;
+        }
+
+        .popup pre {
+            text-align: left;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .comentario-popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: auto; 
+            max-width: auto; 
+            height: auto; 
+            max-height: auto; 
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            z-index: 2100;
+            border-radius: 8px;
+            text-align: center;
+            overflow: auto; 
+        }
+
+        #comentario-popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+        }
+
+        #novo-comentario {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        #senha-popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 2200;  
+            border-radius: 8px;
+            text-align: center;
+            opacity: 0;  
+            transition: opacity 0.3s ease-in-out;  
+        }
+
+        #senha-popup input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        #senha-popup .popup-btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+
+        #comentario-indicador {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 10;
+            display: none;
+        }
+
+        #comentario-indicador img {
+            width: 30px;
+            height: 30px;
+        }
+
+        .form-group.botao-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .form-group.botao-container button {
+            width: auto;
+            padding: 10px 15px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        #loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2500;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+        }
+
+        #loading-overlay p {
+            color: white;
+            font-size: 18px;
         }
     </style>
 </head>
 <body>
-    <div class="menu-container">
-        <div class="menu-wrapper">
-            <!-- Botão 'Abrir Chamado' -->
-            <a href="/aberturaChamado" class="menu-item">
-                <span class="icon">📄</span>
-            </a>
-            <div class="label">Abertura Chamado</div>
+    
+    <div id="toast" class="toast-notification"></div>
+    <div class="container">
+        <!-- Menu Lateral -->
+        <div class="sidebar">
+            <div class="user-info">
+                <div class="user-name" id="userName">{{ usuario_nome or 'Usuário' }}</div>
+                <div class="user-role">{{ usuario_empresa or 'Empresa' }}</div>
+            </div>
+            
+            <div class="menu-list">
 
-            <!-- Botão 'Relatório' -->
-            <a href="/relatorio" class="menu-item">
-                <span class="icon">📊</span>
-            </a>
-            <div class="label">Relatório</div>
+                {% if session['acesso'] in ['admin', 'sup', 'ku'] %}
+                <div class="menu-item" onclick="showSection('dashboard')">
+                    <span class="icon">📈</span>
+                    <span class="text">Dashboard</span>
+                </div>
+                {% endif %}
+
+                {% if session['acesso'] in ['admin', 'sup', 'ku'] %}
+                <div class="menu-item" onclick="showSection('abertura')">
+                    <span class="icon">📄</span>
+                    <span class="text">Abertura Chamado</span>
+                </div>
+                {% endif %}
+
+                {% if session['acesso'] in ['admin', 'sup'] %}
+                <div class="menu-item" onclick="showSection('atendimentos')">
+                    <span class="icon">👨‍💻</span>
+                    <span class="text">Atendimentos</span>
+                </div>
+                {% endif %}
+
+                {% if session['acesso'] in ['admin', 'ku'] %}
+                <div class="menu-item" onclick="showSection('consulta')">
+                    <span class="icon">🔎</span>
+                    <span class="text">Consultar Chamados</span>
+                </div>
+                {% endif %}
+
+                {% if session['acesso'] in ['admin', 'sup'] %}
+                <div class="menu-item" onclick="showSection('relatorio')">
+                    <span class="icon">📊</span>
+                    <span class="text">Relatório</span>
+                </div>
+                {% endif %}
+
+                {% if session['acesso'] == 'admin' %}
+                <div class="menu-item" onclick="showSection('usuarios')">
+                    <span class="icon">👥</span>
+                    <span class="text">Usuários</span>
+                </div>
+                {% endif %}
+
+            </div>
+            
+            <div class="logout">
+                <a href="{{ url_for('logout') }}" class="btn-logout">
+                    <span class="icon">🚪</span>
+                    <span>Sair</span>
+                </a>
+            </div>
         </div>
+
+        <!-- Área Principal -->
+        <div class="main-content">
+            <div class="header">
+                <h1 id="pageTitle">Dashboard</h1>
+            </div>
+
+            <div id="dashboard" class="content-section active"> <div class="content-area">
+                    <div class="card">
+                        <div class="dashboard-section">
+                            <iframe src="/dashboard" width="100%" height="600" frameborder="0"></iframe>
+                        </div>
+                    </div>
+                </div>
+            </div>
+                <!-- Abertura de Chamado -->
+                <div id="abertura" class="content-section">
+                    <div class="content-area">
+                        <div class="card">
+                            <div id="flash-messages">
+                                {% with messages = get_flashed_messages(with_categories=true) %}
+                                    {% if messages %}
+                                        {% for category, message in messages %}
+                                            <div id="mensagem-temporaria" class="alert {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% endif %}">
+                                                {{ message }}
+                                            </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
+                    
+                            <h2 style="font-size: 24px; margin-bottom: 20px; color: #333;">📝 Abertura de Chamado</h2>
+                            <p style="font-size: 14px; color: #666; margin-bottom: 25px;">Preencha os dados abaixo para abrir um novo chamado</p>
+                            
+                            <form id="formchamado" method="POST" enctype="multipart/form-data">
+                                <div class="form-group">
+                                    <label for="empresa" style="font-size: 14px; font-weight: 500;">Selecione a empresa:</label>
+                                    <select id="empresa" name="empresa" style="font-size: 14px; padding: 10px;">
+                                        <option value="tiscoski">Tiscoski</option>
+                                        <option value="Ibiapina">Ibiapina</option>
+                                        <option value="Oniz">Oniz</option>
+                                        <option value="Pulmer">Pulmer</option>
+                                        <option value="Dismelo">Dismelo</option>
+                                        <option value="Distrimix">Distrimix</option>
+                                        <option value="RP">Rio Piranhas</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="plataforma" style="font-size: 14px; font-weight: 500;">Plataforma:</label>
+                                    <select id="plataforma" name="plataforma" style="font-size: 14px; padding: 10px;">
+                                        <option value="E-commerce">E-commerce</option>
+                                        <option value="click">Click</option>
+                                        <option value="Bodegamix">Bodegamix</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="filial" style="font-size: 14px; font-weight: 500;">Filial:</label>
+                                    <select id="filial" name="filial" style="font-size: 14px; padding: 10px;">
+                                        <option value="Arilu">Arilu</option>
+                                        <option value="Dismelo">Dismelo</option>
+                                        <option value="Ibiapina - HB">Ibiapina - HB</option>
+                                        <option value="Ibiapina - ME">Ibiapina - ME</option>
+                                        <option value="Ibiapina - P&G">Ibiapina - P&G</option>
+                                        <option value="Ibiapina - PI">Ibiapina - PI</option>
+                                        <option value="Oniz">Oniz</option>
+                                        <option value="Pulmer">Pulmer</option>
+                                        <option value="Rio Piranhas - MA">Rio Piranhas - MA</option>
+                                        <option value="Rio Piranhas - PI">Rio Piranhas - PI</option>
+                                        <option value="Tiscoski">Tiscoski</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="email" style="font-size: 14px; font-weight: 500;">E-mail:</label>
+                                    <input type="email" id="email" name="email" value="{{email}}" style="font-size: 14px; padding: 10px;">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="titulo2" style="font-size: 14px; font-weight: 500;">Título:</label>
+                                    <input type="text" id="titulo2" name="titulo2" value="{{titulo}}" style="font-size: 14px; padding: 10px;">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="categoria" style="font-size: 14px; font-weight: 500;">Selecione a categoria do chamado:</label>
+                                    <select id="categoria" name="categoria" style="font-size: 14px; padding: 10px;">
+                                        <option value="Bug">Bug</option>
+                                        <option value="Duvida">Dúvidas</option>
+                                        <option value="Melhoria">Melhorias</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="descricao" style="font-size: 14px; font-weight: 500;">Descrição:</label>
+                                    <textarea id="descricao" name="descricao" rows="4" style="font-size: 14px; padding: 10px;">{{descricao}}</textarea>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="evidencia" style="font-size: 14px; font-weight: 500;">Anexar Evidências:</label>
+                                    <input type="file" id="evidencia" name="evidencia" multiple onchange="previewImages(event)" style="font-size: 14px;">
+                                </div>
+                                <div id="image-preview-container"></div>
+
+                                <div class="form-group">
+                                    <button id="btnEnviar" type="submit" class="btn" style="font-size: 14px; padding: 12px 24px;">Enviar Chamado</button>
+                                </div>
+                            </form>
+                            
+                            <div class="form-group botao-container">
+                                <button class="btn2" onclick="openPopup()" style="font-size: 14px; padding: 10px 20px;">Consulte seu chamado aqui!</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="popup-overlay" id="popup-overlay"></div>
+                    <div class="popup-overlay" id="comentario-popup-overlay"></div>
+
+                    <div class="popup comentario-popup" id="comentario-popup">
+                        <h2 style="font-size: 18px;">Comentários do Chamado</h2>
+                        
+                        <div id="comentarios-container">
+                            <p id="comentarios-texto" style="font-size: 14px;">Carregando comentários...</p>
+                        </div>
+
+                        <textarea id="novo-comentario" placeholder="Digite seu comentário..." rows="3" style="font-size: 14px;"></textarea>
+
+                        <div class="popup-btn-container">
+                            <button class="popup-btn" onclick="enviarComentario()" style="font-size: 14px;">Enviar</button>
+                            <button class="popup-btn close-btn" onclick="fecharPopupComentario()" style="font-size: 14px;">Fechar</button>
+                        </div>
+                    </div>
+                    
+                    <div class="popup" id="popup">
+                        <h2 style="font-size: 18px;">Consulta de Chamado</h2>
+
+                        <div id="comentario-indicador" style="display: none; position: absolute; top: 20px; right: 20px;">
+                            <img src="/static/image/mensagem_gif.gif" alt="Comentários" style="width: 30px; height: 30px;">
+                        </div>
+
+                        <div class="input-container2">
+                            <label for="plataforma-consulta" style="font-size: 14px;">Selecione a Plataforma:</label>
+                            <select id="plataforma-consulta" name="plataforma-consulta" style="font-size: 14px;">
+                                <option value=" E-commerce">E-commerce</option>
+                                <option value="click">Click</option>
+                                <option value="Bodegamix">Bodegamix</option>
+                            </select>
+                        </div>
+                                            
+                        <div class="input-container">
+                            <label for="id-chamado" style="font-size: 14px;">Informe o ID do chamado: </label>
+                            <input type="number" id="id-chamado" placeholder="Digite o ID" style="font-size: 14px;">
+                        </div>
+
+                        <div id="loader" style="display: none; text-align: center;">
+                            <img src="https://cdn.pixabay.com/animation/2023/10/22/03/31/03-31-43-608_512.gif"
+                                alt="Carregando..."
+                                style="width: 50px; height: 50px;">
+                            <p style="font-size: 14px;">Buscando informações...</p>
+                        </div>
+                        <div id="loading-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 10; display: none; justify-content: center; align-items: center; flex-direction: column; text-align: center;">
+                            <img src="https://cdn.pixabay.com/animation/2023/10/22/03/31/03-31-43-608_512.gif"
+                                alt="Carregando..."
+                                style="width: 50px; height: 50px;">
+                            <p style="color: white; font-size: 18px;">Criando chamado...</p>
+                        </div>
+                        
+                        <div class="consulta-dados">
+                            <p style="font-size: 14px;"><strong>Título:</strong> <span id="titulo"></span></p>
+                            <p style="font-size: 14px;"><strong>Estado chamado:</strong> <span id="state"></span></p>
+                            <p style="font-size: 14px;"><strong>Status:</strong> <span id="reason"></span></p>
+                            <p style="font-size: 14px;"><strong>Coluna:</strong> <span id="board-column"></span></p>
+                        </div>
+
+                        <div id="senha-popup" style="display: none;">
+                            <h2 style="font-size: 18px;">Insira a Senha</h2>
+                            <input type="password" id="senha-input" placeholder="Digite a senha" style="font-size: 14px;" />
+                            <div class="popup-btn-container">
+                                <button class="popup-btn" onclick="validarSenha()" style="font-size: 14px;">OK</button>
+                                <button class="popup-btn" onclick="fecharSenhaPopup()" style="font-size: 14px;">Voltar</button>
+                            </div>
+                        </div>
+                        
+                        <div class="popup-btn-container">
+                            <button class="btn" onclick="closePopup()" style="font-size: 14px;">Voltar</button>
+                            <button class="btn" onclick="consultarChamado()" style="font-size: 14px;">Consultar</button>
+                            <button class="btn" onclick="abrirPopupComentario()" style="font-size: 14px;">Ver comentários</button>
+                        </div>
+                    </div>
+                </div>
+        <div id="relatorio" class="content-section">
+            <div class="card">
+                <h2>Relatório de Chamados</h2>
+                
+                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="filtro-data">Data Inicial</label>
+                        <input type="date" id="filtro-data" name="filtro-data">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="filtro-data-fim">Data Final</label>
+                        <input type="date" id="filtro-data-fim" name="filtro-data-fim">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="filtro-status">Status</label>
+                        <select id="filtro-status" name="filtro-status">
+                            <option value="">Todos</option>
+                            <option value="aberto">Aberto</option>
+                            <option value="andamento">Em Andamento</option>
+                            <option value="fechado">Fechado</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button class="btn" style="margin-bottom: 20px;">Gerar Relatório</button>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Título</th>
+                            <th>Categoria</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                            <th>Prioridade</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>#001</td>
+                            <td>Problema na impressora</td>
+                            <td>Hardware</td>
+                            <td><span class="status aberto">Aberto</span></td>
+                            <td>04/06/2025</td>
+                            <td>Alta</td>
+                        </tr>
+                        <tr>
+                            <td>#002</td>
+                            <td>Sistema lento</td>
+                            <td>Software</td>
+                            <td><span class="status andamento">Em Andamento</span></td>
+                            <td>03/06/2025</td>
+                            <td>Média</td>
+                        </tr>
+                        <tr>
+                            <td>#003</td>
+                            <td>Configurar email</td>
+                            <td>Software</td>
+                            <td><span class="status fechado">Fechado</span></td>
+                            <td>02/06/2025</td>
+                            <td>Baixa</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    <div id="usuarios" class="content-section">
+        <div class="card">
+             <iframe src="/admin_usuarios" style="width: 100%; height: 90vh; border: none;"></iframe>  
+        </div>
+    </div>
+
+   
+    <div id="consulta" class="content-section">
+        <div class="card">
+            <iframe src="/consultar_chamado" style="width: 100%; height: 90vh; border: none;"></iframe>
+        </div>
+    </div>
+    <div id="atendimentos" class="content-section">
+    <iframe src="/detalhes_chamados" style="width: 100%; height: 90vh; border: none;"></iframe>        
+        
+    </div>
+
+
+</div>
+</div>
+</div>
+    <script src="{{ url_for('static', filename='js/previewImages.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/senha_relatorio.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/consultar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/aberturaChamado.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/permissao_notifica.js') }}"></script>
+   
+    <a href="{{ url_for('consultar_chamado_page') }}" class="menu-item">Consulta</a>
+    
+
+    <script>
+        function showSection(sectionId) {
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.menu-item').classList.add('active');
+            
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.remove('active');
+                section.style.display = 'none';
+            });
+            
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                targetSection.style.display = 'block'; 
+            }
+            
+            const titles = {
+                'dashboard': 'Dashboard',
+                'abertura': 'Abertura de Chamado',
+                'relatorio': 'Relatório de Chamados',
+                'usuarios': 'Gerenciar Usuários',
+                'consulta': 'Consulta de Chamados',
+                'atendimentos': 'Atendimentos'
+            };
+            
+            document.getElementById('pageTitle').textContent = titles[sectionId];
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+           
+            const mensagemTemporaria = document.querySelector("#mensagem-temporaria");
+            if (mensagemTemporaria) {
+               
+                const toast = document.getElementById("toast"); 
+                if (toast) { 
+                    toast.innerText = mensagemTemporaria.innerText;
+                    toast.classList.add("show");
+                    setTimeout(() => {
+                        toast.classList.remove("show");
+                    }, 20000);
+                } else {
+                    console.warn("Elemento #toast não encontrado para exibir a mensagem flash.");
+                }
+                
+            }          
+            requestNotificationPermission();                        
+           
+        });         
+        
+        let imagensSelecionadas = [];
+        
+        function previewImages(event) {
+            const files = event.target.files;
+            const container = document.getElementById('image-preview-container');
+            container.innerHTML = '';
+            
+            for (let file of files) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const div = document.createElement('div');
+                    div.className = 'image-thumbnail-container';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" class="image-thumbnail" alt="Preview">
+                        <button type="button" class="delete-btn" onclick="removeImage(this)">×</button>
+                    `;
+                    container.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeImage(button) {
+            button.parentElement.remove();
+        }
+
+    
+        function openPopup() {
+            document.getElementById('popup-overlay').style.display = 'block';
+            document.getElementById('popup').style.display = 'block';
+        }
+
+        function closePopup() {
+            document.getElementById('popup-overlay').style.display = 'none';
+            document.getElementById('popup').style.display = 'none';
+        }
+
+        function abrirPopupComentario() {
+            document.getElementById('comentario-popup-overlay').style.display = 'block';
+            document.getElementById('comentario-popup').style.display = 'block';
+        }
+
+        function fecharPopupComentario() {
+            document.getElementById('comentario-popup-overlay').style.display = 'none';
+            document.getElementById('comentario-popup').style.display = 'none';
+        }
+       
+        document.getElementById('popup-overlay').addEventListener('click', closePopup);
+        document.getElementById('comentario-popup-overlay').addEventListener('click', fecharPopupComentario);
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">   
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+   
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    
+    <script>
+    toastr.options = {
+        "closeButton": true,
+        "debug": false,
+        "newestOnTop": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",  
+        "preventDuplicates": true,
+        "showDuration": "300",
+        "hideDuration": "1000",
+        "timeOut": "5000", 
+        "extendedTimeOut": "1000",
+        "showEasing": "swing",
+        "hideEasing": "linear",
+        "showMethod": "fadeIn",
+        "hideMethod": "fadeOut"
+    };
+    </script>
+
+    <div id="whatsapp-notification" class="whatsapp-notification">
+        <span class="whatsapp-icon">✅</span>
+        <span id="whatsapp-message"></span>
+        <button class="close-btn" onclick="closeWhatsappNotification()">×</button>
     </div>
 </body>
 </html>

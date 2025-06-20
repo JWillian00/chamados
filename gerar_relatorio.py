@@ -26,33 +26,26 @@ def gerar_relatorio(data_inicial, data_final, filtro_data, filial, email, empres
     data_inicial = parse_date(data_inicial)
     data_final = parse_date(data_final) if data_final else None
 
-    # Ajusta a data final para o fim do dia se foi informada
+
     if data_final:
         data_final = ajustar_data_final(data_final)
 
-    # Verifica as regras de combinação de datas e filtros
     if filtro_data == "abertura":
         if not data_inicial:
             return {"message": "Informar data de abertura"}
         if data_final:
-            # Filtra chamados abertos a partir da data_inicial e com data_fechamento <= data_final
             query = query.where("data_criacao", ">=", data_inicial).where("data_fechamento", "<=", data_final)
         else:
-            # Filtra chamados abertos a partir da data_inicial
             query = query.where("data_criacao", ">=", data_inicial)
-        # Ordena por data_criacao (menor para maior)
         query = query.order_by("data_criacao")
 
     elif filtro_data == "fechamento":
         if not data_final:
             return {"message": "Informar data de fechamento"}
         if data_inicial:
-            # Filtra chamados fechados a partir da data_final e com data_criacao <= data_inicial
             query = query.where("data_fechamento", ">=", data_final).where("data_criacao", "<=", data_inicial)
         else:
-            # Filtra chamados fechados até a data_final, sem considerar data_criacao
             query = query.where("data_fechamento", "<=", data_final)
-        # Ordena por data_fechamento (menor para maior)
         query = query.order_by("data_fechamento")
 
     try:      

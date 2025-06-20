@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redefinir Senha</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        #flash-messages {
+            margin-bottom: 5px;
+            padding: 1px;
+            list-style: none;
+            text-align: center;
+        }
+
+        #flash-messages li {
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .alert-success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+        }
+
+        .alert-danger {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('/static/image/fundo_chamados.png');
+            background-position: center;
+            background-size: cover;
+            background-attachment: fixed;
+            background-color: #f9f9f9;
+        }
+
+        .reset-password-container {
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 450px;
+            width: 90%;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            max-width: 150px;
+            height: auto;
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600;
+        }
+
+        p {
+            margin-bottom: 25px;
+            color: #666;
+            line-height: 1.5;
+            font-size: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .input-group input {
+            width: calc(100% - 20px);
+            padding: 12px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease, transform 0.2s;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .back-to-login {
+            margin-top: 25px;
+            font-size: 15px;
+            color: #555;
+        }
+
+        .back-to-login a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .back-to-login a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+            .reset-password-container {
+                padding: 30px 20px;
+            }
+
+            h2 {
+                font-size: 20px;
+            }
+
+            p {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="reset-password-container">
+        <div id="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert {{ 'alert-success' if category == 'success' else 'alert-danger' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+        
+        <div class="logo-container">
+            <img src="{{ url_for('static', filename='image/logo_login.png') }}" alt="Logo" class="logo">
+        </div>
+        
+        <h2>Redefinir Sua Senha</h2>
+        <p>Por favor, digite e confirme sua nova senha.</p>
+        
+        <form id="resetPasswordForm" method="POST" action="{{ url_for('redefinir_senha_confirmar', token=token) }}">
+            <input type="hidden" name="token" value="{{ token }}">
+
+            <div class="input-group">
+                <label for="new_password">Nova Senha</label>
+                <input type="password" id="new_password" name="new_password" placeholder="Digite sua nova senha" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="confirm_password">Confirmar Nova Senha</label>
+                <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirme sua nova senha" required>
+            </div>
+            
+            <button type="submit" class="btn-submit">Redefinir Senha</button>
+        </form>
+        
+        <div class="back-to-login">
+            <a href="{{ url_for('login') }}">Voltar para o Login</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const newPasswordInput = document.getElementById('new_password');
+            const confirmPasswordInput = document.getElementById('confirm_password');
+            const resetPasswordForm = document.getElementById('resetPasswordForm');
+
+            resetPasswordForm.addEventListener('submit', function(event) {
+                const newPassword = newPasswordInput.value.trim();
+                const confirmPassword = confirmPasswordInput.value.trim();
+                
+                if (!newPassword || !confirmPassword) {
+                    event.preventDefault();                   
+                    return;
+                }
+
+                if (newPassword !== confirmPassword) {
+                    event.preventDefault();
+                    
+                    alert('As senhas não coincidem!'); 
+                    return;
+                }
+
+                if (newPassword.length < 6) {
+                    event.preventDefault();                   
+                    alert('A senha deve ter pelo menos 6 caracteres!');
+                    return;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

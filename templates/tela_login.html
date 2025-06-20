@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        #flash-messages {
+            margin-bottom: 5px;
+            padding: 1px;
+            list-style: none;
+            text-align: center;
+        }
+
+        #flash-messages li {
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+        }
+
+        .error {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+        }
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-image: url('/static/image/fundo_chamados.png'); 
+            background-position: center;
+            background-size: cover; 
+            background-attachment: fixed; 
+            background-color: #f9f9f9; 
+        }
+
+        .container {
+            background-color: #fff; 
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+            z-index: 1; 
+            position: relative; 
+        }
+
+        h1 {
+            font-size: 24px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        button {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .alert {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .alert-success {
+            color: green;
+            background-color: #e0f7e0;
+            border: 1px solid green;
+        }
+
+        .alert-danger {
+            color: red;
+            background-color: #f8d7da;
+            border: 1px solid red;
+        }
+
+        .form-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            width: 30%;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .logo-container {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .logo {
+            max-width: 100px;
+            height: auto;
+        }
+
+        .remember-forgot {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+        }
+
+        .remember-me input[type="checkbox"] {
+            margin-right: 5px;
+        }
+
+        .forgot-password a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .register-link {
+            margin-top: 20px;
+            font-size: 14px;
+        }
+
+        .register-link a {
+            color: #007bff;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .separator {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .separator::before,
+        .separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .separator span {
+            padding: 0 10px;
+            color: #777;
+            font-size: 14px;
+        }
+
+        .social-login {
+            margin-bottom: 20px;
+        }
+
+        .btn-microsoft {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: transparent;
+            color: #444;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            border: 1px solid #ccc;
+        }
+
+        .btn-microsoft:hover {
+            background-color: #f8f8f8;
+            border-color: #999;
+        }
+
+        .btn-microsoft img {
+            margin-right: 10px;
+        }
+        
+        .btn-microsoft span {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <ul id="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+        {% endwith %}
+        </div>
+        
+        <div class="logo-container">
+            <img src="/static/image/logo_login.png" alt="Logo" class="logo">
+        </div>
+        
+        <h1>Login</h1>
+        
+        <form id="formlogin" method="POST" action="/login">
+            <div class="form-group">
+                <label for="email">E-mail:</label>
+                <input type="email" id="email" name="email" placeholder="Digite seu e-mail" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="senha">Senha:</label>
+                <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
+            </div>
+            
+            <div class="remember-forgot">
+                <div class="remember-me">
+                    <input type="checkbox" id="lembrar" name="lembrar">
+                    <label for="lembrar">Lembrar-me</label>
+                </div>
+                <a href="{{ url_for('solicitar_recuperacao_senha') }}" class="forgot-password">Esqueceu a senha?</a>
+            </div>
+            
+            <button type="submit" class="btn">Entrar</button>
+        </form>
+        
+      <!--  <div class="separator">
+            <span>ou</span>
+        </div>
+        
+        <div class="social-login">
+            <a href="/auth/microsoft" class="btn-microsoft">
+                <img src="/static/image/microsoft-logo.png" alt="Microsoft" width="20" height="20">
+                <span>Entrar com Microsoft</span>
+            </a>
+        </div>-->
+        
+        <div class="register-link">
+            Não tem uma conta? <a href="/cadastro">Registre-se</a>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('formlogin');
+            
+            form.addEventListener('submit', function(event) {
+                event.preventDefault();
+                
+                const email = document.getElementById('email').value;
+                const senha = document.getElementById('senha').value;
+                
+                if (!email || !senha) {
+                    mostrarMensagem('Preencha todos os campos!', 'error');
+                    return;
+                }
+                
+                // adicionar validação
+                
+                form.submit();
+            });
+            
+            function mostrarMensagem(mensagem, tipo) {
+                const flashMessages = document.getElementById('flash-messages');
+                flashMessages.innerHTML = `
+                    <div class="alert ${tipo === 'success' ? 'alert-success' : 'alert-danger'}">
+                        ${mensagem}
+                    </div>
+                `;
+                
+                // Limpar a mensagem após 5 segundos
+                setTimeout(() => {
+                    flashMessages.innerHTML = '';
+                }, 5000);
+            }
+        });
+    </script>
+</body>
+</html>
