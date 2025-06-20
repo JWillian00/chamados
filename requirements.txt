@@ -1,3 +1,6 @@
+pip>=24.0
+setuptools>=70.0
+wheel
 blinker==1.9.0
 CacheControl==0.14.2
 cachetools==5.5.1
