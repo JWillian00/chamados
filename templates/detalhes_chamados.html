@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atendimentos - Fila de Chamados</title>
+    <style>
+        body {
+            background-color: #f0f2f5;
+        }
+        .neon-alert {
+            border: 3px solid #00f;
+            animation: neonBlink 1s infinite;
+            border-radius: 10px;
+        }
+
+        @keyframes neonBlink {
+            0% { box-shadow: 0 0 10px #00f; }
+            50% { box-shadow: 0 0 20px #00f, 0 0 30px #00f; }
+            100% { box-shadow: 0 0 10px #00f; }
+        }
+
+        #visualizacao-anexo-modal button {
+        background-color: rgba(0,0,0,0.4);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        }
+
+        #visualizacao-anexo-modal button:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .fila-container {
+            padding: 20px;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+        .header-fila {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .contador-chamados {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .refresh-btn:hover {
+            background-color: #0056b3;
+        }
+        .chamado-card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: transform 0.2s ease-in-out;
+            border-left: 5px solid transparent;
+        }
+        .chamado-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        .chamado-card h5 {
+            color: #007bff;
+            margin-bottom: 10px;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: normal;
+            font-size: 1.1rem; 
+        }
+        .chamado-card p {
+            margin-bottom: 5px;
+            color: #555;
+            font-size: 0.95em;
+        }
+        .chamado-card strong {
+            color: #333;
+        }
+        .btn-detalhes {
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            float: right;
+            margin-top: 10px;
+        }
+        .btn-detalhes:hover {
+            background-color: #5a6268;
+        }
+        /* Cores dos status no card */
+        .status-badge-aberto { background-color: #359fdc; color: white; border-left-color: #dc3545; }
+        .status-badge-em-andamento { background-color: #ffc107; color: #343a40; border-left-color: #ffc107; }
+        .status-badge-fechado { background-color: #28a745; color: white; border-left-color: #28a745; }
+        .status-badge-reaberto { background-color: #eb0c0c; color: white; border-left-color: #fd7e14; }
+        .chamado-card.status-aberto { border-left-color: #359fdc; }
+        .chamado-card.status-em-andamento { border-left-color: #ffc107; }
+        .chamado-card.status-fechado { border-left-color: #28a745; }
+        .chamado-card.status-reaberto { border-left-color: #eb0c0c; }
+        .descricao-label {
+            font-weight: normal;
+        }
+        /* Estilos para o modal de detalhes */
+        #modalChamado .modal-dialog {
+            max-width: 1200px;
+        }
+        #modalChamado .modal-header {
+            background-color: #007bff;
+            color: white;
+            border-bottom: none;
+        }
+        #modalChamado .modal-title {
+            color: white;
+        }
+        #modalChamado .btn-close {
+            filter: invert(1);
+        }
+        #modalChamado .dl-horizontal dt {
+            text-align: right;
+            margin-bottom: 5px;
+        }
+        #modalChamado .dl-horizontal dd {
+            margin-bottom: 5px;
+        }
+        /* Estilos para a seção de comentários */
+        .comentario-card {
+            background: #f8f9fa;
+            border-left: 3px solid #007bff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .comentario-card .card-subtitle {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        .comentario-card .card-text {
+            font-size: 0.95em;
+            color: #333;
+        }
+        .anexos-list {
+            margin-top: 10px;
+        }
+        .anexos-list a {
+            font-size: 0.85em;
+            color: #007bff;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        .anexos-list a:hover {
+            text-decoration: underline;
+        }
+        /* Estilos para o visualizador de imagens */
+        #imageViewerCarousel .carousel-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            background-color: #333;
+        }
+        #imageViewerCarousel .carousel-item img,
+        #imageViewerCarousel .carousel-item video {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+        .carousel-control-prev, .carousel-control-next {
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .carousel-control-prev-icon, .carousel-control-next-icon {
+            width: 20px;
+            height: 20px;
+        }
+        #tituloChamado {
+        white-space: pre-line;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        font-size: 1.1rem; 
+        }
+            
+        
+    </style>
+
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script> 
+
+</head>
+<body>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+
+    <div class="fila-container">
+        <div class="header-fila">
+            <h2 class="contador-chamados" id="contadorChamados">Chamados Abertos: 0</h2>
+            <button class="refresh-btn" id="refreshBtn">Atualizar Lista</button>
+        </div>
+
+        <div id="listaChamados" class="row">
+            </div>
+    </div>
+
+    <div class="modal fade" id="modalChamado" tabindex="-1" aria-labelledby="modalChamadoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalChamadoLabel">Detalhes do Chamado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAtualizarChamado">
+                        <input type="hidden" id="modalIdChamado">
+
+                        <h6 class="mb-3">Informações do Chamado</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-8">ID chamado:</dt>
+                                    <dd class="col-sm-8" id="idChamado"></dd>
+                                    
+                                    <dt class="col-sm-8">Título:</dt>
+                                    <dd class="col-sm-8" id="tituloChamado"></dd>
+
+                                    <dt class="col-sm-8">Solicitante:</dt>
+                                    <dd class="col-sm-8" id="usuarioChamado"></dd>
+
+                                    <dt class="col-sm-8">Telefone:</dt>
+                                    <dd class="col-sm-8" id="telefoneChamado"></dd>
+                                   
+                                    <dt class="col-sm-8" id="azure-id-container" style="display: none;">ID card: </dt>
+                                    <dd class="col-sm-8" id="modal-id-azure"></dd>         
+                                    
+                                    
+                                                    
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Empresa:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalEmpresaChamado" name="empresa_chamado">
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Plataforma:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalPlataformaChamado" name="plataforma_chamado">
+                                    </dd>
+
+                                    <dt class="col-sm-4">Filial:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalFilialChamado" name="filial_chamado">
+                                    </dd>
+
+                                    <dt class="col-sm-4">Categoria:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalCategoria" name="categoria">
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <h6 class="mt-4 mb-3">Atendimento:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Status:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalStatusChamado" name="status_chamado">
+                                            <option value="Aberto">Aberto</option>
+                                            <option value="Em andamento">Em andamento</option>
+                                            <option value="Fechado">Fechado</option>
+                                            <option value="Reaberto">Reaberto</option>
+                                            <option value="Aguardando usuário">Aguardando usuário</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Prioridade:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalPrioridade" name="prioridade">
+                                            <option value="Baixa">Baixa</option>
+                                            <option value="Média">Média</option>
+                                            <option value="Alta">Alta</option>
+                                            <option value="Urgente">Urgente</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Responsável:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalResponsavel" name="responsavel">
+                                            <option value="{{ usuario_logado_nome }}">{{ usuario_logado_nome }}</option>
+                                            <option value="Veplex">Veplex</option>
+                                            <option value="Globalsys">Globalsys</option>
+                                            <option value="Digital">Digital</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        
+                    </form>                  
+                    
+
+                    <hr class="my-4">
+
+                    <h5 class="mb-3">Descrição</h5>
+
+                    <div class="card mb-4 p-3 shadow-sm">
+                        <div class="mb-3">
+                            <label for="comentarioTexto" class="form-label">Descrição do chamado</label>
+                            <textarea readonly class="form-control" id="descricaoChamado" rows="3"></textarea>
+                            <div id="anexosChamadoContainer" class="mt-2">                               
+                            </div>
+                            
+                        </div>
+
+                    <h5 class="mb-3">Comentários e Histórico</h5>
+
+                    <div class="card mb-4 p-3 shadow-sm">
+                        <div class="mb-3">
+                            <label for="comentarioTexto" class="form-label">Adicionar Novo Comentário:</label>
+                            <textarea class="form-control" id="comentarioTexto" rows="3" placeholder="Digite seu comentário aqui..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="anexosInput" class="form-label">Anexar Evidências:</label>
+                            <input type="file" class="form-control" id="anexosInput" multiple
+                                   accept="image/*,video/mp4,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json,text/xml,text/plain,image/gif">
+                            <small class="form-text text-muted">Formatos permitidos: imagens, mp4, pdf, doc, docx, xls, xlsx, json, xml, txt, gif.</small>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="button" class="btn btn-success" id="btnAdicionarComentario">
+                                <i class="fas fa-comment-dots me-2"></i>Adicionar Comentário
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="listaComentarios" class="mt-4">
+                        <p class="text-muted text-center">Nenhum comentário ainda.</p>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarAlteracoes">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="visualizacao-anexo-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px; overflow: auto; text-align: center;">
+            <span onclick="fecharVisualizacaoAnexo()" style="position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; color: #555;">&times;</span>
+            <button onclick="anteriorAnexo()" style="left: 10px; position: absolute;">◀</button>
+            <div id="visualizacao-anexo-conteudo"></div>
+            <button onclick="proximoAnexo()" style="right: 10px; position: absolute;">▶</button>
+            <a id="btn-download-anexo" href="#" download style="margin-top: 15px; display: inline-block; background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">⬇️ Download</a>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
+
+    <script>
+        const socket = io();
+        const SUPABASE_URL = '{{ supabase_url }}';
+        const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
+        const SUPABASE_BUCKET_NAME = 'chamadoanexos';         
+
+       // console.log("Verificando tipo supabase:", typeof supabase); 
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function fetchChamados() {
+            fetch('/api/chamados-abertos')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(chamados => {
+                    const listaChamados = document.getElementById('listaChamados');
+                    listaChamados.innerHTML = '';
+                    document.getElementById('contadorChamados').textContent = `Chamados Abertos: ${chamados.length}`;
+
+                    if (chamados.length === 0) {
+                        listaChamados.innerHTML = '<p class="text-muted text-center mt-3">Nenhum chamado aberto no momento.</p>';
+                        return;
+                    }
+
+                    chamados.forEach(chamado => {
+                        const chamadoCard = document.createElement('div'); 
+
+                        if (chamado.comentario_novo) {
+                            chamadoCard.classList.add('neon-alert'); 
+                        }
+
+                        let statusClass = '';
+                        switch (chamado.status_chamado.toLowerCase()) {
+                            case 'aberto': statusClass = 'status-badge-aberto'; break;
+                            case 'em andamento':
+                            case 'andamento': statusClass = 'status-badge-em-andamento'; break;
+                            case 'fechado': statusClass = 'status-badge-fechado'; break;
+                            case 'reaberto': statusClass = 'status-badge-reaberto'; break;
+                            case 'aguardando usuário': statusClass = 'status-badge-em-andamento'; break;
+                            default: statusClass = 'bg-secondary';
+                        }
+                        const dataFormatada2 = moment.utc(chamado.data_criacao).local().format('DD/MM/YYYY HH:mm:ss');
+
+                        chamadoCard.className = `chamado-card col-md-6 col-lg-4 ${statusClass.replace('status-badge-', 'status-')}`;
+                        chamadoCard.innerHTML = `
+                            <h5>${chamado.titulo} <small class="text-muted">(ID: ${chamado.id_chamado})</small></h5>
+                            <p><strong>Solicitante:</strong> ${chamado.usuario_nome}</p>
+                            <p><strong>Empresa:</strong> ${chamado.empresa_chamado || 'N/A'}</p>
+                            <p><strong>Plataforma:</strong> ${chamado.plataforma_chamado || 'N/A'}</p>
+                            <p><strong>Filial:</strong> ${chamado.filial_chamado || 'N/A'}</p>
+                            <p><strong>Criado em:</strong> ${dataFormatada2}</p>
+                            <p><strong>Prioridade:</strong> <span class="badge bg-info">${chamado.prioridade || 'N/A'}</span></p>
+                            <p><strong>Status:</strong> <span class="badge ${statusClass}">${chamado.status_chamado || 'N/A'}</span></p>
+                            ${chamado.id_chamado_azure ? `<p><strong>ID Azure:</strong> ${chamado.id_chamado_azure}</p>` : ''}
+                            <button type="button" class="btn btn-detalhes" data-id="${chamado.id_chamado}">Ver Detalhes</button>
+                        `;
+
+                        listaChamados.appendChild(chamadoCard);
+                    });
+
+                    attachModalEventListeners();
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar chamados:', error);
+                    listaChamados.innerHTML = '<p class="text-danger text-center mt-3">Erro ao carregar chamados.</p>';
+                });
+        }
+
+        function attachModalEventListeners() {
+            document.querySelectorAll('.btn-detalhes').forEach(btn => {
+                btn.removeEventListener('click', handleDetalhesClick);
+                btn.addEventListener('click', handleDetalhesClick);
+            });
+        }
+
+        async function handleDetalhesClick() {
+            const id = this.getAttribute('data-id');
+            document.getElementById('modalIdChamado').value = id;
+
+            document.getElementById('comentarioTexto').value = '';
+            document.getElementById('anexosInput').value = '';
+            document.getElementById('listaComentarios').innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+
+            try {           
+                document.querySelectorAll('.neon-alert').forEach(card => {
+                    if (card.innerHTML.includes(id)) {
+                        card.classList.remove('neon-alert');
+                    }
+                });
+               
+                await fetch(`/api/atualizar_chamado/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comentario_novo: false })
+                });
+
+                const response = await fetch(`/api/detalhes_chamado/${id}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+
+                if (data.erro) {
+                    alert(data.erro);
+                    return;
+                }
+
+                const azureIdContainer = document.getElementById('azure-id-container');
+                const modalIdAzure = document.getElementById('modal-id-azure');
+                if (data.id_chamado_azure) {
+                    azureIdContainer.style.display = 'block';
+                    modalIdAzure.textContent = data.id_chamado_azure;
+                } else {
+                    azureIdContainer.style.display = 'none';
+                }
+
+                console.log('Título recebido:', JSON.stringify(data.titulo));
+                const tituloFormatado = (data.titulo || 'N/A').replace(/\n/g, '<br>');
+                document.getElementById('idChamado').textContent = data.id_chamado || 'N/A';
+                document.getElementById('tituloChamado').innerHTML = tituloFormatado;
+                document.getElementById('usuarioChamado').textContent = data.usuario_nome || 'N/A';
+                document.getElementById('telefoneChamado').textContent = data.telefone || 'N/A';
+                document.getElementById('descricaoChamado').textContent = data.descricao || 'N/A';
+
+                document.getElementById('modalEmpresaChamado').value = data.empresa_chamado || '';
+                document.getElementById('modalPlataformaChamado').value = data.plataforma_chamado || '';
+                document.getElementById('modalFilialChamado').value = data.filial_chamado || '';
+                document.getElementById('modalCategoria').value = data.categoria || '';
+                document.getElementById('modalStatusChamado').value = data.status_chamado || 'Aberto';
+                document.getElementById('modalPrioridade').value = data.prioridade || 'Baixa';
+
+                const anexosContainer = document.getElementById("anexosChamadoContainer");
+                anexosContainer.innerHTML = `<strong>Anexos:</strong><br>`;
+
+                if (data.anexos && data.anexos.length > 0) {
+                    data.anexos.forEach((anexo, index) => {
+                        const link = document.createElement('a');
+                        link.href = "#";
+                        link.textContent = `📎 ${anexo.filename}`;
+                        link.classList.add('anexo-link');
+                        link.dataset.anexosAll = JSON.stringify(data.anexos);
+                        link.dataset.anexoIndex = index;
+                        link.dataset.anexoUrl = anexo.url;
+                        link.dataset.anexoFilename = anexo.filename;
+                        link.dataset.anexoMimetype = anexo.mimetype;
+                        link.addEventListener('click', openMediaViewer);
+                        link.style.display = "block";
+                        anexosContainer.appendChild(link);
+                    });
+                } else {
+                    anexosContainer.innerHTML = `<p class="text-muted">Nenhum anexo.</p>`;
+                }
+
+                const selectResponsavel = document.getElementById('modalResponsavel');
+                selectResponsavel.value = data.responsavel_atendimento || '';
+                let responsavelFound = false;
+                for (let i = 0; i < selectResponsavel.options.length; i++) {
+                    if (selectResponsavel.options[i].value === (data.responsavel_atendimento || '')) {
+                        responsavelFound = true;
+                        break;
+                    }
+                }
+                if (!responsavelFound && data.responsavel_atendimento) {
+                    const newOption = document.createElement('option');
+                    newOption.value = data.responsavel_atendimento;
+                    newOption.textContent = data.responsavel_atendimento;
+                    selectResponsavel.appendChild(newOption);
+                    selectResponsavel.value = data.responsavel_atendimento;
+                }
+                const options = Array.from(selectResponsavel.options).map(opt => opt.value);
+                const uniqueOptions = [...new Set(options)];
+                selectResponsavel.innerHTML = '';
+                uniqueOptions.forEach(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    option.textContent = value;
+                    selectResponsavel.appendChild(option);
+                });
+                selectResponsavel.value = data.responsavel_atendimento || '';
+
+                await fetchComentarios(id);
+
+                const modal = new bootstrap.Modal(document.getElementById('modalChamado'));
+                modal.show();
+
+            } catch (err) {
+                console.error('Erro ao buscar detalhes do chamado:', err);
+                notificationSystem.error('Erro ao carregar detalhes do chamado.');
+            }
+        }
+
+
+
+   
+        document.getElementById('btnSalvarAlteracoes').addEventListener('click', async () => {
+            const id_chamado = document.getElementById('modalIdChamado').value;
+            const dataToUpdate = {
+                empresa_chamado: document.getElementById('modalEmpresaChamado').value,
+                plataforma_chamado: document.getElementById('modalPlataformaChamado').value,
+                filial_chamado: document.getElementById('modalFilialChamado').value,
+                categoria: document.getElementById('modalCategoria').value,
+                status_chamado: document.getElementById('modalStatusChamado').value,
+                prioridade: document.getElementById('modalPrioridade').value,
+                responsavel_atendimento: document.getElementById('modalResponsavel').value
+            };
+
+            try {
+                const response = await fetch(`/api/atualizar_chamado/${id_chamado}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToUpdate)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const result = await response.json();
+                if (result.message) {
+                    notificationSystem.info(result.message);
+
+                    const responsavel = dataToUpdate.responsavel_atendimento;
+                    const usurioLogado = "{{ usuario_logado_nome }}";
+
+                    if (responsavel !== usurioLogado) {
+                        const azureResponse = await fetch ('/api/criar_chamado_azure', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id_chamado: id_chamado,
+                                responsavel: responsavel
+                            })
+                        });
+
+                        const azureData = await azureResponse.json();
+                        if (azureData.success){
+                            notificationSystem.success(`Criado chamado interno: ${azureData.id_azure}`);
+                            console.log(`Criado chamado interno: ${azureData.id_azure}`);
+                        } else {
+                            notificationSystem.error(`Erro ao criar chamado interno: ${azureData.error}`);
+                            console.log(`Erro ao criar chamado interno: ${azureData.error}`);
+                        }
+                    }
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalChamado'))
+                    modal.hide();
+                    fetchChamados();
+                } else {
+                    notificationSystem.error(result.error || 'Erro ao salvar as alterações.');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar as alterações:', error);
+                notificationSystem.error('Erro de conexão ou servidor ao salvar as alterações: ' + error.message);
+            }
+        });
+
+        async function fetchComentarios(chamadoId) {
+            const listaComentariosDiv = document.getElementById('listaComentarios');
+
+            // Mostra carregando enquanto busca
+            listaComentariosDiv.innerHTML = `
+                <div class="text-center text-muted my-2">Carregando comentários...</div>
+            `;
+
+            try {
+                const response = await fetch(`/api/chamados/${chamadoId}/comentarios`);
+
+                if (!response.ok) {
+                    
+                    throw new Error(`Erro ao buscar comentários: ${response.status} - ${response.statusText}`);
+                }
+
+                const comentarios = await response.json();
+
+                // Exibe os comentários
+                displayComentarios(comentarios);
+            } catch (error) {
+                console.error('Erro ao buscar comentários:', error);
+
+                listaComentariosDiv.innerHTML = `
+                    <div class="text-center text-danger my-2">Erro ao carregar comentários. Tente novamente.</div>
+                `;
+            }
+        }
+
+        
+
+        function displayComentarios(comentarios) {
+            const listaComentariosDiv = document.getElementById('listaComentarios');
+            listaComentariosDiv.innerHTML = '';
+
+            if (comentarios.length === 0) {
+                listaComentariosDiv.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                return;
+            }
+
+            comentarios.forEach(comentario => {
+                const comentarioCard = document.createElement('div');
+                comentarioCard.className = 'comentario-card';
+
+                const dataFormatada = moment.utc(comentario.data_hora).local().format('DD/MM/YYYY HH:mm:ss');
+
+                comentarioCard.innerHTML = `
+                    <h6 class="card-subtitle mb-2">
+                        <strong>${comentario.nome_usuario}</strong> (${comentario.email_usuario}) -
+                        <small class="text-muted">${dataFormatada}</small>
+                    </h6>
+                    <p class="card-text">${comentario.comentario_texto}</p>
+                    ${comentario.anexos && comentario.anexos.length > 0 ? `
+                        <div class="anexos-list">
+                            <strong>Evidências:</strong><br>
+                            ${comentario.anexos.map((anexo, index) => `
+                                <a href="#" class="anexo-link"
+                                   data-anexo-url="${anexo.url}"
+                                   data-anexo-filename="${anexo.filename}"
+                                   data-anexo-mimetype="${anexo.mimetype}"
+                                   data-anexos-all='${JSON.stringify(comentario.anexos)}'
+                                   data-anexo-index="${index}"
+                                   title="Abrir ${anexo.filename}"
+                                   ><i class="${getFileIconClass(anexo.mimetype)} me-1"></i>${anexo.filename}</a>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                listaComentariosDiv.appendChild(comentarioCard);
+            });
+            attachAnexoEventListeners();
+        }
+
+       document.getElementById('btnAdicionarComentario').addEventListener('click', addComentario);
+
+        async function addComentario() {            
+            const chamadoId = document.getElementById('modalIdChamado').value;
+            const comentarioTexto = document.getElementById('comentarioTexto').value.trim();
+            const anexosInput = document.getElementById('anexosInput');
+            const files = anexosInput.files;
+
+            if (!comentarioTexto && files.length === 0) {
+                notificationSystem.error('Por favor, digite um comentário ou anexe um arquivo.');
+                return;
+            }
+
+            document.getElementById('btnAdicionarComentario').disabled = true;
+            document.getElementById('btnAdicionarComentario').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adicionando...';
+
+            const uploadedAnexos = [];
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    try {
+                        const pathInStorage = `${chamadoId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+                        const { data, error } = await supabaseClient.storage
+                            .from(SUPABASE_BUCKET_NAME)
+                            .upload(pathInStorage, file, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+
+                        if (error) throw error;
+
+                        const publicUrl = supabaseClient.storage.from(SUPABASE_BUCKET_NAME).getPublicUrl(pathInStorage).data.publicUrl;
+                        uploadedAnexos.push({
+                            url: publicUrl,
+                            filename: file.name,
+                            mimetype: file.type
+                        });
+                    } catch (error) {
+                        console.error('Erro ao fazer upload do arquivo:', error.message);
+                        alert(`Erro ao fazer upload do arquivo ${file.name}: ${error.message}. Por favor, tente novamente.`);
+                        document.getElementById('btnAdicionarComentario').disabled = false;
+                        document.getElementById('btnAdicionarComentario').innerHTML = '<i class="fas fa-comment-dots me-2"></i>Adicionar Comentário';
+                        return;
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/chamados/${chamadoId}/comentarios`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        comentario_texto: comentarioTexto,
+                        anexos: uploadedAnexos
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = 'Erro desconhecido ao adicionar comentário.';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error) {
+                            errorMessage = errorJson.error;
+                        }
+                    } catch (e) {
+                        errorMessage = errorText; 
+                    }
+                    notificationSystem.error(errorMessage, 'Erro ao Adicionar Comentário');
+                    
+                    throw new Error(errorMessage); 
+                }
+                
+                await fetchComentarios(chamadoId); 
+                document.getElementById('comentarioTexto').value = ''; 
+               //document.getElementById('anexosInput').value = ''; 
+                //document.getElementById('anexosPreview').innerHTML = ''; 
+                notificationSystem.success('Comentário adicionado com sucesso!'); 
+
+            } catch (error) {
+                console.error('Erro ao adicionar comentário no frontend:', error); 
+                
+                notificationSystem.error(`Erro ao adicionar comentário: ${error.message || error}`, 'Erro');
+            } finally {
+                document.getElementById('btnAdicionarComentario').disabled = false;
+                document.getElementById('btnAdicionarComentario').innerHTML = '<i class="fas fa-comment-dots me-2"></i>Adicionar Comentário';
+            }
+        }
+        
+
+        function attachAnexoEventListeners() {
+            document.querySelectorAll('.anexo-link').forEach(link => {
+                link.removeEventListener('click', openMediaViewer);
+                link.addEventListener('click', openMediaViewer);
+            });
+        }
+
+        let anexosVisual = [];
+let anexoAtualIndex = 0;
+
+        function openMediaViewer(event) {
+            event.preventDefault();
+
+            const targetLink = event.currentTarget;
+            const anexosAllString = targetLink.dataset.anexosAll;
+            const currentIndex = parseInt(targetLink.dataset.anexoIndex);
+
+            try {
+                anexosVisual = JSON.parse(anexosAllString);
+                anexoAtualIndex = currentIndex;
+                exibirAnexo(anexoAtualIndex);
+                document.getElementById('visualizacao-anexo-modal').style.display = 'flex';
+            } catch (e) {
+                console.error("Erro ao abrir visualização de anexo:", e);
+                alert("Erro ao abrir visualização do anexo.");
+            }
+        }
+
+        function exibirAnexo(index) {
+            const container = document.getElementById('visualizacao-anexo-conteudo');
+            const downloadBtn = document.getElementById('btn-download-anexo');
+
+            container.innerHTML = '';
+            const anexo = anexosVisual[index];
+            if (!anexo) return;
+
+            const url = anexo.url;
+            const fileName = anexo.filename || `Arquivo ${index + 1}`;
+            const ext = fileName.split('.').pop().toLowerCase();
+
+            if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
+                container.innerHTML = `<img src="${url}" alt="${fileName}" style="max-width: 100%; max-height: 80vh;">`;
+            } else if (["mp4", "webm", "ogg", "avi", "mov", "wmv"].includes(ext)) {
+                container.innerHTML = `<video controls style="max-width: 100%; max-height: 80vh;"><source src="${url}" type="video/${ext}">Seu navegador não suporta este vídeo.</video>`;
+            } else {
+                container.innerHTML = `<p>Pré-visualização não disponível para este tipo de arquivo.</p><a href="${url}" target="_blank" class="btn btn-primary">Abrir ${fileName}</a>`;
+            }
+
+            downloadBtn.href = url;
+            downloadBtn.download = fileName;
+
+            document.querySelector('#visualizacao-anexo-modal button:first-of-type').style.display = (anexoAtualIndex > 0) ? 'block' : 'none';
+            document.querySelector('#visualizacao-anexo-modal button:last-of-type').style.display = (anexoAtualIndex < anexosVisual.length - 1) ? 'block' : 'none';
+        }
+
+        function anteriorAnexo() {
+            if (anexoAtualIndex > 0) {
+                anexoAtualIndex--;
+                exibirAnexo(anexoAtualIndex);
+            }
+        }
+
+        function proximoAnexo() {
+            if (anexoAtualIndex < anexosVisual.length - 1) {
+                anexoAtualIndex++;
+                exibirAnexo(anexoAtualIndex);
+            }
+        }
+
+        function fecharVisualizacaoAnexo() {
+            document.getElementById('visualizacao-anexo-modal').style.display = 'none';
+            anexosVisual = [];
+            anexoAtualIndex = 0;
+            document.getElementById('visualizacao-anexo-conteudo').innerHTML = '';
+        }
+
+        function getFileIconClass(mimetype) {
+            if (mimetype.startsWith('image/')) return 'fas fa-image';
+            if (mimetype.startsWith('video/')) return 'fas fa-video';
+            if (mimetype === 'application/pdf') return 'fas fa-file-pdf';
+            if (mimetype.includes('wordprocessingml') || mimetype.includes('msword')) return 'fas fa-file-word';
+            if (mimetype.includes('spreadsheet') || mimetype.includes('ms-excel')) return 'fas fa-file-excel';
+            if (mimetype.includes('json')) return 'fas fa-file-code';
+            if (mimetype.includes('xml')) return 'fas fa-file-code';
+            if (mimetype.includes('text/plain')) return 'fas fa-file-alt';
+            return 'fas fa-file';
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', fetchChamados);
+        document.addEventListener('DOMContentLoaded', fetchChamados);
+        setInterval(fetchChamados, 3000); 
+
+
+    //    socket.on('novo_comentario', function(data){
+      //      if (typeof notificationSystem !== 'undefined') {
+        //        notificationSystem.info(`Novo comentário ${data.comentario}`);
+          //  }
+            //const modalAberto = document.getElementById('modalIdChamado').value;
+          //  if (modalAberto !== data.id_chamado){
+            //    fetchChamados();
+           // } else {
+             //   fetchComentarios(data.id_chamado);
+            //}
+//        });
+
+        socket.on('chamado_atualizado', function(data) {
+            console.log('Chamado atualizado:', data);
+            fetchChamados();
+        });
+
+        socket.on('atualizacao_chamado', function() {
+            console.log('Atualização geral de chamados');
+            fetchChamados();
+        });
+
+        socket.on('novo_chamado_criado', function(data) {
+            console.log('Novo chamado criado:', data);
+            fetchChamados(); 
+        });
+    </script>
+    <div id="visualizacao-anexo-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px; overflow: auto; text-align: center;">
+        <span onclick="fecharVisualizacaoAnexo()" style="position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; color: #555;">&times;</span>
+        <button onclick="anteriorAnexo()" style="left: 10px;">&#x25C0;</button>
+        <button onclick="proximoAnexo()" style="right: 10px;">&#x25B6;</button>
+        
+        <div id="visualizacao-anexo-conteudo"></div>        
+        <a id="btn-download-anexo" href="#" download style="margin-top: 15px; display: inline-block; background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">⬇️ Download</a>
+    </div>
+</div>
+</body>
+</html>

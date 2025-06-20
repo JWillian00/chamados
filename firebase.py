@@ -8,25 +8,16 @@ import pytz
 #from google.cloud import firestore
 import json
 import os
-import tempfile
 
-firebase_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-
-
-if not firebase_json:
-    raise ValueError("A variável 'GOOGLE_APPLICATION_CREDENTIALS' não foi configurada corretamente.")
-
-with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-    temp_file.write(firebase_json.encode('utf-8'))
-    temp_file_path = temp_file.name
-cred = credentials.Certificate(temp_file_path)
-firebase_admin.initialize_app(cred)
-db = firestore.client()
-os.remove(temp_file_path)
-
-print("✅ Firebase conectado com sucesso!")
  
-def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado):
+#cre = credentials.Certificate("chamadosbraveo.json")
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "chamadosbraveo.json"
+#initialize_app(cre)
+#firebase_admin.initialize_app(cre)
+db = firestore.Client()
+ 
+ 
+def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_chamado_interno):
     chamados_ref = db.collection("chamados_braveo")
    
     novo_chamado = {
@@ -36,7 +27,7 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
         "titulo": titulo,
         "descricao": descricao,
         "filial": filial,
-        "id_chamado": id_chamado,  
+        "id_chamado": id_chamado_interno,  
         "data_criacao": firestore.SERVER_TIMESTAMP
     }
  
@@ -46,7 +37,7 @@ def salvar_chamado(empresa, plataforma, email, titulo, descricao, filial, id_cha
     id_banco_fb = doc_ref.id  
  
     print(f"ID Firebase: {id_banco_fb}")
-    print(f"ID Azure: {id_chamado}")
+    print(f"ID Azure: {id_chamado_interno}")
  
 def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuario):
     chamados_ref = db.collection("chamados_braveo")
@@ -83,10 +74,11 @@ def atualizar_chamado_fechado(id_chamado, estado, motivo, data_fechamento, usuar
         })
  
         print(f"✅ Chamado fechado atualizado no Firebase: {id_chamado}")
-        
-        from envia_email_chamado import enviar_email_fechamento
+
+
         email_solicitante = chamado.get("email")
         if email_solicitante:
+            from envia_email_chamado import enviar_email_fechamento
             enviar_email_fechamento(email_solicitante, id_chamado, estado, data_fechamento_formatada, usuario)
         else:
             print(f"⚠ Email do solicitante não encontrado para o chamado {id_chamado}")
@@ -146,6 +138,6 @@ def job_monitora_chamado():
             print(f"❌ Erro no monitoramento de chamados: {str(e)}")
  
         print("⏳ Aguardando próximo ciclo...")
-        time.sleep(300)  
+        time.sleep(2000)  
  
-threading.Thread(target=job_monitora_chamado, daemon=True).start()
+#threading.Thread(target=job_monitora_chamado, daemon=True).start()

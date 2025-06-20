@@ -1,0 +1,394 @@
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+
+<div id="usuarios" class="p-6 content-section">
+  <h2 class="text-3xl font-bold text-gray-800 mb-6">Administração de Usuários</h2>
+
+  <div class="mb-6">
+    <button id="btnNovoUsuario" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+      <i class="fas fa-plus mr-2"></i>Novo Usuário
+    </button>
+  </div>
+
+  <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+    <div class="px-6 py-4 bg-gray-50 border-b border-gray-200">
+      <h3 class="text-lg font-semibold text-gray-800">Lista de Usuários</h3>
+    </div>
+    
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empresa</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Função</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Acesso</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaUsuarios" class="bg-white divide-y divide-gray-200">
+          </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="loadingUsuarios" class="text-center py-8 hidden">
+    <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    <p class="mt-2 text-gray-600">Carregando usuários...</p>
+  </div>
+
+  <div id="semUsuarios" class="text-center py-8 hidden">
+    <p class="text-gray-600">Nenhum usuário encontrado.</p>
+  </div>
+</div>
+
+<div id="modalEditarUsuario" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+  <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+    <div class="flex justify-between items-center pb-3 border-b">
+      <h3 class="text-2xl leading-6 font-medium text-gray-900" id="modalEditarUsuarioTitulo">Detalhes do Usuário</h3>
+      <button class="text-gray-400 hover:text-gray-500 close-modal" onclick="fecharModalEditarUsuario()">
+        <i class="fas fa-times text-xl"></i>
+      </button>
+    </div>
+    <div class="mt-4">
+      <form id="formEditarUsuario" class="space-y-4">
+        <input type="hidden" id="edit-usuario-id">
+        <div>
+          <label for="edit-nome" class="block text-sm font-medium text-gray-700">Nome</label>
+          <input type="text" id="edit-nome" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+        <div>
+          <label for="edit-email" class="block text-sm font-medium text-gray-700">Email</label>
+          <input type="email" id="edit-email" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+        <div>
+          <label for="edit-telefone" class="block text-sm font-medium text-gray-700">Telefone</label>
+          <input type="text" id="edit-telefone" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+        <div>
+          <label for="edit-empresa" class="block text-sm font-medium text-gray-700">Empresa</label>
+          <input type="text" id="edit-empresa" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+        <div>
+          <label for="edit-funcao" class="block text-sm font-medium text-gray-700">Função</label>
+          <input type="text" id="edit-funcao" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+        <div>
+          <label for="edit-acesso" class="block text-sm font-medium text-gray-700">Nível de Acesso</label>
+          <select id="edit-acesso" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+            <option value="admin">Administrador</option>
+            <option value="ku">Key User</option>
+            <option value="sup">Suporte</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+          <button type="button" id="btnResetSenha" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+            <i class="fas fa-redo-alt mr-2"></i>Reset de Senha
+          </button>
+          <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+            <i class="fas fa-save mr-2"></i>Salvar
+          </button>
+          <button type="button" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1" onclick="fecharModalEditarUsuario()">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div id="modalConfirmacao" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center pb-3 border-b">
+            <h3 class="text-xl leading-6 font-medium text-gray-900">Confirmar Exclusão</h3>
+            <button class="text-gray-400 hover:text-gray-500" onclick="fecharModalConfirmacao()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="mt-4">
+            <p class="text-gray-700">Tem certeza que deseja excluir este usuário? Esta ação não pode ser desfeita.</p>
+            <div class="mt-4">
+                <label for="admin-password" class="block text-sm font-medium text-gray-700">Senha de Administrador</label>
+                <input type="password" id="admin-password" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Digite a senha de um administrador">
+            </div>
+        </div>
+        <div class="flex justify-end space-x-3 mt-4">
+            <button type="button" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1" onclick="excluirUsuarioConfirmado()">
+                Excluir
+            </button>
+            <button type="button" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1" onclick="fecharModalConfirmacao()">
+                Cancelar
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+  let usuarioParaExcluir = null;
+
+  document.addEventListener('DOMContentLoaded', function() {
+    carregarUsuarios();
+
+    // Event listener para o botão "Novo Usuário"
+    document.getElementById('btnNovoUsuario').addEventListener('click', function() {
+      // Abre o modal de usuário para um novo cadastro (campos vazios)
+      abrirModalUsuario();
+    });
+
+    // Event listener para fechar o modal de edição ao clicar fora
+    document.getElementById('modalEditarUsuario').addEventListener('click', function(event) {
+        if (event.target === this) {
+            fecharModalEditarUsuario();
+        }
+    });
+
+    // Event listener para o botão Salvar do modal de edição
+    document.getElementById('formEditarUsuario').addEventListener('submit', function(event) {
+        event.preventDefault();
+        salvarEdicaoUsuario();
+    });
+
+    // Event listener para o botão Reset de Senha
+    document.getElementById('btnResetSenha').addEventListener('click', function() {
+        resetarSenhaUsuario();
+    });
+
+  });
+
+  async function carregarUsuarios() {
+    const tabelaUsuarios = document.getElementById('tabelaUsuarios');
+    const loadingUsuarios = document.getElementById('loadingUsuarios');
+    const semUsuarios = document.getElementById('semUsuarios');
+
+    loadingUsuarios.classList.remove('hidden');
+    tabelaUsuarios.innerHTML = ''; // Limpa a tabela
+
+    try {
+      const response = await fetch('/api/usuarios');
+      const usuarios = await response.json();
+
+      loadingUsuarios.classList.add('hidden');
+
+      if (usuarios.length === 0) {
+        semUsuarios.classList.remove('hidden');
+      } else {
+        semUsuarios.classList.add('hidden');
+        usuarios.forEach(usuario => {
+          const row = tabelaUsuarios.insertRow();
+          row.className = 'whitespace-nowrap';
+          row.innerHTML = `
+            <td class="px-6 py-4">${usuario.nome || 'N/A'}</td>
+            <td class="px-6 py-4">${usuario.email || 'N/A'}</td>
+            <td class="px-6 py-4">${usuario.empresa || 'N/A'}</td>
+            <td class="px-6 py-4">${usuario.funcao || 'N/A'}</td>
+            <td class="px-6 py-4">${usuario.acesso || 'N/A'}</td>
+            <td class="px-6 py-4 text-right text-sm font-medium">
+              <button class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-md mr-2" onclick="abrirModalEditarUsuario('${usuario.id}')">
+                Detalhes
+              </button>
+              <button class="bg-red-500 hover:bg-red-600 text-white py-1 px-3 rounded-md" onclick="confirmarExclusaoUsuario('${usuario.id}')">
+                Excluir
+              </button>
+            </td>
+          `;
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar usuários:', error);
+      loadingUsuarios.classList.add('hidden');
+      semUsuarios.classList.remove('hidden');
+      semUsuarios.textContent = 'Erro ao carregar usuários.';
+      mostrarNotificacao('Erro ao carregar usuários.', 'error');
+    }
+  }
+
+  async function abrirModalEditarUsuario(userId) {
+    const modal = document.getElementById('modalEditarUsuario');
+    const form = document.getElementById('formEditarUsuario');
+    
+    // Limpar mensagens de erro ou sucesso anteriores
+    // Isso depende de como suas notificações são implementadas (e.g., Toastr)
+    // Se tiver um elemento de mensagem dentro do modal, limpe-o aqui.
+
+    try {
+        const response = await fetch(`/api/usuarios/${userId}`);
+        if (!response.ok) {
+            throw new Error('Usuário não encontrado.');
+        }
+        const userData = await response.json();
+
+        document.getElementById('edit-usuario-id').value = userData.id;
+        document.getElementById('edit-nome').value = userData.nome || '';
+        document.getElementById('edit-email').value = userData.email || '';
+        document.getElementById('edit-telefone').value = userData.telefone || '';
+        document.getElementById('edit-empresa').value = userData.empresa || '';
+        document.getElementById('edit-funcao').value = userData.funcao || '';
+        document.getElementById('edit-acesso').value = userData.acesso || 'user'; // Valor padrão
+
+        modal.classList.remove('hidden');
+    } catch (error) {
+        console.error('Erro ao carregar dados do usuário:', error);
+        mostrarNotificacao('Erro ao carregar dados do usuário: ' + error.message, 'error');
+        modal.classList.add('hidden'); // Certifica-se de que o modal está escondido em caso de erro
+    }
+  }
+
+  function fecharModalEditarUsuario() {
+    document.getElementById('modalEditarUsuario').classList.add('hidden');
+    document.getElementById('formEditarUsuario').reset();
+  }
+
+  // Funções existentes para exclusão (adapte se necessário)
+  function confirmarExclusaoUsuario(userId) {
+      usuarioParaExcluir = userId;
+      document.getElementById('modalConfirmacao').classList.remove('hidden');
+      document.getElementById('admin-password').value = ''; // Limpa o campo da senha
+  }
+
+  async function excluirUsuarioConfirmado() {
+    if (!usuarioParaExcluir) return;
+
+    const adminPassword = document.getElementById('admin-password').value;
+    if (!adminPassword) {
+        mostrarNotificacao('Por favor, insira a senha de administrador.', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/usuarios/${usuarioParaExcluir}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ admin_password: adminPassword }) // Envia a senha do admin
+        });
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result.error || 'Erro ao excluir usuário');
+        }
+        
+        mostrarNotificacao(result.message, 'success');
+        fecharModalConfirmacao();
+        carregarUsuarios();
+        
+    } catch (error) {
+        console.error('Erro ao excluir usuário:', error);
+        mostrarNotificacao('Erro ao excluir usuário: ' + error.message, 'error');
+    }
+  }
+
+  function fecharModalConfirmacao() {
+      document.getElementById('modalConfirmacao').classList.add('hidden');
+      usuarioParaExcluir = null;
+  }
+
+  // Placeholder para mostrarNotificacao (se você já tiver uma global, remova esta)
+  function mostrarNotificacao(mensagem, tipo) {
+      // Exemplo básico de notificação. Se estiver usando Toastr.js, substitua.
+      const notificacao = document.createElement('div');
+      notificacao.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg transition-all duration-300 ${
+          tipo === 'success' 
+              ? 'bg-green-500 text-white' 
+              : tipo === 'warning'
+              ? 'bg-yellow-500 text-white'
+              : tipo === 'info'
+              ? 'bg-blue-500 text-white'
+              : 'bg-red-500 text-white'
+      }`;
+      notificacao.textContent = mensagem;
+      document.body.appendChild(notificacao);
+      setTimeout(() => {
+          notificacao.remove();
+      }, 5000);
+  }
+
+  // **Novas funções para salvar edição e reset de senha**
+  async function salvarEdicaoUsuario() {
+      const userId = document.getElementById('edit-usuario-id').value;
+      const nome = document.getElementById('edit-nome').value;
+      const telefone = document.getElementById('edit-telefone').value;
+      const empresa = document.getElementById('edit-empresa').value;
+      const funcao = document.getElementById('edit-funcao').value;
+      const acesso = document.getElementById('edit-acesso').value;
+      const email = document.getElementById('edit-email').value; // Email é apenas para referência, não editável
+
+      const dadosAtualizados = {
+          nome: nome,
+          telefone: telefone,
+          empresa: empresa,
+          funcao: funcao,
+          acesso: acesso
+      };
+
+      try {
+          const response = await fetch(`/api/usuarios/${userId}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(dadosAtualizados)
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+              throw new Error(result.error || 'Erro ao salvar alterações do usuário');
+          }
+
+          mostrarNotificacao(result.message || 'Usuário atualizado com sucesso!', 'success');
+          fecharModalEditarUsuario();
+          carregarUsuarios(); // Recarrega a lista para mostrar as alterações
+      } catch (error) {
+          console.error('Erro ao salvar usuário:', error);
+          mostrarNotificacao('Erro ao salvar usuário: ' + error.message, 'error');
+      }
+  }
+
+  async function resetarSenhaUsuario() {
+      const userId = document.getElementById('edit-usuario-id').value;
+      const email = document.getElementById('edit-email').value;
+      
+      if (!userId || !email) {
+          mostrarNotificacao('Dados do usuário não encontrados.', 'error');
+          return;
+      }
+
+      // Confirmar ação
+      if (!confirm(`Tem certeza que deseja enviar um e-mail de reset de senha para ${email}?`)) {
+          return;
+      }
+
+      try {
+          const response = await fetch('/api/reset_password_email', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ user_id: userId })
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+              throw new Error(result.message || 'Erro ao enviar e-mail de reset de senha');
+          }
+
+          mostrarNotificacao(result.message || 'E-mail de reset de senha enviado com sucesso!', 'success');
+      } catch (error) {
+          console.error('Erro ao resetar senha:', error);
+          mostrarNotificacao('Erro ao enviar e-mail de reset: ' + error.message, 'error');
+      }
+  }
+
+  // Função para abrir modal de novo usuário (implementar se necessário)
+  function abrirModalUsuario() {
+      // Implementar funcionalidade de novo usuário se necessário
+      mostrarNotificacao('Funcionalidade de novo usuário ainda não implementada.', 'info');
+  }
+</script>
+

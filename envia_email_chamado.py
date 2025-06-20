@@ -2,6 +2,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from firebase_admin import credentials, firestore
+from deep_translator import GoogleTranslator
 
 db = firestore.Client()
 
@@ -15,7 +16,7 @@ def enviar_email_fechamento(email_destinatario, id_chamado, estado, data_fechame
     
     Informamos que o chamado {id_chamado} foi fechado.
     
-    Estado: {estado}
+    Estado: {GoogleTranslator(source='auto', target='pt').translate(estado)}
     Data do fechamento: {data_fechamento}
     Fechado por: {usuario_fechamento}
     
@@ -24,7 +25,8 @@ def enviar_email_fechamento(email_destinatario, id_chamado, estado, data_fechame
     Atenciosamente,
     Equipe de Suporte
     """
-    
+   
+
     msg = MIMEMultipart()
     msg['From'] = remetente
     msg['To'] = email_destinatario
