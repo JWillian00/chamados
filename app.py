@@ -6,7 +6,6 @@ from rotas import create_work_item, consultar_chamado
 import os
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
-from gerar_relatorio import gerar_relatorio
 from werkzeug.security import generate_password_hash, check_password_hash
 from supabase_config import supabase
 from functools import wraps
@@ -846,30 +845,6 @@ def adicionar_comentario():
 
     resultado = adicionar_comentario_card(id_chamado, comentario, plataforma)
     return jsonify(resultado)
-
-@app.route('/relatorio', methods=['GET', 'POST'])
-@login_required
-def relatorio():
-    if request.method == 'POST':
-        data = request.get_json()
-        data_inicial = data.get('data_inicial')
-        data_final = data.get('data_final')
-        filtro_data = data.get('filtro_data')
-        filial = data.get('filial')
-        email = data.get('email')
-        empresa = data.get('empresa')
-        plataforma = data.get('plataforma')
-        titulo = data.get('titulo')
-
-        resultado = gerar_relatorio(data_inicial, data_final, filtro_data, filial, email, empresa, plataforma, titulo)
-
-        if "error" in resultado:
-            return jsonify({"error": resultado["error"]}), 500
-
-        return jsonify(resultado)
-
-    return render_template("tela_relatorio.html")
-
 @app.route('/cadastro', methods=['GET', 'POST'])
 def cadastro():
     if request.method == 'GET':

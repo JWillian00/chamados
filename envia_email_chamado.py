@@ -1,10 +1,8 @@
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from firebase_admin import credentials, firestore
 from deep_translator import GoogleTranslator
 
-db = firestore.Client()
 
 def enviar_email_fechamento(email_destinatario, id_chamado, estado, data_fechamento, usuario_fechamento):
     remetente = "jonathanwillian710@gmail.com"

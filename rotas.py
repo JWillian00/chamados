@@ -1,9 +1,7 @@
 import requests
 import base64
 import os
-from enviar_img import upload_to_imgur
 from flask import flash, jsonify
-from firebase import salvar_chamado
 import time
 import json
 
