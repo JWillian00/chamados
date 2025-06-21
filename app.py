@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, flash, redirect, url_for, jsonify, Response, get_flashed_messages, session
-from flask_session import Session
+#from flask_session import Session
 from datetime import datetime, timedelta
 import pytz
 from rotas import create_work_item, consultar_chamado
@@ -43,7 +43,7 @@ EMAIL_FROM = os.getenv('EMAIL_FROM')
 EMAIL_FROM_NAME = os.getenv('EMAIL_FROM_NAME')
 
 # Configuração de sessão
-app.config['SESSION_TYPE'] = 'filesystem'
+#app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)  # tempo da seção
 app.config['SESSION_USE_SIGNER'] = True
@@ -56,7 +56,7 @@ app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SECURE'] = True  # True em produção com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-Session(app)
+#Session(app)
 
 SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'https://braveo.vercel.app') # alterar em prd
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
