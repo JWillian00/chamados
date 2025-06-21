@@ -204,19 +204,13 @@
         document.addEventListener('DOMContentLoaded', function() {
             const identifierInput = document.getElementById('identifier');
             const recoverPasswordForm = document.getElementById('recoverPasswordForm');
-            
-            // Variável para controlar o modo (telefone ou email)
-            let currentMode = null; // null, 'phone', 'email'
 
-            // Função para formatar telefone
+            let currentMode = null; 
             function formatPhone(value) {
-                // Remove todos os caracteres não numéricos
                 const numbers = value.replace(/\D/g, '');
                 
-                // Limita a 11 dígitos
                 const limited = numbers.substring(0, 11);
                 
-                // Aplica a máscara baseada na quantidade de dígitos
                 if (limited.length === 0) {
                     return '';
                 } else if (limited.length === 1) {
@@ -232,7 +226,6 @@
                 }
             }
 
-            // Função para detectar se é número
             function isNumeric(char) {
                 return /^\d$/.test(char);
             }
@@ -240,14 +233,12 @@
             identifierInput.addEventListener('input', function(e) {
                 const value = e.target.value;
                 
-                // Se o campo estiver vazio, resetar o modo
                 if (value.length === 0) {
                     currentMode = null;
                     e.target.placeholder = "Seu e-mail ou (00) 00000-0000";
                     return;
                 }
 
-                // Se ainda não definimos o modo, detectar baseado no primeiro caractere
                 if (currentMode === null) {
                     const firstChar = value.charAt(0);
                     
@@ -258,7 +249,6 @@
                     }
                 }
 
-                // Aplicar formatação baseada no modo atual
                 if (currentMode === 'phone') {
                     const formatted = formatPhone(value);
                     e.target.value = formatted;
@@ -266,25 +256,20 @@
                 } else if (currentMode === 'email') {
                     e.target.placeholder = "seu@email.com";
                     
-                    // Opcional: limpar caracteres inválidos para email
                     const cleanEmail = value.replace(/[^a-zA-Z0-9@._-]/g, '');
                     if (cleanEmail !== value) {
                         e.target.value = cleanEmail;
                     }
                 }
             });
-
-            // Prevenir caracteres não numéricos no modo telefone
             identifierInput.addEventListener('keydown', function(e) {
                 if (currentMode === 'phone') {
-                    // No modo telefone, permitir apenas números e teclas de controle
                     const allowedKeys = [
                         'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
                         'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
                         'Home', 'End', 'Control', 'Alt', 'Shift'
                     ];
                     
-                    // Permitir Ctrl+A, Ctrl+C, Ctrl+V, etc.
                     if (e.ctrlKey || e.metaKey) {
                         return;
                     }
@@ -295,7 +280,6 @@
                 }
             });
 
-            // Detectar quando o campo é limpo completamente
             identifierInput.addEventListener('keyup', function(e) {
                 if (e.target.value.length === 0) {
                     currentMode = null;
@@ -303,7 +287,6 @@
                 }
             });
 
-            // Validação do formulário
             recoverPasswordForm.addEventListener('submit', function(event) {
                 const identifier = identifierInput.value.trim();
 
@@ -314,7 +297,6 @@
                 }
 
                 if (currentMode === 'phone') {
-                    // Validação de telefone
                     const cleanPhone = identifier.replace(/\D/g, '');
                     if (cleanPhone.length < 10 || cleanPhone.length > 11) {
                         event.preventDefault();
@@ -322,7 +304,6 @@
                         return;
                     }
                 } else if (currentMode === 'email') {
-                    // Validação de email
                     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                     if (!emailPattern.test(identifier)) {
                         event.preventDefault();

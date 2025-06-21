@@ -7,14 +7,15 @@ import os
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
 from werkzeug.security import generate_password_hash, check_password_hash
-from supabase_config import supabase
+#from supabase_config import supabase
+from supabase import create_client, Client
 from functools import wraps
 import random
 import json
 import string
 from flask_socketio import SocketIO, emit
 from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
-from supabase_config import SUPABASE_URL, SUPABASE_KEY
+#from supabase_config import SUPABASE_URL, SUPABASE_KEY
 from werkzeug.utils import secure_filename
 import uuid
 from sendgrid import SendGridAPIClient
@@ -25,6 +26,9 @@ import secrets
 from movimentacoes import registrar_movimentacao_chamado
 
 load_dotenv()
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 app_logger = logging.getLogger(__name__)
