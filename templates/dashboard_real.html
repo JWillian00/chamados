@@ -67,10 +67,14 @@ function atualizarDashboard(data) {
   
   // Ordenar fechados por data mais recente
   const fechadosOrdenados = data.fechados.sort((a, b) => new Date(b.data_atualizacao) - new Date(a.data_atualizacao));
+  const dataFormatada = (data) =>{
+    const d = new Date(data);
+    return isNaN(d.getTime()) ? 'Data inválida' : d.toLocaleString();
+  }
   fechadosOrdenados.forEach(f => {
     const li = document.createElement('li');
     li.className = 'text-xs truncate';
-    li.innerHTML = `Chamado <strong>${f.id_chamado}</strong> fechado em ${new Date(f.data_atualizacao).toLocaleString()}`;
+    li.innerHTML = `Chamado <strong>${f.id_chamado}</strong> fechado em ${dataFormatada(f.data_atualizacao).toLocaleString()}`;
     listaFechados.appendChild(li);
   });
   if (fechadosOrdenados.length === 0) {

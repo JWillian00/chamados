@@ -159,7 +159,6 @@
             text-decoration: underline;
         }
        
-        /* MANTENHA ESTE BLOCO DO MODAL ANEXO, ELE É O CORRETO */
         #visualizacao-anexo-modal {
             display: none;
             position: fixed;
@@ -248,7 +247,7 @@
     </style>
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body >
     <div class="bg-white shadow-sm border-b">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
@@ -401,7 +400,7 @@
         </div>
     </div>
 
-        <div id="modal-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+        <div id="modal-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
         <div class="bg-white rounded-lg shadow-xl p-8 w-11/12 md:w-3/4 lg:w-1/2 max-h-[90vh] overflow-y-auto relative">
             <span class="close-modal absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-3xl font-bold cursor-pointer" onclick="fecharModal()">&times;</span>
             
@@ -603,7 +602,7 @@
                                             <a href="#" onclick="openAttachmentFromObject('${anexo.url}', '${anexo.filename}', '${anexo.mimetype}');" return false;" 
                                             class="inline-flex items-center px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
                                                 <i class="fas fa-paperclip mr-2"></i> ${anexo.filename}
-                                            </a>
+                                            </a>                                        
                                         `).join('') : 
                                         '<p class="text-gray-500">Nenhum anexo</p>'}
                                 </div>
@@ -646,6 +645,16 @@
                                                 ` : ''}
                                             </div>
                                         `;
+                                        if (chamado.status_chamado.toLowerCase() === 'fechado') {
+                                            modalContent.innerHTML += `
+                                                <div class="mt-4 text-right">
+                                                    <button onclick="confirmarReabrirChamado('${chamado.id_chamado}')" 
+                                                            class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">
+                                                        Reabrir Chamado
+                                                    </button>
+                                                </div>
+                                            `;
+                                        }
                                         }).join('') : 
                                         '<p class="text-gray-500">Nenhum comentário ainda</p>'}
                                 </div>
@@ -840,6 +849,27 @@
         "showMethod": "fadeIn",
         "hideMethod": "fadeOut"
     };
+    function confirmarReabrirChamado(id) {
+        if (confirm("Deseja realmente reabrir este chamado?")) {
+            fetch(`/api/chamados/${id}/reabrir`, {
+                method: 'POST'
+            })
+            .then(res => {
+                if (res.ok) {
+                    toastr.success("Chamado reaberto com sucesso!");
+                    fecharModal();
+                    fetchTickets();
+                } else {
+                    toastr.error("Erro ao reabrir chamado.");
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                toastr.error("Erro de rede ao tentar reabrir.");
+            });
+        }
+    }
+
 </script>
 </body>
 </html>
