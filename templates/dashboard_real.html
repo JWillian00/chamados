@@ -67,19 +67,22 @@ function atualizarDashboard(data) {
   
   // Ordenar fechados por data mais recente
   const fechadosOrdenados = data.fechados.sort((a, b) => new Date(b.data_atualizacao) - new Date(a.data_atualizacao));
-  const dataFormatada = (data) =>{
+  const dataFormatada = (data) => {
+    if (!data) return 'Data inválida';
     const d = new Date(data);
-    return isNaN(d.getTime()) ? 'Data inválida' : d.toLocaleString();
+    return isNaN(d.getTime()) ? 'Data inválida' : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   }
+
   fechadosOrdenados.forEach(f => {
+    const data = f.data_fechamento || f.data_atualizacao || null;
     const li = document.createElement('li');
     li.className = 'text-xs truncate';
-    li.innerHTML = `Chamado <strong>${f.id_chamado}</strong> fechado em ${dataFormatada(f.data_atualizacao).toLocaleString()}`;
+    li.innerHTML = `Chamado <strong>${f.id_chamado}</strong> fechado em ${dataFormatada(data)}`;
     listaFechados.appendChild(li);
   });
-  if (fechadosOrdenados.length === 0) {
-      listaFechados.innerHTML = '<li class="text-xs text-gray-500">Nenhum chamado fechado nos últimos 15 dias.</li>';
-  }
+    if (fechadosOrdenados.length === 0) {
+        listaFechados.innerHTML = '<li class="text-xs text-gray-500">Nenhum chamado fechado nos últimos 15 dias.</li>';
+    }
  
   // Ordenar movimentações por data mais recente
   const movimentacoesOrdenadas = data.movimentacoes.sort((a, b) => new Date(b.data) - new Date(a.data));
