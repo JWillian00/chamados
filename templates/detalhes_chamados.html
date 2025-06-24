@@ -466,6 +466,7 @@
                             <p><strong>Criado em:</strong> ${dataFormatada2}</p>
                             <p><strong>Prioridade:</strong> <span class="badge bg-info">${chamado.prioridade || 'N/A'}</span></p>
                             <p><strong>Responsável:</strong> ${chamado.responsavel_atendimento || 'N/A'}</p>
+                            <p><strong>Categoria:</strong> <span class="badge bg-info">${chamado.categoria || 'N/A'}</span></p>
                             <p><strong>Status:</strong> <span class="badge ${statusClass}">${chamado.status_chamado || 'N/A'}</span></p>
                             ${chamado.id_chamado_azure ? `<p><strong>ID Azure:</strong> ${chamado.id_chamado_azure}</p>` : ''}
                             
