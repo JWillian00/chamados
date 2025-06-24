@@ -465,8 +465,10 @@
                             <p><strong>Filial:</strong> ${chamado.filial_chamado || 'N/A'}</p>
                             <p><strong>Criado em:</strong> ${dataFormatada2}</p>
                             <p><strong>Prioridade:</strong> <span class="badge bg-info">${chamado.prioridade || 'N/A'}</span></p>
+                            <p><strong>Responsável:</strong> ${chamado.responsavel_atendimento || 'N/A'}</p>
                             <p><strong>Status:</strong> <span class="badge ${statusClass}">${chamado.status_chamado || 'N/A'}</span></p>
                             ${chamado.id_chamado_azure ? `<p><strong>ID Azure:</strong> ${chamado.id_chamado_azure}</p>` : ''}
+                            
                             <button type="button" class="btn btn-detalhes" data-id="${chamado.id_chamado}">Ver Detalhes</button>
                         `;
 
@@ -670,7 +672,6 @@
         async function fetchComentarios(chamadoId) {
             const listaComentariosDiv = document.getElementById('listaComentarios');
 
-            // Mostra carregando enquanto busca
             listaComentariosDiv.innerHTML = `
                 <div class="text-center text-muted my-2">Carregando comentários...</div>
             `;
