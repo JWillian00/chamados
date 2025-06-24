@@ -7,7 +7,7 @@ import os
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
 from werkzeug.security import generate_password_hash, check_password_hash
-#from supabase_config import supabase
+from supabase_config import supabase
 from supabase import create_client, Client
 from functools import wraps
 import random
