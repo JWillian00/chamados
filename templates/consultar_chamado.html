@@ -11,6 +11,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+    const SUPABASE_URL = '{{ supabase_url }}';
+    const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY );
+    const SUPABASE_BUCKET_NAME = 'chamadoanexos';
+</script>
 
     <style>
         .neon-alert {
@@ -29,6 +36,52 @@
         .status-fechado { 
             background-color: #dcfce7;
             color: #166534;
+        }
+        .comentario-card {
+        background-color: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.2s;
+        }
+
+        .comentario-card:hover {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .comentario-card strong {
+            color: #1d4ed8;
+            font-weight: 600;
+        }
+
+        .comentario-card small {
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+
+        .comentario-card p {
+            color: #374151;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+
+        .anexos-evidencias {
+            background-color: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+        }
+
+        .anexos-evidencias button {
+            transition: all 0.2s;
+        }
+
+        .anexos-evidencias button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         #visualizacao-anexo-conteudo img,
@@ -414,8 +467,10 @@
         <div class="bg-white rounded-lg shadow-xl p-4 md:p-8 w-11/12 md:w-3/4 lg:w-2/3 max-h-[90vh] overflow-hidden relative flex flex-col items-center">
             <span class="close-modal-anexo absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-3xl font-bold cursor-pointer" onclick="fecharModalAnexo()">&times;</span>
             
-            <div id="visualizacao-anexo-conteudo" class="w-full flex justify-center items-center overflow-hidden flex-grow my-4">
-                </div>
+            <div id="visualizacao-anexo-conteudo" class="modal">
+                <span onclick="fecharModalAnexo()" class="close">&times;</span>
+                <img src="" alt="">
+            </div>
 
             <div class="flex justify-between w-full p-2">
                 <button id="prev-anexo" onclick="navigateAttachment(-1)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-l disabled:opacity-50" style="display: none;">&#10094; Anterior</button>
@@ -478,6 +533,81 @@
             toastr.error("Erro ao carregar chamados.");
         });
     }
+
+    async function adicionarComentario(chamadoId) {
+        const comentarioTexto = document.getElementById('novo-comentario').value.trim();
+        const anexosInput = document.getElementById('anexo-comentario');
+        const files = anexosInput.files;
+
+        if (!comentarioTexto && files.length === 0) {
+            toastr.error('Por favor, digite um comentário ou anexe um arquivo.');
+            return;
+        }
+
+        const btnEnviar = event.target;
+        btnEnviar.disabled = true;
+        btnEnviar.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Enviando...';
+
+        const uploadedAnexos = [];
+        if (files.length > 0) {
+            for (const file of files) {
+                try {
+                    const pathInStorage = `${chamadoId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+                    const { data, error } = await supabaseClient.storage
+                        .from(SUPABASE_BUCKET_NAME)
+                        .upload(pathInStorage, file, {
+                            cacheControl: '3600',
+                            upsert: false
+                        });
+
+                    if (error) throw error;
+
+                    const { data: publicUrlData } = supabaseClient.storage.from(SUPABASE_BUCKET_NAME).getPublicUrl(pathInStorage);
+                    uploadedAnexos.push({
+                        url: publicUrlData.publicUrl,
+                        filename: file.name,
+                        mimetype: file.type
+                    });
+                } catch (error) {
+                    console.error('Erro ao fazer upload do arquivo:', error.message);
+                    toastr.error(`Erro ao fazer upload do arquivo ${file.name}.`);
+                    btnEnviar.disabled = false;
+                    btnEnviar.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar';
+                    return;
+                }
+            }
+        }
+
+        try {
+            const response = await fetch(`/api/chamados/${chamadoId}/comentarios`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    comentario_texto: comentarioTexto,
+                    anexos: uploadedAnexos
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Erro ao adicionar comentário.');
+            }
+
+            toastr.success('Comentário adicionado com sucesso!');
+            document.getElementById('novo-comentario').value = '';
+            anexosInput.value = '';
+            document.getElementById('files-selected').textContent = '';
+            openModal(chamadoId);
+
+        } catch (error) {
+            console.error('Erro ao adicionar comentário:', error);
+            toastr.error(`Erro ao adicionar comentário: ${error.message}`);
+        } finally {
+            btnEnviar.disabled = false;
+            btnEnviar.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Enviar';
+        }
+    }
+
 
     function updateStats(tickets) {
         const total = tickets.length;
@@ -559,107 +689,186 @@
     }
 
     function openModal(id_chamado) {
+        window.idChamadoAtual = id_chamado;
         const modal = document.getElementById('modal-overlay');
         const modalContent = document.getElementById('modal-content-details');
-                
-       
+
         modalContent.innerHTML = '<p>Carregando detalhes do chamado...</p>';
         modal.style.display = 'flex';
 
         fetch(`/api/chamados/${id_chamado}`)
             .then(response => response.json())
-            .then(chamado => {        
+            .then(chamado => {
                 fetch(`/api/chamados/${id_chamado}/comentarios`)
                     .then(response => response.json())
-                    .then(comentarios => {                      
+                    .then(comentarios => {
+                        const comentariosHTML = comentarios.length > 0 ? 
+                            comentarios.map(comentario => {
+                                let anexosArray = comentario.anexos;
+                                if (typeof anexosArray === "string") {
+                                    try {
+                                        anexosArray = JSON.parse(anexosArray);
+                                    } catch (e) {
+                                        anexosArray = [];
+                                    }
+                                }
+                                const dataComentarioFormatada = moment(comentario.data_hora).format("DD/MM/YYYY HH:mm");
+                                let anexosHTML = '';
+                                if (anexosArray && anexosArray.length > 0) {
+                                    anexosHTML = `
+                                        <div class="mt-3 p-3 bg-gray-100 rounded">
+                                            <p class="text-sm font-medium text-gray-700 mb-2">📎 Evidências:</p>
+                                            <div class="flex flex-wrap gap-2">
+                                                ${anexosArray.map(anexo => {
+                                                    const nomeArquivo = anexo.filename || anexo.url.split('/').pop();
+                                                    const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo.url);
+                                                    const isVideo = /\.(mp4|mov|avi|webm)$/i.test(anexo.url);
+                                                    
+                                                    let icone = '📄'; 
+                                                    if (isImage) icone = '🖼️';
+                                                    else if (isVideo) icone = '🎥';
+                                                    
+                                                    return `
+                                                        <button onclick="openAttachmentFromObject('${anexo.url}', '${nomeArquivo}', '${anexo.mimetype || ''}')" 
+                                                                class="inline-flex items-center px-3 py-2 bg-blue-100 hover:bg-blue-200 rounded-lg text-sm text-blue-700 transition-colors duration-200">
+                                                            <span class="mr-2">${icone}</span>
+                                                            <span class="truncate max-w-32">${nomeArquivo}</span>
+                                                        </button>
+                                                    `;
+                                                }).join('')}
+                                            </div>
+                                        </div>
+                                    `;
+                                }
+                                
+                                return `
+                                    <div class="comentario-card border-l-4 border-blue-500 bg-white p-4 rounded-r-lg shadow-sm mb-4">
+                                        <div class="flex justify-between items-start mb-3">
+                                            <div class="flex items-center space-x-2">
+                                                <div class="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                                                    <span class="text-white text-sm font-bold">${comentario.nome_usuario.charAt(0).toUpperCase()}</span>
+                                                </div>
+                                                <div>
+                                                    <strong class="text-blue-700 font-semibold">${comentario.nome_usuario}</strong>
+                                                    <small class="block text-gray-500 text-xs">${dataComentarioFormatada}</small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        ${comentario.comentario_texto ? `
+                                            <div class="mt-3">
+                                                <p class="text-gray-800 leading-relaxed whitespace-pre-wrap">${comentario.comentario_texto}</p>
+                                            </div>
+                                        ` : ''}
+                                        
+                                        ${anexosHTML}
+                                    </div>
+                                `;
+                            }).join('') : 
+                            '<div class="text-center py-8"><p class="text-gray-500 italic">Nenhum comentário ainda</p></div>';
+
                         modalContent.innerHTML = `
-                            <h2 class="text-2xl font-bold mb-4">Detalhes do Chamado #${chamado.id_chamado}</h2>
+                            <h2 class="text-2xl font-bold mb-4 text-gray-800">Detalhes do Chamado #${chamado.id_chamado}</h2>
+                            
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <p><strong>Título:</strong> ${chamado.titulo}</p>
-                                    <p><strong>Status:</strong> <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">${chamado.status_chamado}</span></p>
-                                    <p><strong>Prioridade:</strong> ${chamado.prioridade}</p>
-                                    <p><strong>Data de Criação:</strong> ${chamado.data_criacao}</p>
+                                <div class="space-y-2">
+                                    <p><strong class="text-gray-700">Título:</strong> <span class="text-gray-900">${chamado.titulo}</span></p>
+                                    <p><strong class="text-gray-700">Status:</strong> 
+                                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">${chamado.status_chamado}</span>
+                                    </p>
+                                    <p><strong class="text-gray-700">Prioridade:</strong> <span class="text-gray-900">${chamado.prioridade}</span></p>
+                                    <p><strong class="text-gray-700">Data de Criação:</strong> <span class="text-gray-900">${chamado.data_criacao}</span></p>
                                 </div>
-                                <div>
-                                    <p><strong>Empresa:</strong> ${chamado.empresa_chamado}</p>
-                                    <p><strong>Plataforma:</strong> ${chamado.plataforma_chamado}</p>
-                                    <p><strong>Filial:</strong> ${chamado.filial_chamado || 'Não informada'}</p>
-                                    <p><strong>Categoria:</strong> ${chamado.categoria || 'Não informada'}</p>
+                                <div class="space-y-2">
+                                    <p><strong class="text-gray-700">Empresa:</strong> <span class="text-gray-900">${chamado.empresa_chamado}</span></p>
+                                    <p><strong class="text-gray-700">Plataforma:</strong> <span class="text-gray-900">${chamado.plataforma_chamado}</span></p>
+                                    <p><strong class="text-gray-700">Filial:</strong> <span class="text-gray-900">${chamado.filial_chamado || 'Não informada'}</span></p>
+                                    <p><strong class="text-gray-700">Categoria:</strong> <span class="text-gray-900">${chamado.categoria || 'Não informada'}</span></p>
                                 </div>
                             </div>
-                            
+
                             <div class="mb-6">
-                                <h3 class="text-lg font-semibold mb-2">Descrição</h3>
-                                <div class="bg-gray-50 p-4 rounded">${chamado.descricao}</div>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">📋 Descrição</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg border">${chamado.descricao}</div>
                             </div>
-                            
+
                             <div class="mb-6">
-                                <h3 class="text-lg font-semibold mb-2">Anexos</h3>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">📎 Anexos Iniciais</h3>
                                 <div id="anexos-list" class="flex flex-wrap gap-2">
                                     ${chamado.anexos && chamado.anexos.length > 0 ? 
-                                        chamado.anexos.map(anexo => `
-                                            <a href="#" onclick="openAttachmentFromObject('${anexo.url}', '${anexo.filename}', '${anexo.mimetype}');" return false;" 
-                                            class="inline-flex items-center px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
-                                                <i class="fas fa-paperclip mr-2"></i> ${anexo.filename}
-                                            </a>                                        
-                                        `).join('') : 
-                                        '<p class="text-gray-500">Nenhum anexo</p>'}
+                                        chamado.anexos.map(anexo => {
+                                            const nomeArquivo = anexo.filename || anexo.url.split('/').pop();
+                                            const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(anexo.url);
+                                            const isVideo = /\.(mp4|mov|avi|webm)$/i.test(anexo.url);
+                                            
+                                            let icone = '📄';
+                                            if (isImage) icone = '🖼️';
+                                            else if (isVideo) icone = '🎥';
+                                            
+                                            return `
+                                                <button onclick="openAttachmentFromObject('${anexo.url}', '${nomeArquivo}', '${anexo.mimetype || ''}')" 
+                                                        class="inline-flex items-center px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm text-gray-700 transition-colors duration-200">
+                                                    <span class="mr-2">${icone}</span>
+                                                    <span class="truncate max-w-40">${nomeArquivo}</span>
+                                                </button>
+                                            `;
+                                        }).join('') : 
+                                        '<p class="text-gray-500 italic">Nenhum anexo inicial</p>'}
                                 </div>
                             </div>
-                            
+
                             <div class="mb-6">
-                                <h3 class="text-lg font-semibold mb-2">Adicionar Comentário</h3>
-                                <textarea id="novo-comentario" class="w-full p-2 border rounded mb-2" placeholder="Digite seu comentário..."></textarea>
-                                <input type="file" id="anexo-comentario" class="mb-2" multiple>
-                                <button onclick="adicionarComentario('${chamado.id_chamado}')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                                    Enviar Comentário
-                                </button>
+                                <h3 class="text-lg font-semibold mb-3 text-gray-800">💬 Adicionar Comentário</h3>
+                                <div class="bg-gray-50 p-4 rounded-lg border">
+                                    <textarea id="novo-comentario" class="w-full p-3 border rounded-lg mb-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500" rows="4" placeholder="Digite seu comentário..."></textarea>
+                                    <div class="flex items-center justify-between">
+                                        <div class="flex items-center space-x-2">
+                                            <label for="anexo-comentario" class="cursor-pointer inline-flex items-center px-3 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-sm text-gray-700">
+                                                <i class="fas fa-paperclip mr-2"></i>
+                                                Anexar Arquivo
+                                            </label>
+                                            <input type="file" id="anexo-comentario" class="hidden" multiple>
+                                            <span id="files-selected" class="text-sm text-gray-500"></span>
+                                        </div>
+                                        <button onclick="adicionarComentario('${chamado.id_chamado}')" 
+                                                class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors duration-200">
+                                            <i class="fas fa-paper-plane mr-2"></i>
+                                            Enviar
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
-                            
+
                             <div>
-                                <h3 class="text-lg font-semibold mb-2">Comentários</h3>
+                                <h3 class="text-lg font-semibold mb-4 text-gray-800">💬 Histórico de Comentários</h3>
                                 <div id="comentarios-list" class="space-y-4">
-                                    ${comentarios.length > 0 ? 
-                                        comentarios.map(comentario => {
-                                            const dataComentarioFormatada = moment(comentario.data_hora).format("DD/MM/YYYY HH:mm");
-                                            return `
-                                            <div class="bg-gray-50 p-4 rounded">
-                                                <div class="flex justify-between items-start mb-2">
-                                                    <strong>${comentario.nome_usuario}</strong>
-                                                    <small class="text-gray-500">${dataComentarioFormatada}</small>
-                                                </div>
-                                                <p class="mb-2">${comentario.comentario_texto || ''}</p>
-                                                ${comentario.anexos && comentario.anexos.length > 0 ? `
-                                                    <div class="mt-2">
-                                                        <p class="text-sm text-gray-500 mb-1">Anexos:</p>
-                                                        <div class="flex flex-wrap gap-2">
-                                                            ${comentario.anexos.map(anexo => `
-                                                                <a href="#" onclick="openAttachmentFromObject('${anexo.url}', '${anexo.filename}', '${anexo.mimetype}'); return false;" 
-                                                                class="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200">
-                                                                    <i class="fas fa-paperclip mr-1"></i> ${anexo.filename}
-                                                                </a>
-                                                            `).join('')}
-                                                        </div>
-                                                    </div>
-                                                ` : ''}
-                                            </div>
-                                        `;
-                                        if (chamado.status_chamado.toLowerCase() === 'fechado') {
-                                            modalContent.innerHTML += `
-                                                <div class="mt-4 text-right">
-                                                    <button onclick="confirmarReabrirChamado('${chamado.id_chamado}')" 
-                                                            class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded">
-                                                        Reabrir Chamado
-                                                    </button>
-                                                </div>
-                                            `;
-                                        }
-                                        }).join('') : 
-                                        '<p class="text-gray-500">Nenhum comentário ainda</p>'}
+                                    ${comentariosHTML}
                                 </div>
                             </div>
                         `;
+                        const fileInput = document.getElementById('anexo-comentario');
+                        const filesSelected = document.getElementById('files-selected');
+                        
+                        fileInput.addEventListener('change', function() {
+                            const fileCount = this.files.length;
+                            if (fileCount > 0) {
+                                filesSelected.textContent = `${fileCount} arquivo(s) selecionado(s)`;
+                            } else {
+                                filesSelected.textContent = '';
+                            }
+                        });
+                        
+                        if (chamado.status_chamado.toLowerCase() === 'fechado') {
+                            modalContent.innerHTML += `
+                                <div class="mt-6 pt-4 border-t text-right">
+                                    <button onclick="confirmarReabrirChamado('${chamado.id_chamado}')" 
+                                            class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200">
+                                        <i class="fas fa-redo mr-2"></i>
+                                        Reabrir Chamado
+                                    </button>
+                                </div>
+                            `;
+                        }
                     })
                     .catch(error => {
                         console.error('Erro ao buscar comentários:', error);
@@ -671,93 +880,24 @@
                 modalContent.innerHTML = `<p class="text-red-500">Erro ao carregar detalhes do chamado</p>`;
             });
     }
-  
-    function adicionarComentario(id_chamado) {
-        const comentarioText = document.getElementById('novo-comentario').value;
-        const fileInput = document.getElementById('anexo-comentario');
-        const files = fileInput.files;
 
-        if (!comentarioText && files.length === 0) {
-            toastr.error('Digite um comentário ou adicione um anexo');
+    function openAttachmentFromObject(url, filename = '', mimetype = '') {
+        if (!url) {
+            toastr.error('URL do anexo não encontrada');
             return;
         }
+        const cleanUrl = url.trim();
         
-        if (files.length > 0) {
-            const formData = new FormData();
-            for (let i = 0; i < files.length; i++) {
-                formData.append('images', files[i]);
-            }
-
-            fetch('/api/upload_images', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    throw new Error(data.error);
-                }                
-              
-                enviarComentario(id_chamado, comentarioText, data.image_urls);
-            })
-            .catch(error => {
-                console.error('Erro ao fazer upload dos anexos:', error);
-                toastr.error('Erro ao enviar anexos');
-            });
-        } else {
-            enviarComentario(id_chamado, comentarioText, []);
-        }
-    }
-
-    function enviarComentario(id_chamado, texto, anexos) {
-        fetch(`/api/chamados/${id_chamado}/comentarios`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                comentario_texto: texto,
-                anexos: anexos
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                throw new Error(data.error);
-            }
-            
-            toastr.success('Comentário adicionado com sucesso!');
-            document.getElementById('novo-comentario').value = '';
-            document.getElementById('anexo-comentario').value = '';            
-
-            openModal(id_chamado);
-        })
-        .catch(error => {
-            console.error('Erro ao adicionar comentário:', error);
-            toastr.error('Erro ao adicionar comentário');
-        });
-    }
-
-    function openAttachmentViewer(anexos) {
-        if (!anexos || anexos.length === 0) {
-            console.warn('Nenhum anexo disponível');
-            return;
-        }
-
-        currentTicketAttachments = anexos;
+        currentTicketAttachments = [{
+            url: cleanUrl,
+            filename: filename || cleanUrl.split('/').pop(),
+            mimetype: mimetype
+        }];
+        
         currentAttachmentIndex = 0;
-
         renderAttachmentViewer();
         document.getElementById('visualizacao-anexo-modal').style.display = 'flex';
         atualizarBotoesNavegacao();
-    }
-
-    function fecharModal() {
-        document.getElementById('modal-overlay').style.display = 'none';
-    }
-
-    function fecharModalAnexo() {
-        document.getElementById('visualizacao-anexo-modal').style.display = 'none';
     }
 
     function renderAttachmentViewer() {
@@ -765,24 +905,58 @@
         const anexo = currentTicketAttachments[currentAttachmentIndex];
 
         if (!anexo || !anexo.url) {
-            viewer.innerHTML = "<p>Anexo inválido</p>";
+            viewer.innerHTML = "<p class='text-red-500'>Anexo inválido</p>";
             return;
         }
 
         const url = anexo.url;
+        const filename = anexo.filename || 'Anexo';
         const ext = url.split('.').pop().toLowerCase();
         let content = '';
-
-        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) {
-            content = `<img src="${url}" alt="Anexo" class="max-w-full max-h-96">`;
-        } else if (['mp4', 'mov', 'avi', 'webm'].includes(ext)) {
-            content = `<video controls class="max-w-full max-h-96"><source src="${url}" type="video/${ext}">Seu navegador não suporta vídeo.</video>`;
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].includes(ext)) {
+            content = `
+                <div class="text-center">
+                    <img src="${url}" alt="${filename}" class="max-w-full max-h-96 mx-auto rounded-lg shadow-lg" 
+                        onerror="this.parentNode.innerHTML='<p class=\\'text-red-500\\'>Erro ao carregar imagem</p>'">
+                    <p class="mt-2 text-sm text-gray-600">${filename}</p>
+                </div>
+            `;
+        } else if (['mp4', 'mov', 'avi', 'webm', 'mkv'].includes(ext)) {
+            content = `
+                <div class="text-center">
+                    <video controls class="max-w-full max-h-96 mx-auto rounded-lg shadow-lg">
+                        <source src="${url}" type="video/${ext}">
+                        Seu navegador não suporta reprodução de vídeo.
+                    </video>
+                    <p class="mt-2 text-sm text-gray-600">${filename}</p>
+                </div>
+            `;
+        } else if (['pdf'].includes(ext)) {
+            content = `
+                <div class="text-center">
+                    <iframe src="${url}" class="w-full h-96 rounded-lg shadow-lg"></iframe>
+                    <p class="mt-2 text-sm text-gray-600">${filename}</p>
+                </div>
+            `;
         } else {
-            content = `<iframe src="${url}" class="w-full h-96"></iframe>`;
+            content = `
+                <div class="text-center py-8">
+                    <div class="mb-4">
+                        <i class="fas fa-file text-6xl text-gray-400"></i>
+                    </div>
+                    <p class="text-lg font-medium text-gray-700 mb-2">${filename}</p>
+                    <p class="text-sm text-gray-500 mb-4">Tipo de arquivo não suportado para visualização</p>
+                    <a href="${url}" target="_blank" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">
+                        <i class="fas fa-download mr-2"></i>
+                        Baixar Arquivo
+                    </a>
+                </div>
+            `;
         }
 
         viewer.innerHTML = content;
         document.getElementById('btn-download-anexo').href = url;
+        document.getElementById('btn-download-anexo').download = filename;
     }
     function openAttachmentFromObject(url, filename = '', mimetype = '') {
         currentTicketAttachments = [{
@@ -808,14 +982,28 @@
         renderAttachmentViewer();
         atualizarBotoesNavegacao();
     }
+    function fecharModal(){
+        const modal = document.getElementById('modal-overlay');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            document.getElementById('modal-content-details').innerHTML = '';
+        }
+    }
 
+    function fecharModalAnexo() {
+            document.getElementById('visualizacao-anexo-modal').style.display = 'none';
+            anexosVisual = [];
+            anexoAtualIndex = 0;
+            document.getElementById('visualizacao-anexo-conteudo').innerHTML = '';
+        }
 
     function atualizarBotoesNavegacao() {
         $('#prev-anexo').toggle(currentAttachmentIndex > 0);
         $('#next-anexo').toggle(currentAttachmentIndex < currentTicketAttachments.length - 1);
     }
 
-    // Event listeners para fechar modais ao clicar fora
     document.getElementById('modal-overlay').addEventListener('click', function(e) {
         if (e.target === this) {
             fecharModal();
@@ -829,9 +1017,8 @@
     });
 
 
-    
 
-    // Configurar toastr
+
     toastr.options = {
         "closeButton": true,
         "debug": false,
@@ -850,26 +1037,164 @@
         "hideMethod": "fadeOut"
     };
     function confirmarReabrirChamado(id) {
-        if (confirm("Deseja realmente reabrir este chamado?")) {
-            fetch(`/api/chamados/${id}/reabrir`, {
-                method: 'POST'
+        idChamadoReabrir = id;
+
+        const alerta = document.createElement('div');
+        alerta.className = 'fixed inset-0 bg-gray-800 bg-opacity-75 flex items-center justify-center z-50';
+        alerta.innerHTML = `
+            <div class="bg-white p-6 rounded-lg shadow-lg text-center max-w-md w-full">
+                <h2 class="text-lg font-bold mb-4 text-gray-800">Reabrir Chamado</h2>
+                <p class="text-gray-600 mb-6">Deseja realmente reabrir este chamado?</p>
+                <div class="flex justify-center gap-4">
+                    <button onclick="document.body.removeChild(this.parentNode.parentNode.parentNode)" class="bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
+                    <button onclick="abrirReaberturaChamado('${id}'); document.body.removeChild(this.parentNode.parentNode.parentNode);" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Confirmar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(alerta);
+    }
+
+
+</script>
+<script>
+    function salvarReaberturaChamado() {
+        const motivo = document.getElementById('motivo-reabertura').value.trim();
+        const arquivo = document.getElementById('anexo-reabertura').files[0];
+
+        if (!motivo) {
+            toastr.error("Por favor, preencha o motivo da reabertura.");
+            return;
+        }
+
+        if (arquivo) {
+            const formData = new FormData();
+            formData.append('images', arquivo);
+
+            fetch('/api/upload_images', {
+                method: 'POST',
+                body: formData
             })
-            .then(res => {
-                if (res.ok) {
-                    toastr.success("Chamado reaberto com sucesso!");
-                    fecharModal();
-                    fetchTickets();
-                } else {
-                    toastr.error("Erro ao reabrir chamado.");
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
                 }
+                enviarReaberturaChamado(motivo, arquivo);
             })
-            .catch(err => {
-                console.error(err);
-                toastr.error("Erro de rede ao tentar reabrir.");
+            .catch(error => {
+                console.error("Erro ao enviar anexo:", error);
+                toastr.error("Erro ao enviar anexo.");
             });
+        } else {
+            enviarReaberturaChamado(motivo, null);
         }
     }
 
+
+
+    async function enviarReaberturaChamado(motivo, arquivo) {
+        if (!motivo || motivo.trim() === "") {
+            toastr.error("O motivo da reabertura é obrigatório.");
+            return;
+        }
+
+        if (!arquivo || !(arquivo instanceof File)) {
+            toastr.error("Arquivo inválido para upload.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("images", arquivo);
+
+        try {
+            const uploadResponse = await fetch("/api/upload_images", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!uploadResponse.ok) {
+                const erroTexto = await uploadResponse.text();
+                console.error("Resposta upload falhou:", erroTexto);
+                throw new Error("Falha ao fazer upload do anexo.");
+            }
+
+            const uploadData = await uploadResponse.json();
+            const anexoObj = uploadData.image_urls && uploadData.image_urls[0];
+            if (!anexoObj) {
+                throw new Error("Nenhum anexo retornado.");
+            }
+
+            const idChamadoAtual = window.idChamadoAtual;
+            if (!idChamadoAtual) {
+                throw new Error("ID do chamado não encontrado.");
+            }
+
+            const reabrirResp = await fetch(`/api/chamados/${idChamadoAtual}/reabrir`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    motivo: motivo,
+                    anexo_url: anexoObj  
+                }),
+            });
+
+            const resultado = await reabrirResp.json();
+
+            if (resultado.success) {
+                toastr.success("Chamado reaberto com sucesso!");
+                fecharModalReabertura();               
+                openModal(idChamadoAtual);  
+            } else {
+                console.log("Resposta da API:", resultado);
+                toastr.error("Erro ao reabrir o chamado: " + (resultado?.error || "Erro desconhecido"));
+            }
+        } catch (erro) {
+            console.error("Erro ao reabrir chamado:", erro);
+            toastr.error("Erro ao processar a reabertura.");
+        }
+    }
+
+
+    function fecharModalReabertura() {
+        const modal = document.getElementById('modal-reabertura');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            const motivoTextarea = document.getElementById('motivo-reabertura');
+            const anexoInput = document.getElementById('anexo-reabertura');
+            
+            if (motivoTextarea) motivoTextarea.value = '';
+            if (anexoInput) anexoInput.value = '';
+            
+            if (typeof idChamadoReabrir !== 'undefined') {
+                idChamadoReabrir = null;
+            }
+        }
+    }
 </script>
+
+<script>
+function abrirReaberturaChamado(id) {
+    idChamadoReabrir = id;
+    document.getElementById('modal-reabertura').style.display = 'flex';
+}
+</script>
+
+
+    <div id="modal-reabertura" class="fixed inset-0 bg-gray-800 bg-opacity-50 hidden justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-lg shadow-md w-11/12 md:w-1/2">
+            <h2 class="text-xl font-bold mb-4">Reabrir Chamado</h2>
+            <textarea id="motivo-reabertura" rows="4" class="w-full border rounded p-2 mb-3" placeholder="Informe o motivo da reabertura..."></textarea>
+            <input type="file" id="anexo-reabertura" class="mb-4" />
+            <div class="flex justify-end gap-4">
+                <button onclick="fecharModalReabertura()" class="bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
+                <button onclick="salvarReaberturaChamado()" class="bg-green-600 text-white px-4 py-2 rounded">Salvar</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

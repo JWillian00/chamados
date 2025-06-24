@@ -15,7 +15,7 @@ import json
 import string
 from flask_socketio import SocketIO, emit
 from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
-#from supabase_config import SUPABASE_URL, SUPABASE_KEY
+from supabase_config import SUPABASE_URL, SUPABASE_KEY
 from werkzeug.utils import secure_filename
 import uuid
 from sendgrid import SendGridAPIClient
@@ -26,6 +26,7 @@ import secrets
 from movimentacoes import registrar_movimentacao_chamado
 
 load_dotenv()
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -606,7 +607,8 @@ def detalhes_chamados():
 @app.route('/consultar_chamado')
 @login_required
 def consultar_chamado_page():
-    return render_template('consultar_chamado.html', usuario_nome_logado=session.get('nome'))
+    return render_template('consultar_chamado.html', usuario_nome_logado=session.get('nome'),
+                           supabase_url=SUPABASE_URL, supabase_anon_key=SUPABASE_KEY)
 
 @app.route("/consultar_chamado_supabase", methods=["POST"])
 def consultar_chamado_supabase():
@@ -1731,4 +1733,57 @@ def reset_password_email():
         app_logger.error(f"Erro ao solicitar reset de senha para o usuário {user_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'message': f'Erro interno: {str(e)}'}), 500
 
+@app.route("/api/chamados/<string:id_chamado>/reabrir", methods=["POST"])
+@login_required
+def reabrir_chamado(id_chamado):
+    try:
+        dados = request.get_json()
+        motivo = dados.get("motivo")
+        anexo = dados.get("anexo_url")
+
+        if not motivo:
+            return jsonify({"success": False, "error": "Motivo da reabertura é obrigatório"}), 400
+
+        supabase.table("chamados").update({
+            "status_chamado": "Reaberto",
+            "data_atualizacao": datetime.now(pytz.timezone('America/Sao_Paulo')).isoformat()
+        }).eq("id_chamado", id_chamado).execute()
+
+        anexos = []
+        if anexo:
+            anexos.append({
+                "url": anexo.get("url"),
+                "filename": anexo.get("filename"),
+                "mimetype": anexo.get("mimetype", "application/octet-stream")
+            })
+
+        email_usuario = session.get('email', '')
+        nome_usuario = session.get('nome', 'Usuário')
+
+        comentario = {
+            "comentario_texto": f"Chamado reaberto devido ao seguinte motivo: {motivo}",
+            'email_usuario': email_usuario,
+            "nome_usuario": nome_usuario,
+            "data_hora": datetime.now(pytz.timezone('America/Sao_Paulo')).isoformat(),
+            "chamado_id": id_chamado,
+            "anexos": anexos
+        }
+
+        response_insert = supabase.table("comentarios_chamados").insert(comentario).execute()
+        
+        if not response_insert.data:
+            app_logger.error(f"Falha ao inserir comentário de reabertura para o chamado {id_chamado}: {response_insert.error}")
+            return jsonify({'error': 'Chamado reaberto, mas falha ao registrar o comentário.'}), 500
+
+
+        if 'socketio' in globals():
+            socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': comentario})
+
+        return jsonify({"success": True, "message": "Chamado reaberto com sucesso!", "comentario": comentario}), 200
+
+    except Exception as e:
+        app_logger.error(f"Erro ao reabrir chamado {id_chamado}: {e}", exc_info=True)
+        return jsonify({'error': 'Erro interno ao reabrir o chamado.'}), 500
+
+        
 

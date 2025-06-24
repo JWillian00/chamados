@@ -1,13 +1,19 @@
 
 from supabase import create_client, Client
 from datetime import datetime
-#from supabase_config import SUPABASE_URL, SUPABASE_KEY
+from supabase_config import SUPABASE_URL, SUPABASE_KEY
 from flask import  flash
 from supabase import create_client, Client
 import os
 import json
+from dotenv import load_dotenv
+
+
+
+load_dotenv()
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_chamados_abertos():

@@ -164,4 +164,24 @@ socket.on('novo_comentario', carregarDashboard);
 socket.on('novo_chamado_criado', carregarDashboard);
 socket.on('dashboard_update', atualizarDashboard);
 socket.on('chamado_atualizado', carregarDashboard);
+
+socket.on('movimentacao_chamado', (mov) => {
+  const listaMovimentacoes = document.getElementById('listaMovimentacoes');
+  if (!listaMovimentacoes) return;
+
+  const li = document.createElement('li');
+  li.className = 'text-xs truncate';
+
+  const data = new Date(mov.data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const texto = mov.tipo === 'reabertura'
+    ? `Chamado <strong>${mov.id_chamado}</strong> por ${mov.responsavel} em ${data}<br><span class="text-gray-500 italic">Motivo: ${mov.motivo}</span>`
+    : `Chamado <strong>${mov.id_chamado}</strong> ${mov.tipo} ${mov.valor_novo} por ${mov.usuario} em ${data}`;
+
+  li.innerHTML = texto;
+  listaMovimentacoes.prepend(li);
+  
+  const vazio = listaMovimentacoes.querySelector('.text-gray-500');
+  if (vazio) vazio.remove();
+});
+
 </script>

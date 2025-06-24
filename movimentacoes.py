@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta
-#from supabase_config import supabase
+from supabase_config import supabase
 import pytz
 import os
 from supabase import create_client, Client
+from dotenv import load_dotenv
+
+
+load_dotenv()
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def registrar_movimentacao_chamado(id_chamado, tipo, valor_anterior, valor_novo, usuario):
