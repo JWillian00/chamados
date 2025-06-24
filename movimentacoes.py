@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from supabase_config import supabase
+#from supabase_config import supabase
 import pytz
 import os
 from supabase import create_client, Client

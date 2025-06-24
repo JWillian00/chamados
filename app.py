@@ -15,7 +15,7 @@ import json
 import string
 from flask_socketio import SocketIO, emit
 from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
-from supabase_config import SUPABASE_URL, SUPABASE_KEY
+#from supabase_config import SUPABASE_URL, SUPABASE_KEY
 from werkzeug.utils import secure_filename
 import uuid
 from sendgrid import SendGridAPIClient
