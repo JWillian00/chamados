@@ -601,7 +601,22 @@
 
             } catch (err) {
                 console.error('Erro ao buscar detalhes do chamado:', err);
-                notificationSystem.error('Erro ao carregar detalhes do chamado.');
+
+                let mensagemErro = 'Erro ao carregar detalhes do chamado.';
+                if (err && typeof err === 'object') {
+                    if (err.message) {
+                        mensagemErro += ` ${err.message}`;
+                    } else {
+                        try {
+                            mensagemErro += ' ' + JSON.stringify(err);
+                        } catch (e) {
+                            // fallback
+                            mensagemErro += ' (erro desconhecido)';
+                        }
+                    }
+                }
+
+                notificationSystem.error(mensagemErro);
             }
         }
 
