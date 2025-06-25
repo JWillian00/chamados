@@ -413,7 +413,18 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
 
     <script>
-        const socket = io();
+       // const socket = io();
+        const socket = io({
+            transports: ['polling'],
+            reconnectionAttempts: 10,
+            timeout: 10000
+        });
+
+        socket.on("connect_error", (err) => {
+            if (window.location.hostname === "localhost") {
+                console.warn("Erro de conexão com Socket.IO:", err.message);
+            }
+        });
         const SUPABASE_URL = '{{ supabase_url }}';
         const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
         const SUPABASE_BUCKET_NAME = 'chamadoanexos';         

@@ -9,17 +9,17 @@ CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
         "project": "Tiscoski",
-        "token": "1vWWeyzenu0zyYGvqqqWiA1sk3ZBJ6jt3AxB1N7PW6gmJdbSOip3JQQJ99BFACAAAAAxQtTVAAASAZDOnV7b"
+        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
     },
     "board_sustentacao": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex",
-        "token": "1vWWeyzenu0zyYGvqqqWiA1sk3ZBJ6jt3AxB1N7PW6gmJdbSOip3JQQJ99BFACAAAAAxQtTVAAASAZDOnV7b"
+        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
     },
     "board_bodegamix": {
         "organization": "BRAVEO",
         "project": "Bodegamix",
-        "token": "1vWWeyzenu0zyYGvqqqWiA1sk3ZBJ6jt3AxB1N7PW6gmJdbSOip3JQQJ99BFACAAAAAxQtTVAAASAZDOnV7b"
+        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
     }
 }
 
