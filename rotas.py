@@ -9,17 +9,17 @@ CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
         "project": "Tiscoski",
-        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
+        "token": os.environ.get("AZURE_TOKEN_ECOMM")
     },
     "board_sustentacao": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex",
-        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
+        "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
     "board_bodegamix": {
         "organization": "BRAVEO",
         "project": "Bodegamix",
-        "token": "EqLaJFb6ZGvZCJyN9jiOMA4PA2hnjYfu97eRawP092TmFFSzMNU4JQQJ99BFACAAAAAxQtTVAAASAZDOihRf"
+        "token": os.environ.get("AZURE_TOKEN_BODEGAMIX")
     }
 }
 
