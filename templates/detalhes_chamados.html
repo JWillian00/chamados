@@ -698,33 +698,112 @@
 
         async function fetchComentarios(chamadoId) {
             const listaComentariosDiv = document.getElementById('listaComentarios');
-
-            listaComentariosDiv.innerHTML = `
-                <div class="text-center text-muted my-2">Carregando comentários...</div>
-            `;
+            listaComentariosDiv.innerHTML = `<div class="text-center text-muted my-2">Carregando comentários...</div>`;
 
             try {
                 const response = await fetch(`/api/chamados/${chamadoId}/comentarios`);
-
+                
                 if (!response.ok) {
-                    
-                    throw new Error(`Erro ao buscar comentários: ${response.status} - ${response.statusText}`);
+                    const errorText = await response.text();
+                    console.error(`Erro HTTP ao carregar comentários: ${response.status} - ${errorText}`);
+                    listaComentariosDiv.innerHTML = '<p class="text-danger text-center">Erro ao carregar comentários. Por favor, tente novamente.</p>';
+                    return;
                 }
 
                 const comentarios = await response.json();
 
-                // Exibe os comentários
-                displayComentarios(comentarios);
-            } catch (error) {
-                console.error('Erro ao buscar comentários:', error);
+                if (!comentarios || comentarios.length === 0) {
+                    listaComentariosDiv.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                    return;
+                }
 
-                listaComentariosDiv.innerHTML = `
-                    <div class="text-center text-danger my-2">Erro ao carregar comentários. Tente novamente.</div>
-                `;
+                // Ordenar os comentários por data (do mais antigo para o mais novo)
+                comentarios.sort((a, b) => {
+                    const dateA = new Date(a.createdDate || a.data_criacao || a.data || '');
+                    const dateB = new Date(b.createdDate || b.data_criacao || b.data || '');
+                    return dateA - dateB;
+                });
+
+
+                listaComentariosDiv.innerHTML = comentarios.map(comentario => {
+                    let nome;
+                    let texto;
+                    let data;
+                    let origem = 'Supabase'; // Default
+
+                    // Identifica se é um comentário do Azure DevOps ou Supabase
+                    if (comentario.createdBy && comentario.createdBy.displayName) {
+                        nome = comentario.createdBy.displayName;
+                        texto = comentario.text || comentario.html || 'Comentário Azure sem texto.';
+                        data = comentario.createdDate;
+                        origem = 'Azure DevOps';
+                    } else {
+                        nome = comentario.usuario_nome || comentario.autor || 'Usuário Desconhecido';
+                        texto = comentario.comentario_texto || comentario.comentario || '';
+                        data = comentario.data_criacao || comentario.data || new Date().toISOString();
+                        origem = 'Supabase';
+                    }
+
+                    // Formata a data usando moment.js
+                    const dataFormatada = moment(data).format('DD/MM/YYYY HH:mm');
+
+                    return `
+                        <div class="comentario-card card mb-3">
+                            <div class="card-body">
+                                <h6 class="card-subtitle mb-2 text-muted">
+                                    <strong>${nome}</strong> (${origem}) - <small>${dataFormatada}</small>
+                                </h6>
+                                <p class="card-text">${texto}</p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar comentários:', error);
+                listaComentariosDiv.innerHTML = '<p class="text-danger text-center">Erro ao carregar comentários. Verifique o console para detalhes.</p>';
             }
         }
 
-        
+        // --- ESTE BLOCO É CRUCIAL para o seu caso de modal ---
+        // Obtém a referência ao modal de detalhes do chamado
+        const detalhesChamadoModal = document.getElementById('detalhesChamadoModal');
+
+        // Adiciona um ouvinte de evento para o evento 'shown.bs.modal' do Bootstrap
+        // Este evento é disparado DEPOIS que o modal se torna visível (após as animações)
+        detalhesChamadoModal.addEventListener('shown.bs.modal', function (event) {
+            // 'event.relatedTarget' é o elemento DOM (neste caso, o botão "Ver Detalhes")
+            // que acionou a abertura do modal.
+            const button = event.relatedTarget; 
+            
+            // Obtém o ID do chamado do atributo 'data-chamado-id' do botão.
+            // É essencial que seu botão "Ver Detalhes" na página de listagem tenha este atributo!
+            const chamadoId = button.getAttribute('data-chamado-id'); 
+
+            // Se um ID de chamado válido for encontrado, chama a função para buscar os comentários
+            if (chamadoId) {
+                console.log(`Carregando comentários para o chamado ID: ${chamadoId}`);
+                fetchComentarios(chamadoId);
+            } else {
+                console.error("ID do chamado não encontrado no botão 'Ver Detalhes' que abriu o modal.");
+                document.getElementById('listaComentarios').innerHTML = '<p class="text-danger text-center">ID do chamado não disponível para carregar comentários.</p>';
+            }
+        });
+
+        // Opcional: Limpar os comentários ao fechar o modal, para garantir que o conteúdo seja novo na próxima abertura
+        detalhesChamadoModal.addEventListener('hidden.bs.modal', function () {
+            document.getElementById('listaComentarios').innerHTML = `<div class="text-center text-muted my-2">Carregando comentários...</div>`; 
+        });
+
+        // *** Importante: Chamar a função ao carregar a página de detalhes ***
+        // Certifique-se de que o ID do chamado está disponível quando a página carrega.
+        // Por exemplo, se o ID estiver na URL (ex: detalhes_chamado.html?id=123):
+        const urlParams = new URLSearchParams(window.location.search);
+        const idChamadoDaURL = urlParams.get('id');
+
+        if (idChamadoDaURL) {
+            fetchComentarios(idChamadoDaURL);
+        }
+
 
         function displayComentarios(comentarios) {
             const listaComentariosDiv = document.getElementById('listaComentarios');
