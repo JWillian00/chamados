@@ -1,5 +1,4 @@
-// JavaScript para envio do formulário de abertura de chamado
-document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('formchamado');
     const btnEnviar = document.getElementById('btnEnviar');
     const flashContainer = document.getElementById('flash-messages');

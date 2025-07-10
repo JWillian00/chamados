@@ -455,6 +455,10 @@
                             chamadoCard.classList.add('neon-alert'); 
                         }
 
+                        const displayId = chamado.id_chamado_azure
+                            ? `Azure: ${chamado.id_chamado_azure}`
+                            : `Interno: ${chamado.id_chamado}`;
+
                         let statusClass = '';
                         switch (chamado.status_chamado.toLowerCase()) {
                             case 'aberto': statusClass = 'status-badge-aberto'; break;
@@ -469,7 +473,7 @@
 
                         chamadoCard.className = `chamado-card col-md-6 col-lg-4 ${statusClass.replace('status-badge-', 'status-')}`;
                         chamadoCard.innerHTML = `
-                            <h5>${chamado.titulo} <small class="text-muted">(ID: ${chamado.id_chamado})</small></h5>
+                            <h5>${chamado.titulo} <small class="text-muted">(ID: ${displayId})</small></h5>
                             <p><strong>Solicitante:</strong> ${chamado.usuario_nome}</p>
                             <p><strong>Empresa:</strong> ${chamado.empresa_chamado || 'N/A'}</p>
                             <p><strong>Plataforma:</strong> ${chamado.plataforma_chamado || 'N/A'}</p>
@@ -504,7 +508,7 @@
 
         async function handleDetalhesClick() {
             const id = this.getAttribute('data-id');
-            document.getElementById('modalIdChamado').value = id;
+            document.getElementById('modalIdChamado').value = id;           
 
             document.getElementById('comentarioTexto').value = '';
             document.getElementById('anexosInput').value = '';
@@ -526,6 +530,15 @@
                 const response = await fetch(`/api/detalhes_chamado/${id}`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
+
+                if(data.id_chamado_azure){
+                    document.getElementById('azure-id-container').style.display = 'block';
+                    document.getElementById('modal-id-azure').textContent = data.id_chamado_azure;
+
+                } else {
+                    document.getElementById('azure-id-container').style.display = 'none';
+                    document.getElementById('modal-id-azure').textContent = '';
+                }
 
                 if (data.erro) {
                     alert(data.erro);
@@ -605,7 +618,7 @@
                 });
                 selectResponsavel.value = data.responsavel_atendimento || '';
 
-                await fetchComentarios(id);
+                await carregarComentarios(id, data.id_chamado_azure || null, data.plataforma_chamad || null);
 
                 const modal = new bootstrap.Modal(document.getElementById('modalChamado'));
                 modal.show();
@@ -665,7 +678,7 @@
                     const responsavel = dataToUpdate.responsavel_atendimento;
                     const usurioLogado = "{{ usuario_logado_nome }}";
 
-                    if (responsavel !== usurioLogado) {
+                  /*  if (responsavel !== usurioLogado) {
                         const azureResponse = await fetch ('/api/criar_chamado_azure', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -683,7 +696,7 @@
                             notificationSystem.error(`Erro ao criar chamado interno: ${azureData.error}`);
                             console.log(`Erro ao criar chamado interno: ${azureData.error}`);
                         }
-                    }
+                    }*/
                     const modal = bootstrap.Modal.getInstance(document.getElementById('modalChamado'))
                     modal.hide();
                     fetchChamados();
@@ -771,10 +784,19 @@
             attachAnexoEventListeners();
         }
 
-       document.getElementById('btnAdicionarComentario').addEventListener('click', addComentario);
+       document.getElementById("btnAdicionarComentario").addEventListener("click", async () => {
+            await addComentario(); 
+            const idChamado = document.getElementById("modalIdChamado").value;
+            const idChamadoAzure = document.getElementById("modal-id-azure").innerText.trim();
+            const plataformaChamado = document.getElementById("modalPlataformaChamado").value; 
+            await carregarComentarios(idChamado, idChamadoAzure, plataformaChamado);
+        });
+
 
         async function addComentario() {            
             const chamadoId = document.getElementById('modalIdChamado').value;
+            const idChamadoAzure = document.getElementById('modal-id-azure').innerText.trim();
+            const plataforma = document.getElementById('modalPlataformaChamado').value;
             const comentarioTexto = document.getElementById('comentarioTexto').value.trim();
             const anexosInput = document.getElementById('anexosInput');
             const files = anexosInput.files;
@@ -820,11 +842,11 @@
             }
 
             try {
-                const response = await fetch(`/api/chamados/${chamadoId}/comentarios`, {
+                const response = await fetch(`/api/chamado/${idChamadoAzure}/comentar`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        comentario_texto: comentarioTexto,
+                        comentario: comentarioTexto,
                         anexos: uploadedAnexos
                     })
                 });
@@ -838,28 +860,25 @@
                             errorMessage = errorJson.error;
                         }
                     } catch (e) {
-                        errorMessage = errorText; 
+                        errorMessage = errorText;
                     }
                     notificationSystem.error(errorMessage, 'Erro ao Adicionar Comentário');
-                    
-                    throw new Error(errorMessage); 
+                    throw new Error(errorMessage);
                 }
-                
-                await fetchComentarios(chamadoId); 
-                document.getElementById('comentarioTexto').value = ''; 
-               //document.getElementById('anexosInput').value = ''; 
-                //document.getElementById('anexosPreview').innerHTML = ''; 
-                notificationSystem.success('Comentário adicionado com sucesso!'); 
+
+                document.getElementById('comentarioTexto').value = '';
+                document.getElementById('anexosInput').value = '';
+                notificationSystem.success('Comentário enviado com sucesso!');
 
             } catch (error) {
-                console.error('Erro ao adicionar comentário no frontend:', error); 
-                
+                console.error('Erro ao adicionar comentário:', error);
                 notificationSystem.error(`Erro ao adicionar comentário: ${error.message || error}`, 'Erro');
             } finally {
                 document.getElementById('btnAdicionarComentario').disabled = false;
                 document.getElementById('btnAdicionarComentario').innerHTML = '<i class="fas fa-comment-dots me-2"></i>Adicionar Comentário';
             }
         }
+
         
 
         function attachAnexoEventListeners() {
@@ -870,7 +889,7 @@
         }
 
         let anexosVisual = [];
-let anexoAtualIndex = 0;
+        let anexoAtualIndex = 0;
 
         function openMediaViewer(event) {
             event.preventDefault();
@@ -950,9 +969,16 @@ let anexoAtualIndex = 0;
             return 'fas fa-file';
         }
 
-        document.getElementById('refreshBtn').addEventListener('click', fetchChamados);
-        document.addEventListener('DOMContentLoaded', fetchChamados);
-        setInterval(fetchChamados, 3000); 
+        document.addEventListener("DOMContentLoaded", function () {
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', fetchChamados);
+            }
+
+            fetchChamados(); // Executa imediatamente após carregar
+            setInterval(fetchChamados, 3000); // Atualiza a cada 3 segundos
+        });
+
 
 
     //    socket.on('novo_comentario', function(data){
@@ -981,6 +1007,94 @@ let anexoAtualIndex = 0;
             console.log('Novo chamado criado:', data);
             fetchChamados(); 
         });
+
+
+        async function carregarComentarios(idChamado, idAzure, plataforma) { 
+            const listaComentarios = document.getElementById('listaComentarios');
+            listaComentarios.innerHTML = '<p class="text-muted text-center">Carregando comentários...</p>';
+
+            try {
+                const responseSupabase = await fetch(`/api/chamados/${idChamado}/comentarios`);
+                const comentariosSupabaseRaw = await responseSupabase.json();
+
+                const comentariosSupabase = comentariosSupabaseRaw.map(c => ({
+                    autor: c.nome_usuario,
+                    comentario: c.comentario_texto,
+                    data_criacao: c.data_hora,
+                    origem: "Supabase",
+                    anexos: c.anexos || []
+                }));
+
+                let comentariosTotais = comentariosSupabase;
+
+                if (idAzure) { 
+                    const azureResp = await fetch(`/api/chamado/${idAzure}/comentarios_azure`);
+
+                    if (azureResp.ok) {
+                        const azureData = await azureResp.json();
+                        const comentariosAzureRaw = azureData.comentarios_azure || [];
+
+                        const comentariosAzure = comentariosAzureRaw.map(c => ({
+                            autor: c.autor,
+                            comentario: c.comentario,
+                            data_criacao: c.data_criacao,
+                            origem: "Azure DevOps",
+                            anexos: []
+                        }));
+                        comentariosTotais = comentariosTotais.concat(comentariosAzure);
+                    } else {
+                        console.error("Erro ao buscar comentários do Azure:", azureResp.status, await azureResp.text());
+                    }
+                }
+
+                comentariosTotais.sort((a, b) => new Date(a.data_criacao) - new Date(b.data_criacao));
+
+                if (comentariosTotais.length === 0) {
+                    listaComentarios.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                    return;
+                }
+
+                listaComentarios.innerHTML = comentariosTotais.map(comentario => {
+                    const dataFormatada = moment(comentario.data_criacao).format('DD/MM/YYYY HH:mm:ss');
+                    let anexosHTML = '';
+                    if (comentario.anexos && comentario.anexos.length > 0) {
+                        anexosHTML = `
+                            <div class="anexos-list mt-2">
+                                <strong>Evidências:</strong><br>
+                                ${comentario.anexos.map((anexo, index) => `
+                                    <a href="#" class="anexo-link"
+                                    data-anexo-url="${anexo.url}"
+                                    data-anexo-filename="${anexo.filename}"
+                                    data-anexo-mimetype="${anexo.mimetype}"
+                                    data-anexos-all='${JSON.stringify(comentario.anexos)}'
+                                    data-anexo-index="${index}"
+                                    title="Abrir ${anexo.filename}"
+                                    ><i class="${getFileIconClass(anexo.mimetype)} me-1"></i>${anexo.filename}</a>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="comentario-card">
+                            <h6 class="card-subtitle mb-1">
+                                <strong>${comentario.autor}</strong> (${comentario.origem}) -
+                                <small class="text-muted">${dataFormatada}</small>
+                            </h6>
+                            <p class="card-text">${comentario.comentario}</p>
+                            ${anexosHTML}
+                        </div>
+                    `;
+                }).join('');
+
+                attachAnexoEventListeners();
+            } catch (error) {
+                listaComentarios.innerHTML = '<p class="text-danger text-center">Erro ao carregar comentários.</p>';
+                console.error("Erro ao carregar comentários:", error);
+            }
+        }
+        
+
     </script>
     <div id="visualizacao-anexo-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
     <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px; overflow: auto; text-align: center;">

@@ -262,33 +262,33 @@
         <h1>Login</h1>
         
         <form id="formlogin" method="POST" action="/login">
-            <div class="form-group">
-                <label for="email">E-mail:</label>
-                <input type="email" id="email" name="email" placeholder="Digite seu e-mail" required>
+        <div class="form-group">
+            <label for="email">E-mail:</label>
+            <input type="email" id="email" name="email" placeholder="Digite seu e-mail" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="senha">Senha:</label>
+            <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
+        </div>
+        
+        <div class="remember-forgot">
+            <div class="remember-me">
+                <input type="checkbox" id="lembrar" name="lembrar">
+                <label for="lembrar">Lembrar-me</label>
             </div>
-            
-            <div class="form-group">
-                <label for="senha">Senha:</label>
-                <input type="password" id="senha" name="senha" placeholder="Digite sua senha" required>
-            </div>
-            
-            <div class="remember-forgot">
-                <div class="remember-me">
-                    <input type="checkbox" id="lembrar" name="lembrar">
-                    <label for="lembrar">Lembrar-me</label>
-                </div>
-                <a href="{{ url_for('solicitar_recuperacao_senha') }}" class="forgot-password">Esqueceu a senha?</a>
-            </div>
-            
-            <button type="submit" class="btn">Entrar</button>
-        </form>
+            <a href="{{ url_for('solicitar_recuperacao_senha') }}" class="forgot-password">Esqueceu a senha?</a>
+        </div>
+        
+        <button type="submit" class="btn">Entrar</button>
+    </form>
         
         <div class="separator">
             <span>ou</span>
         </div>
         
        <!-- <div class="social-login">
-            <a href="/auth/microsoft" class="btn-microsoft">
+            <a href="{{url_for('microsoft_login') }}" class="btn-microsoft">
                 <img src="/static/image/microsoft-logo.png" alt="Microsoft" width="20" height="20">
                 <span>Entrar com Microsoft</span>
             </a>
@@ -314,7 +314,6 @@
                     return;
                 }
                 
-                // adicionar validação
                 
                 form.submit();
             });

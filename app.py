@@ -23,17 +23,25 @@ from dotenv import load_dotenv
 import logging
 import secrets
 from movimentacoes import registrar_movimentacao_chamado
+import requests
+import base64
+from rotas import CONFIG
+from urllib.parse import urlencode
+from msal import ConfidentialClientApplication
+
+
 
 load_dotenv()
-#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 app_logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+
 
 app.secret_key = os.getenv("SECRET_KEY")
 
@@ -54,9 +62,12 @@ app.config['SESSION_COOKIE_NAME'] = 'session'
 app.config['SESSION_COOKIE_DOMAIN'] = None
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = True  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 #Session(app)
+
+#configurar no vercel env
+
 
 SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'https://braveo.vercel.app') # alterar em prd
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
@@ -119,6 +130,12 @@ def salvar_token_recuperacao(user_id, token):
     except Exception as e:
         app_logger.error(f"Erro ao salvar token de recuperação para user {user_id}: {e}", exc_info=True)
         return False
+
+@app.after_request
+def skip_ngrok_warning(response):
+    response.headers['ngrok-skip-browser-warning'] = 'true'
+    return response
+
 
 def verificar_token_recuperacao(token):
     try:
@@ -196,6 +213,95 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+
+
+#@app.route("/auth/microsoft")
+#def microsoft_login():
+ #   try:
+  #      import uuid
+   #     state = str(uuid.uuid4())
+    #    session['state'] = state 
+
+     #   auth_url = msal_app.get_authorization_request_url(
+      #  scopes=["openid", "profile", "User.Read"], 
+       # redirect_uri=REDIRECT_URI,
+       # state=state, 
+       # )
+       # return redirect(auth_url)
+     
+ 
+    #except Exception as e:
+     #   logging.exception("ERRO na rota microsoft_login")
+      #  flash(f'Erro ao iniciar autenticação Microsoft: {str(e)}', 'error')
+       # return redirect(url_for('login'))
+
+#@app.route("/getAToken")
+#def get_token():
+    
+ #   try:
+  #      state = request.args.get('state')
+   #     if state != session.get('state'):
+    #        print("Estado inválido:", state)
+     #       return redirect(url_for("tela_login"))
+      #  session.pop('state', None)  
+
+       # error = request.args.get('error')
+       # code = request.args.get('code')
+       # result = msal_app.acquire_token_by_authorization_code(
+       #     code,
+       #     scopes=["openid", "profile", "email", "User.Read"],
+       #     redirect_uri=REDIRECT_URI
+       # )
+       # if "error" in result:
+        #    return f"Erro ao obter token: {result['error_description']}", 400
+        #session["usuario_logado"] = True
+        #session["email"] = result.get("id_token_claims", {}).get("preferred_username")
+        #return redirect(url_for("tela_login"))
+
+    #except Exception as e:
+    #    logging.exception("Erro ao processar callback do Microsoft")
+     #   flash("Erro durante o login com Microsoft.", "error")
+      #  return redirect(url_for("login"))
+
+
+@app.route("/auth/microsoft/salvar", methods=["POST"])
+def salvar_empresa_funcao():
+    try:
+        dados = request.get_json()
+        empresa = dados.get("empresa")
+        funcao = dados.get("funcao")
+
+        if not empresa or not funcao:
+            return jsonify({"error": "Empresa e função são obrigatórios."}), 400
+
+        # Verificar se o usuário está logado na sessão
+        if not session.get('usuario_logado') or not session.get('email'):
+            return jsonify({"error": "Sessão inválida. Faça login novamente."}), 401
+
+        # Inserir usuário no banco
+        resultado = supabase.table("usuarios").insert({
+            "nome": session.get("nome"),
+            "email": session.get("email"),
+            "telefone": session.get("telefone"),
+            "empresa": empresa,
+            "funcao": funcao,
+            "acesso": "ku"
+        }).execute()
+
+        # Atualizar sessão com os novos dados
+        session['empresa'] = empresa
+        session['funcao'] = funcao
+        session['acesso'] = 'ku'
+        
+        if resultado.data:
+            session['usuario_id'] = resultado.data[0]['id']
+
+        return jsonify({"success": True, "redirect": "/menu"})
+        
+    except Exception as e:
+        print(f"ERRO ao salvar empresa/função: {e}")
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
 @app.route('/api/upload_images', methods=['POST'])
 def upload_images():
     if 'images' not in request.files:
@@ -271,7 +377,7 @@ def gerar_id_chamado():
         print(f"❌ Erro ao gerar o ID do chamado: {str(e)}")
         return f"{random.randint(100, 999)}{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}"
 
-def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filial, usuario_id, categoria, responsavel, anexos=None):
+def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filial, usuario_id, categoria, responsavel, anexos=None,id_chamado_azure=None):
     try:   
       
         if anexos is None:
@@ -301,7 +407,8 @@ def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filia
             'data_atualizacao': agora.isoformat(),
             'prioridade': prioridade_formatada,
             'responsavel_atendimento': responsavel,
-            'anexos': anexos 
+            'anexos': anexos,
+            'id_chamado_azure': id_chamado_azure, 
         }
 
         print(f"Inserindo chamado no banco: {dados_chamado}")
@@ -311,19 +418,19 @@ def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filia
 
         if response.data and len(response.data) > 0:           
             mov_registrada = registrar_movimentacao_chamado(
-                id_chamado=id_chamado,
+                id_chamadoid_chamado_azure=id_chamado_azure,
                 tipo='Criação de Chamado',
                 valor_anterior='N/A',
                 valor_novo='Aberto',
                 usuario=responsavel 
             )
             if not mov_registrada:
-                print(f"ATENÇÃO: Chamado {id_chamado} criado, mas falha ao registrar movimentação de criação.")
+                print(f"ATENÇÃO: Chamado {id_chamado_azure} criado, mas falha ao registrar movimentação de criação.")
 
             return {
                 'success': True,
-                'id_chamado': id_chamado,
-                'message': f'Chamado criado com sucesso! ID: {id_chamado}',
+                'id_chamado_azure': id_chamado_azure,
+                'message': f'Chamado criado com sucesso! ID: {id_chamado_azure}',
                 'data': response.data[0]
             }
         else:            
@@ -445,94 +552,78 @@ def abertura():
             categoria = request.form.get("categoria")
             usuario_id = session.get('usuario_id')
 
-            campos_obrigatorios = []
-            if not titulo or titulo.strip() == "": campos_obrigatorios.append("Título")
-            if not descricao or descricao.strip() == "": campos_obrigatorios.append("Descrição")
-            if not email or email.strip() == "": campos_obrigatorios.append("E-mail")
-            if not empresa or empresa.strip() == "": campos_obrigatorios.append("Empresa")
-            if not plataforma or plataforma.strip() == "": campos_obrigatorios.append("Plataforma")
-
-            if campos_obrigatorios:
-                campos_faltando = ", ".join(campos_obrigatorios)
-                flash(f"Os seguintes campos são obrigatórios: {campos_faltando}", "error")
-                if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                    return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
-                return redirect(url_for("abertura"))
-
-            import re
-            email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-            if not re.match(email_regex, email.strip()):
-                flash("Por favor, insira um e-mail válido.", "error")
-                if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                    return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
+            if not all([titulo, descricao, email, empresa, plataforma]):
+                flash("Todos os campos marcados são obrigatórios.", "error")
                 return redirect(url_for("abertura"))
             
-
+            uploaded_files = request.files.getlist('evidencia')
             anexos = []
-            if 'evidencia' in request.files:
-                evidencia_files = request.files.getlist('evidencia')
-                for file in evidencia_files:
-                    if file.filename != '':
-                        original_filename = secure_filename(file.filename)
-                        timestamp = int(datetime.now().timestamp() * 1000)
-                        unique_filename = f"{timestamp}-{original_filename}"
-                        bucket_name = "chamadoanexos"
+            bucket_name = "chamadoanexos"
 
-                        try:
-                            file_content = file.read()
+            for file in uploaded_files:
+                if file and file.filename:
+                    original_filename = secure_filename(file.filename)
+                    unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}_{original_filename}"
+                    file_content = file.read()
 
-                            supabase.storage.from_(bucket_name).upload(
-                                unique_filename,
-                                file_content,
-                                {"content-type": file.content_type}
-                            )
+                    response_upload = supabase.storage.from_(bucket_name).upload(
+                        unique_filename,
+                        file_content,
+                        {'content-type': file.content_type}
+                    )
 
-                            public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{unique_filename}"
-                            anexos.append({
-                                "url": public_url,
-                                "filename": original_filename,
-                                "mimetype": file.content_type
-                            })
+                    public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{unique_filename}"
+                    anexos.append({
+                        "url": public_url,
+                        "filename": original_filename,
+                        "mimetype": file.content_type
+                    })
 
-                            print(f"✅ Anexo enviado: {public_url}")
-
-                        except Exception as e:
-                            print(f"❌ Erro ao subir anexo {original_filename}: {e}")
-                            flash(f"Erro ao fazer upload do anexo {original_filename}.", "error")
-            resultado = salvar_chamado_supabase(
+            resultado_azure = create_work_item(
                 titulo=titulo.strip(),
                 descricao=descricao.strip(),
-                email=email.strip(),
                 empresa=empresa.strip(),
                 plataforma=plataforma.strip(),
-                categoria=categoria.strip() if categoria else None,
-                filial=filial.strip() if filial else None,
-                usuario_id=usuario_id,
-                responsavel=session.get('nome','Usuário Desconhecido'),
-                anexos=anexos	
+                email=email.strip(),
+                filial=filial.strip(),
+                chamado_anexos=anexos  
             )
+            print("Resposta Azure:", resultado_azure)
+            id_chamado_azure = resultado_azure.get("id")
+            if id_chamado_azure:
+                flash(f"Chamado criado! ID: {id_chamado_azure}", "success")
 
-            if resultado['success']:
-                flash(f"Chamado criado com sucesso! ID: {resultado['id_chamado']}", "success")
-                emit_dashboard_data()
-                try:
-                    enviar_email(email, resultado['id_chamado'])
-                except Exception as e:
-                    print(f"Erro ao enviar email: {e}")
+
+            if id_chamado_azure:
+                resultado_supabase = salvar_chamado_supabase(
+                    titulo=titulo.strip(),
+                    descricao=descricao.strip(),
+                    email=email.strip(),
+                    empresa=empresa.strip(),
+                    plataforma=plataforma.strip(),
+                    categoria=categoria.strip() if categoria else None,
+                    filial=filial.strip() if filial else None,
+                    usuario_id=usuario_id,
+                    responsavel=session.get('nome', 'Usuário Desconhecido'),
+                    anexos=anexos, 
+                    id_chamado_azure=id_chamado_azure
+                )
+
+                if resultado_supabase['success']:
+                    flash(f"Chamado criado com sucesso! O ID do seu chamado é: {id_chamado_azure}", "success")
+                    socketio.emit('novo_chamado_criado', {'id': id_chamado_azure, 'titulo': titulo})
+                else:
+                    flash(f"ALERTA: Card criado no Azure (ID: {id_chamado_azure}), mas falhou ao registrar no sistema. Contate o suporte.", "error")
             else:
-                flash(resultado['error'], "error")
+                flash("Falha ao criar chamado no Azure. Tente novamente.", "error")
 
-            if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
             return redirect(url_for("abertura"))
 
         except Exception as e:
             flash(f"Erro interno do servidor: {str(e)}", "error")
-            if request.is_json or request.headers.get('Content-Type') == 'application/json':
-                return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
             return redirect(url_for("abertura"))
-    return render_template("menu_modulo.html")
-
+    return
+    #return render_template("menu_modulo.html")  
 
 @app.route('/registrar_chamado', methods=['GET', 'POST'])
 @login_required
@@ -571,7 +662,7 @@ def registrar_chamado():
             if response.data:
                 flash('Chamado registrado com sucesso!', 'success')
                 socketio.emit('novo_chamado_criado', {
-                    'id': response.data[0]['id_chamado'],
+                    'id': response.data[0]['id_chamado_azure'],
                     'titulo': response.data[0]['titulo']
                 })
                
@@ -593,7 +684,8 @@ def detalhes_chamados():
     for chamado in chamados:
         usuario = get_usuario_by_email(chamado.get('email_solicitante', ''))
         chamado['usuario_nome'] = usuario.get('nome', 'Desconhecido')
-        chamado['telefone'] = usuario.get('telefone', '')        
+        chamado['telefone'] = usuario.get('telefone', '')
+        chamado['id_chamado_azure'] = chamado.get('id_chamado_azure', 'N/A')        
         #chamado['data_criacao'] = chamado.get('data_criacao', '')
 
     return render_template(
@@ -613,17 +705,17 @@ def consultar_chamado_page():
 def consultar_chamado_supabase():
     try:
         data = request.get_json()
-        id_chamado = data.get("id_chamado")
+        id_chamado_azure = data.get("id_chamado_azure")
 
-        if not id_chamado:
+        if not id_chamado_azure:
             return jsonify({"error": "ID do chamado é obrigatório."})
 
-        response = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).execute()
+        response = supabase.table('chamados').select('*').eq('id_chamado_azure', id_chamado_azure).execute()
 
         if response.data and len(response.data) > 0:
             chamado = response.data[0]
             return jsonify({
-                "id_chamado": chamado['id_chamado'],
+                "id_chamado_azure": chamado['id_chamado_azure'],
                 "titulo": chamado['titulo'],
                 "descricao": chamado['descricao'],
                 "status": chamado['status_chamado'],
@@ -634,7 +726,7 @@ def consultar_chamado_supabase():
                 "categoria": chamado['categoria']
             })
         else:
-            return jsonify({"error": f"Chamado {id_chamado} não encontrado."})
+            return jsonify({"error": f"Chamado {id_chamado_azure} não encontrado."})
 
     except Exception as e:
         print(f"Erro ao consultar chamado: {str(e)}")
@@ -649,6 +741,8 @@ def api_chamados_abertos():
         chamado['usuario_nome'] = usuario.get('nome', 'Desconhecido')
         chamado['telefone'] = usuario.get('telefone', '')
         chamado['email'] = usuario.get('email_solicitante', '')
+        chamado['id_chamado_azure'] = chamado.get('id_chamado_azure', 'N/A')
+
 
         data_criacao = chamado.get('data_criacao')
 
@@ -681,17 +775,17 @@ def api_detalhes_chamado(id_chamado):
         return jsonify({'error': 'Chamado not found'}), 404
 
 
-@app.route('/api/atualizar_chamado/<string:id_chamado>', methods=['PUT'])
+@app.route('/api/atualizar_chamado/<string:id_chamado_azure>', methods=['PUT'])
 @login_required
-def atualizar_chamado(id_chamado):
+def atualizar_chamado(id_chamado_azure):
     try:
         dados = request.get_json()
 
-        if not id_chamado:
+        if not id_chamado_azure:
             return jsonify({'success': False, 'error': 'ID do chamado é obrigatório'}), 400
 
         # Buscar dados atuais do chamado para comparação
-        chamado_atual = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).single().execute()
+        chamado_atual = supabase.table('chamados').select('*').eq('id_chamado_azure', id_chamado_azure).single().execute()
         if not chamado_atual.data:
             return jsonify({'success': False, 'error': 'Chamado não encontrado'}), 404
 
@@ -711,7 +805,7 @@ def atualizar_chamado(id_chamado):
         if not campos_atualizacao:
             return jsonify({'success': False, 'error': 'Nenhum campo para atualizar fornecido'}), 400
 
-        sucesso = update_chamado(id_chamado, campos_atualizacao)
+        sucesso = update_chamado(id_chamado_azure, campos_atualizacao)
 
         if sucesso:
             # Registrar movimentações para mudanças de status e responsável
@@ -719,7 +813,7 @@ def atualizar_chamado(id_chamado):
                 
                 if 'status_chamado' in campos_atualizacao and dados_atuais['status_chamado'] != campos_atualizacao['status_chamado']:
                     registrar_movimentacao_chamado(
-                        id_chamado, 
+                        id_chamado_azure, 
                         'status alterado para', 
                         dados_atuais['status_chamado'], 
                         campos_atualizacao['status_chamado'], 
@@ -728,19 +822,19 @@ def atualizar_chamado(id_chamado):
 
             if 'responsavel_atendimento' in campos_atualizacao and dados_atuais.get('responsavel_atendimento') != campos_atualizacao['responsavel_atendimento']:
                 registrar_movimentacao_chamado(
-                    id_chamado, 
+                    id_chamado_azure, 
                     'responsável alterado para', 
                     dados_atuais.get('responsavel_atendimento', 'Não definido'), 
                     campos_atualizacao['responsavel_atendimento'], 
                     usuario_logado
                 )
                 socketio.emit('chamado_atualizado', {
-                    'id': id_chamado,
+                    'id': id_chamado_azure,
                     'status': campos_atualizacao.get('status_chamado', ''),
                     'responsavel': campos_atualizacao.get('responsavel_atendimento', ''),
                 })
             # Emitir eventos WebSocket para notificar sobre a atualização
-            socketio.emit('chamado_atualizado', {'id': id_chamado, 'status': campos_atualizacao.get('status_chamado')})
+            socketio.emit('chamado_atualizado', {'id': id_chamado_azure, 'status': campos_atualizacao.get('status_chamado')})
             socketio.emit('atualizacao_chamado')  # Para atualizar o dashboard
             return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200
         else:
@@ -831,7 +925,7 @@ def consultar_comentarios_route():
 
 @app.route("/adicionar_comentario_azure", methods=["POST"])
 @login_required
-def adicionar_comentario():
+def adicionar_comentario_azure():
     data = request.get_json()
     id_chamado = data.get("id_chamado")
     comentario = data.get("comentario")
@@ -935,33 +1029,57 @@ def inject_user():
     return {}
 @app.route('/api/chamados/<string:id_chamado>/comentarios', methods=['POST'])
 @login_required
-def handle_adicionar_comentario(id_chamado):
+def handle_adicionar_comentario(id_chamado): 
     try:
         dados = request.get_json()
         comentario_texto = dados.get('comentario_texto')
         anexos = dados.get('anexos', [])
 
-        if not comentario_texto:
-            return jsonify({"error": "Comentario vazio"}), 400
+        if not comentario_texto and not anexos: 
+            return jsonify({"error": "Comentário vazio ou nenhum anexo fornecido"}), 400
         
         nome_usuario = session.get('nome')
         email_usuario = session.get('email')
 
         if not nome_usuario or not email_usuario:
-            return jsonify({"error": "Usuário nao encontrado"}), 400
+            return jsonify({"error": "Usuário não encontrado na sessão"}), 400      
+        novo_comentario_supabase = add_comentario(id_chamado, nome_usuario, email_usuario, comentario_texto, anexos)
 
-        novo_comentario = add_comentario(id_chamado, nome_usuario, email_usuario, comentario_texto, anexos)
+        if not novo_comentario_supabase:
+            return jsonify({"error": "Erro ao adicionar comentário ao chamado no Supabase"}), 500
 
-        if novo_comentario:
-            if 'socketio' in globals():
-                socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': novo_comentario})
-                emit_dashboard_data()
-            return jsonify(novo_comentario), 200
-        else:
-            return jsonify({"error": "Erro ao adicionar comentario ao chamado"}), 500
+        response_chamado = supabase.table('chamados') \
+            .select('id_chamado_azure', 'plataforma_chamado') \
+            .eq('id_chamado', id_chamado) \
+            .single().execute()
+
+        id_azure = None
+        plataforma_azure = None
+        if response_chamado.data:
+            id_azure = response_chamado.data.get('id_chamado_azure')
+            plataforma_azure = response_chamado.data.get('plataforma_chamado')
+
+        if id_azure and plataforma_azure:
+            texto_azure = f"{nome_usuario} comentou:\n\n{comentario_texto}"
+            
+            resultado_azure = adicionar_comentario_card(id_azure, texto_azure, plataforma_azure, anexos)
+            
+            if not resultado_azure.get("success"):
+                app_logger.error(f"Falha ao adicionar comentário no Azure DevOps para o chamado {id_chamado} (Azure ID: {id_azure}): {resultado_azure.get('error')}")
+
+        if 'socketio' in globals():
+            socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': novo_comentario_supabase})
+            emit_dashboard_data()
+
+        if isinstance(novo_comentario_supabase.get('data_hora'), datetime):
+            novo_comentario_supabase['data_hora'] = novo_comentario_supabase['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify(novo_comentario_supabase), 200
+
     except Exception as e:
-        print(f"Erro ao adicionar comentario ao chamado {id_chamado}: {e}")
-        return jsonify({"error": "Erro ao adicionar comentario ao chamado"}), 500
+        app_logger.error(f"Erro ao adicionar comentário ao chamado {id_chamado}: {e}", exc_info=True)
+        return jsonify({"error": f"Erro ao adicionar comentário ao chamado: {str(e)}"}), 500
+
     
 @app.route('/api/chamados/<string:id_chamado>/comentarios', methods=['GET'])
 @login_required
@@ -1049,6 +1167,7 @@ def meus_chamados():
 
             formatted_chamados.append({
                 'id_chamado': chamado.get('id_chamado'),
+                'id_chamado_azure': chamado.get('id_chamado_azure', 'N/A'),
                 'titulo': chamado.get('titulo'),
                 'status_chamado': chamado.get('status_chamado'),
                 'prioridade': chamado.get('prioridade'),
@@ -1784,4 +1903,84 @@ def reabrir_chamado(id_chamado):
         return jsonify({'error': 'Erro interno ao reabrir o chamado.'}), 500
 
         
+
+@app.route("/api/chamados/<string:id_chamado>/comentarios", methods=["GET"])
+@login_required
+def get_chamado_comentarios(id_chamado):
+    try:
+        comentarios_local = get_comentarios_by_chamado_id(id_chamado)
+        response_supabase = supabase.table('chamados') \
+            .select('id_chamado_azure', 'plataforma') \
+            .eq('id_chamado', id_chamado) \
+            .single().execute()
+
+        id_azure = None
+        plataforma = None
+        if response_supabase.data:
+            id_azure = response_supabase.data.get('id_chamado_azure')
+            plataforma = response_supabase.data.get('plataforma')
+
+        comentarios_azure = []
+        if id_azure and plataforma:
+            resp_azure = consultar_comentarios(id_azure, plataforma)
+            if isinstance(resp_azure, Response):
+                try:
+                    json_data = json.loads(resp_azure.data)
+                    comentarios_azure = json_data.get('value', [])
+                except json.JSONDecodeError:
+                    app_logger.error(f"Erro ao decodificar JSON do Azure para o chamado {id_chamado}")
+                    comentarios_azure = []
+            else:
+                #comentarios_azure = resp_azure.get('value', [])
+                 comentarios_azure = resp_azure
+
+        return jsonify(comentarios_local + comentarios_azure)
+
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar comentários para o chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários."}), 500
+@app.route("/api/chamado/<string:id_chamado_azure>/comentarios_azure", methods=["GET"])
+def buscar_comentios_azure(id_chamado_azure):
+    print(f"DEBUG: Entrando na função buscar_comentios_azure para o ID: {id_chamado_azure}")
+    try:                
+        from rotas import consultar_comentarios       
+        comentarios_azure = consultar_comentarios(id_chamado_azure)
+        return jsonify({"success": True, "comentarios_azure": comentarios_azure})
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar comentários do Azure para o chamado {id_chamado_azure}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários do Azure."}), 500
+@app.route("/api/chamado/<int:id_chamado_azure>/comentar", methods=["POST"])
+@login_required
+def api_adicionar_comentario_azure(id_chamado_azure):
+    try:
+        data = request.get_json()
+
+        comentario = data.get("comentario", "").strip()
+        anexos = data.get("anexos", [])
+
+        if not comentario:
+            return jsonify({"error": "Comentário é obrigatório"}), 400
+
+        nome_usuario = session.get("nome", "Usuário do sistema")
+        plataforma_fixa = "board_sustentacao"
+
+        resultado = adicionar_comentario_card(
+            id_chamado=id_chamado_azure,
+            comentario=comentario,
+            plataforma=plataforma_fixa,
+            anexos=anexos,
+            nome_usuario=nome_usuario
+        )
+
+        if resultado.get("success"):
+            return jsonify({"success": True, "mensagem": "Comentário enviado com sucesso."})
+        else:
+            return jsonify({"error": resultado.get("error", "Erro desconhecido ao adicionar comentário.")}), 500
+
+    except Exception as e:
+        print(f"[ERRO] Exceção na API de comentário: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+
 

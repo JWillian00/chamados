@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cadastro de Empresa e Função</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .modal {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 400px;
+      text-align: center;
+    }
+    .modal h2 {
+      margin-bottom: 20px;
+    }
+    .modal input, .modal select {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    .btn {
+      background-color: #007bff;
+      color: white;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="modal">
+    <h2>Complete seu cadastro</h2>
+    <form id="cadastroForm">
+      <input type="text" id="empresa" name="empresa" placeholder="Empresa" required>
+      <input type="text" id="funcao" name="funcao" placeholder="Função" required>
+      <button type="submit" class="btn">Salvar</button>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('cadastroForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const empresa = document.getElementById('empresa').value;
+      const funcao = document.getElementById('funcao').value;
+
+      fetch('/auth/microsoft/salvar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ empresa, funcao })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          window.location.href = data.redirect;
+        } else {
+          alert('Erro ao salvar: ' + (data.error || 'Erro desconhecido.'));
+        }
+      })
+      .catch(err => alert('Erro ao salvar: ' + err));
+    });
+  </script>
+</body>
+</html>
