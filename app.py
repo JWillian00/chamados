@@ -17,8 +17,6 @@ from flask_socketio import SocketIO, emit
 from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
 from werkzeug.utils import secure_filename
 import uuid
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To
 from dotenv import load_dotenv
 import logging
 import secrets
@@ -28,6 +26,9 @@ import base64
 from rotas import CONFIG
 from urllib.parse import urlencode
 #from msal import ConfidentialClientApplication
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 
 
@@ -178,35 +179,30 @@ def atualizar_senha_usuario(usuario_id, new_password):
         return False
     
 def enviar_email(to_email, subject, body_html):
-    if not SENDGRID_API_KEY:
-        app_logger.error("SENDGRID_API_KEY não configurada no .env. Email não enviado.")
-        return False
-    if not EMAIL_FROM:
-        app_logger.error("EMAIL_FROM não configurado no .env. Email não enviado.")
-        return False
-    
-    from_email_obj = Email(EMAIL_FROM, EMAIL_FROM_NAME or EMAIL_FROM)
-    to_email_obj = To(to_email)
+    remetente = "jonathanwillian710@gmail.com"
+    senha = "ipwz cujh frdv ivjj"
 
-    message = Mail(
-        from_email=from_email_obj,
-        to_emails=to_email_obj,
-        subject=subject,
-        html_content=body_html
-    )
-    
+    # Montar o e-mail
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = remetente
+    msg["To"] = to_email
+
+    # Corpo do email em HTML
+    part_html = MIMEText(body_html, "html")
+    msg.attach(part_html)
+
     try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        response = sg.send(message)        
+        # Conexão com o servidor SMTP do Gmail
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(remetente, senha)
+            server.sendmail(remetente, to_email, msg.as_string())
+        
+        app.logger.info(f"E-mail enviado com sucesso para {to_email} via Gmail.")
+        return True
 
-        if 200 <= response.status_code < 300:
-            app_logger.info(f"Email enviado com sucesso para {to_email} via SendGrid. Status: {response.status_code}")
-            return True
-        else:
-            app_logger.error(f"Falha ao enviar email para {to_email} via SendGrid. Status: {response.status_code}, Body: {response.body}, Headers: {response.headers}")
-            return False
     except Exception as e:
-        app_logger.error(f"Erro ao enviar email para {to_email} com SendGrid: {e}", exc_info=True)
+        app.logger.error(f"Erro ao enviar e-mail para {to_email} via Gmail: {e}", exc_info=True)
         return False
 
 def allowed_file(filename):
