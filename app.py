@@ -27,7 +27,7 @@ import requests
 import base64
 from rotas import CONFIG
 from urllib.parse import urlencode
-from msal import ConfidentialClientApplication
+#from msal import ConfidentialClientApplication
 
 
 
