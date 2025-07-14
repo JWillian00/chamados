@@ -29,6 +29,7 @@ from urllib.parse import urlencode
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from rotas import obter_estado_chamado_azure
 
 
 
@@ -46,7 +47,7 @@ app = Flask(__name__)
 
 app.secret_key = os.getenv("SECRET_KEY")
 
-SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'https://braveo.vercel.app') #alterar em prd
+SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'http://braveo.vercel.app/') #alterar em prd
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 EMAIL_FROM = os.getenv('EMAIL_FROM')
 EMAIL_FROM_NAME = os.getenv('EMAIL_FROM_NAME')
@@ -67,13 +68,7 @@ app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 #Session(app)
 
-#configurar no vercel env
 
-
-SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'https://braveo.vercel.app') # alterar em prd
-SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
-EMAIL_FROM = os.getenv('EMAIL_FROM')
-EMAIL_FROM_NAME = os.getenv('EMAIL_FROM_NAME')
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
@@ -781,7 +776,7 @@ def atualizar_chamado(id_chamado_azure):
             return jsonify({'success': False, 'error': 'ID do chamado é obrigatório'}), 400
 
         # Buscar dados atuais do chamado para comparação
-        chamado_atual = supabase.table('chamados').select('*').eq('id_chamado_azure', id_chamado_azure).single().execute()
+        chamado_atual = supabase.table('chamados').select('*').eq('id_chamado', id_chamado_azure).single().execute()
         if not chamado_atual.data:
             return jsonify({'success': False, 'error': 'Chamado não encontrado'}), 404
 
@@ -1977,6 +1972,44 @@ def api_adicionar_comentario_azure(id_chamado_azure):
         print(f"[ERRO] Exceção na API de comentário: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/chamado/estado_azure/<string:id_chamado_azure>', methods=['GET'])
+@login_required
+def api_estado_chamado_azure(id_chamado_azure):
+    try:
+        resultado = obter_estado_chamado_azure(id_chamado_azure)
+
+        if isinstance(resultado, dict) and 'state' in resultado:
+            return jsonify(resultado)
+        elif isinstance(resultado, dict) and 'error' in resultado:
+            return jsonify({"error": resultado['error']}), 404
+        else:
+            return jsonify({"error": "Estado não encontrado."}), 404
+    except Exception as e:
+        return jsonify({"error": f"Erro ao obter estado: {str(e)}"}), 500
+
+
+@app.route('/api/estados_chamados', methods=['POST'])
+@login_required
+def estados_chamados_api():
+    try:
+        data = request.get_json()
+        ids = data.get("ids", [])
+
+        if not ids or not isinstance(ids, list):
+            return jsonify({"error": "IDs inválidos"}), 400
+
+        resultados = {}
+        for id_azure in ids:
+            try:
+                resultado = obter_estado_chamado_azure(id_azure)
+                resultados[id_azure] = resultado.get("state", "Desconhecido")
+            except Exception as e:
+                resultados[id_azure] = f"Erro: {str(e)}"
+
+        return jsonify(resultados)
+
+    except Exception as e:
+        return jsonify({"error": f"Erro ao buscar estados: {str(e)}"}), 500
 
 
 

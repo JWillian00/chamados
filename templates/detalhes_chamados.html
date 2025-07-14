@@ -270,10 +270,11 @@
                                     <dd class="col-sm-8" id="telefoneChamado"></dd>
                                    
                                     <dt class="col-sm-8" id="azure-id-container" style="display: none;">ID card: </dt>
-                                    <dd class="col-sm-8" id="modal-id-azure"></dd>         
-                                    
-                                    
-                                                    
+                                    <dd class="col-sm-8" id="modal-id-azure">
+                                        <span id="azure-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;"></span>
+                                        <span id="azure-id-text"></span>
+                                    </dd>    
+             
                                 </dl>
                             </div>
                             <div class="col-md-6">
@@ -448,11 +449,13 @@
                         return;
                     }
 
+                    const idsAzure = [];
+
                     chamados.forEach(chamado => {
-                        const chamadoCard = document.createElement('div'); 
+                        const chamadoCard = document.createElement('div');
 
                         if (chamado.comentario_novo) {
-                            chamadoCard.classList.add('neon-alert'); 
+                            chamadoCard.classList.add('neon-alert');
                         }
 
                         const displayId = chamado.id_chamado_azure
@@ -469,6 +472,7 @@
                             case 'aguardando usuário': statusClass = 'status-badge-em-andamento'; break;
                             default: statusClass = 'bg-secondary';
                         }
+
                         const dataFormatada2 = moment.utc(chamado.data_criacao).local().format('DD/MM/YYYY HH:mm:ss');
 
                         chamadoCard.className = `chamado-card col-md-6 col-lg-4 ${statusClass.replace('status-badge-', 'status-')}`;
@@ -483,15 +487,57 @@
                             <p><strong>Responsável:</strong> ${chamado.responsavel_atendimento || 'N/A'}</p>
                             <p><strong>Categoria:</strong> <span class="badge bg-info">${chamado.categoria || 'N/A'}</span></p>
                             <p><strong>Status:</strong> <span class="badge ${statusClass}">${chamado.status_chamado || 'N/A'}</span></p>
-                            ${chamado.id_chamado_azure ? `<p><strong>ID Azure:</strong> ${chamado.id_chamado_azure}</p>` : ''}
-                            
+                            ${chamado.id_chamado_azure ? `
+                                <p>
+                                    <strong>ID Azure:</strong>
+                                    <span class="azure-status-dot" id="dot-${chamado.id_chamado_azure}"
+                                        style="display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; background-color:#ccc;"
+                                        title="Carregando...">
+                                    </span>
+                                    ${chamado.id_chamado_azure}
+                                </p>` : ''}
+
                             <button type="button" class="btn btn-detalhes" data-id="${chamado.id_chamado}">Ver Detalhes</button>
                         `;
 
                         listaChamados.appendChild(chamadoCard);
+
+                        if (chamado.id_chamado_azure) {
+                            idsAzure.push(chamado.id_chamado_azure);
+                        }
                     });
 
                     attachModalEventListeners();
+
+                    // Requisição em lote para obter estados Azure
+                    if (idsAzure.length > 0) {
+                        fetch('/api/estados_chamados', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ ids: idsAzure })
+                        })
+                            .then(res => res.json())
+                            .then(estados => {
+                                for (const [id, estado] of Object.entries(estados)) {
+                                    const dot = document.getElementById(`dot-${id}`);
+                                    if (!dot) continue;
+
+                                    switch (estado) {
+                                        case "In Progress":
+                                            dot.style.backgroundColor = "#007bff"; // Azul
+                                            break;
+                                        case "Closed":
+                                            dot.style.backgroundColor = "#28a745"; // Verde
+                                            break;
+                                        default:
+                                            dot.style.backgroundColor = "#6c757d"; // Cinza
+                                    }
+
+                                    dot.title = estado;
+                                }
+                            })
+                            .catch(err => console.error("Erro ao buscar estados Azure:", err));
+                    }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar chamados:', error);
@@ -508,19 +554,19 @@
 
         async function handleDetalhesClick() {
             const id = this.getAttribute('data-id');
-            document.getElementById('modalIdChamado').value = id;           
+            document.getElementById('modalIdChamado').value = id;
 
             document.getElementById('comentarioTexto').value = '';
             document.getElementById('anexosInput').value = '';
             document.getElementById('listaComentarios').innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
 
-            try {           
+            try {
                 document.querySelectorAll('.neon-alert').forEach(card => {
                     if (card.innerHTML.includes(id)) {
                         card.classList.remove('neon-alert');
                     }
                 });
-               
+
                 await fetch(`/api/atualizar_chamado/${id}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
@@ -531,15 +577,46 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
 
-                if(data.id_chamado_azure){
-                    document.getElementById('azure-id-container').style.display = 'block';
-                    document.getElementById('modal-id-azure').textContent = data.id_chamado_azure;
+                // Exibe o ID do Azure e busca o estado
+                if (data.id_chamado_azure) {
+                    const azureContainer = document.getElementById('azure-id-container');
+                    if (azureContainer) {
+                        azureContainer.style.display = 'block';
+                    }
+                    const azureText = document.getElementById('azure-id-text');
+                    if (azureText) {
+                        azureText.textContent = data.id_chamado_azure;
+                    }
 
+                    fetch(`/api/chamado/estado_azure/${data.id_chamado_azure}`)
+                        .then(res => res.json())
+                        .then(result => {
+                            const estado = result.state || "Unknown";
+                            const statusDot = document.getElementById("azure-status-indicator");
+
+                            if (statusDot) {
+                                if (estado === "In Progress") {
+                                    statusDot.style.backgroundColor = "#007bff"; // Azul
+                                } else if (estado === "Closed") {
+                                    statusDot.style.backgroundColor = "#28a745"; // Verde
+                                } else {
+                                    statusDot.style.backgroundColor = "#6c757d"; // Cinza
+                                }
+
+                                statusDot.title = estado;
+                            } else {
+                                console.warn("Elemento #azure-status-indicator não encontrado.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Erro ao buscar estado Azure:", err);
+                        });
                 } else {
                     document.getElementById('azure-id-container').style.display = 'none';
                     document.getElementById('modal-id-azure').textContent = '';
                 }
 
+                // Resto da lógica permanece a mesma
                 if (data.erro) {
                     alert(data.erro);
                     return;
@@ -554,7 +631,6 @@
                     azureIdContainer.style.display = 'none';
                 }
 
-                console.log('Título recebido:', JSON.stringify(data.titulo));
                 const tituloFormatado = (data.titulo || 'N/A').replace(/\n/g, '<br>');
                 document.getElementById('idChamado').textContent = data.id_chamado || 'N/A';
                 document.getElementById('tituloChamado').innerHTML = tituloFormatado;
@@ -568,28 +644,6 @@
                 document.getElementById('modalCategoria').value = data.categoria || '';
                 document.getElementById('modalStatusChamado').value = data.status_chamado || 'Aberto';
                 document.getElementById('modalPrioridade').value = data.prioridade || 'Baixa';
-
-                const anexosContainer = document.getElementById("anexosChamadoContainer");
-                anexosContainer.innerHTML = `<strong>Anexos:</strong><br>`;
-
-                if (data.anexos && data.anexos.length > 0) {
-                    data.anexos.forEach((anexo, index) => {
-                        const link = document.createElement('a');
-                        link.href = "#";
-                        link.textContent = `📎 ${anexo.filename}`;
-                        link.classList.add('anexo-link');
-                        link.dataset.anexosAll = JSON.stringify(data.anexos);
-                        link.dataset.anexoIndex = index;
-                        link.dataset.anexoUrl = anexo.url;
-                        link.dataset.anexoFilename = anexo.filename;
-                        link.dataset.anexoMimetype = anexo.mimetype;
-                        link.addEventListener('click', openMediaViewer);
-                        link.style.display = "block";
-                        anexosContainer.appendChild(link);
-                    });
-                } else {
-                    anexosContainer.innerHTML = `<p class="text-muted">Nenhum anexo.</p>`;
-                }
 
                 const selectResponsavel = document.getElementById('modalResponsavel');
                 selectResponsavel.value = data.responsavel_atendimento || '';
@@ -618,32 +672,41 @@
                 });
                 selectResponsavel.value = data.responsavel_atendimento || '';
 
-                await carregarComentarios(id, data.id_chamado_azure || null, data.plataforma_chamad || null);
+                const anexosContainer = document.getElementById("anexosChamadoContainer");
+                anexosContainer.innerHTML = `<strong>Anexos:</strong><br>`;
+                if (data.anexos && data.anexos.length > 0) {
+                    data.anexos.forEach((anexo, index) => {
+                        const link = document.createElement('a');
+                        link.href = "#";
+                        link.textContent = `📎 ${anexo.filename}`;
+                        link.classList.add('anexo-link');
+                        link.dataset.anexosAll = JSON.stringify(data.anexos);
+                        link.dataset.anexoIndex = index;
+                        link.dataset.anexoUrl = anexo.url;
+                        link.dataset.anexoFilename = anexo.filename;
+                        link.dataset.anexoMimetype = anexo.mimetype;
+                        link.addEventListener('click', openMediaViewer);
+                        link.style.display = "block";
+                        anexosContainer.appendChild(link);
+                    });
+                } else {
+                    anexosContainer.innerHTML = `<p class="text-muted">Nenhum anexo.</p>`;
+                }
+
+                await carregarComentarios(id, data.id_chamado_azure || null, data.plataforma_chamado || null);
 
                 const modal = new bootstrap.Modal(document.getElementById('modalChamado'));
                 modal.show();
 
             } catch (err) {
                 console.error('Erro ao buscar detalhes do chamado:', err);
-
                 let mensagemErro = 'Erro ao carregar detalhes do chamado.';
-                if (err && typeof err === 'object') {
-                    if (err.message) {
-                        mensagemErro += ` ${err.message}`;
-                    } else {
-                        try {
-                            mensagemErro += ' ' + JSON.stringify(err);
-                        } catch (e) {
-                            // fallback
-                            mensagemErro += ' (erro desconhecido)';
-                        }
-                    }
+                if (err?.message) {
+                    mensagemErro += ` ${err.message}`;
                 }
-
                 notificationSystem.error(mensagemErro);
             }
         }
-
 
 
    
