@@ -9,23 +9,23 @@ CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
         "project": "Tiscoski",
-        "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
+         "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
     "board_sustentacao": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex",
-        "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
+         "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
     "board_bodegamix": {
         "organization": "BRAVEO",
         "project": "Bodegamix",
-        "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
+         "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
 
     "azure_devops_unico": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex", 
-        "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
+         "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     }
 }
 
@@ -441,3 +441,26 @@ def adicionar_comentario_card(id_chamado, comentario, plataforma, anexos=None, n
     except Exception as e:
         print(f"[ERRO] Erro inesperado ao adicionar comentário ou anexos: {e}")
         return {"error": f"Erro inesperado: {str(e)}"}
+
+def obter_estado_chamado_azure(id_chamado_azure):
+    config = CONFIG.get("azure_devops_unico")
+    if not config:
+        return {"error": "Configuração Azure não encontrada."}
+
+    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado_azure}?api-version=7.1"
+    headers = get_headers(config["token"])
+
+    try:
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+        data = response.json()
+        state = data.get("fields", {}).get("System.State", None)
+
+        if not state:
+            return {"error": "Estado não encontrado no chamado."}
+
+        return {"state": state}
+    except requests.exceptions.RequestException as e:
+        print(f"Erro ao consultar estado Azure: {e}")
+        return {"error": str(e)}
