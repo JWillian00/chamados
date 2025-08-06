@@ -299,7 +299,6 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
     url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/${work_item_type}?api-version=7.1"
     headers = get_headers(config["token"])
 
-    # Payload para o Work Item do Azure
     payload = [
         {"op": "add", "path": "/fields/System.Title", "value": titulo},
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
@@ -307,15 +306,19 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         {"op": "add", "path": "/fields/Custom.Equipe", "value": "TI Digital"},
     ]
 
-    # Inclui a filial, caso necessário
     if board_config_key == "board_sustentacao" and filial:
-        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
+        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Click"})
     elif board_config_key == "board_ecomm" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
     elif board_config_key == "board_bodegamix" and filial:
-        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
+        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Bodegamix"})
+    elif filial == "Oniz" and board_config_key == "board_ecomm":
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Oniz"})
+    elif filial == "Tiscoski" and board_config_key == "board_ecomm":
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Tiscoski"})
 
-    # Envia o trabalho para o Azure DevOps
     try:
         print(f"DEBUG: Criando work item no Azure DevOps")
         response = requests.post(url, json=payload, headers=headers)
@@ -371,7 +374,6 @@ def adicionar_comentario_card(id_chamado, comentario, plataforma, anexos=None, n
         "Authorization": authorization_value
     }
 
-    # ✅ Insere o nome do usuário no conteúdo do comentário
     comentario_formatado = f"{nome_usuario or 'Usuário do sistema'} comentou via sistema:\n\n{comentario}"
     payload = {"text": comentario_formatado}
 
