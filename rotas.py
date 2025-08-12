@@ -4,7 +4,7 @@ import os
 from flask import flash, jsonify
 import time
 import json
-
+ 
 CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
@@ -21,14 +21,13 @@ CONFIG = {
         "project": "Bodegamix",
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
-
+ 
     "azure_devops_unico": {
         "organization": "BRAVEO",
         "project": "Click%20Veplex", 
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     }
 }
-
 
 
 PLATAFORMA_MAPEADA = {
@@ -318,6 +317,12 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Oniz"})
     elif filial == "Tiscoski" and board_config_key == "board_ecomm":
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Tiscoski"})
+
+    sistema_definido = any (
+        p["path"] == "/fields/Custom.Sistemas" for p in payload
+    )
+    if not sistema_definido:
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "GSeller"})
 
     try:
         print(f"DEBUG: Criando work item no Azure DevOps")
