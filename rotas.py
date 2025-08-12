@@ -28,8 +28,7 @@ CONFIG = {
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     }
 }
-
-
+#
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
