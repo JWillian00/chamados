@@ -1,7 +1,7 @@
 
 from supabase import create_client, Client
 from datetime import datetime
-from supabase_config import SUPABASE_URL, SUPABASE_KEY
+#from supabase_config import SUPABASE_URL, SUPABASE_KEY
 from flask import  flash
 from supabase import create_client, Client
 import os
