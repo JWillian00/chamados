@@ -4,7 +4,7 @@ import os
 from flask import flash, jsonify
 import time
 import json
- 
+
 CONFIG = {
     "board_ecomm": {
         "organization": "BRAVEO",
@@ -28,7 +28,9 @@ CONFIG = {
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     }
 }
-#
+
+
+
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
@@ -302,6 +304,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
         {"op": "add", "path": "/fields/System.State", "value": "New"},
         {"op": "add", "path": "/fields/Custom.Equipe", "value": "TI Digital"},
+        {"op": "add", "path": "/fields/System.AssignedTo", "value": "Amanda Sobreiro Meneghetti"},
     ]
 
     if board_config_key == "board_sustentacao" and filial:

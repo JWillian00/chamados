@@ -9,6 +9,7 @@
     <style>
         body {
             background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         .neon-alert {
             border: 3px solid #00f;
@@ -44,7 +45,6 @@
         
         .fila-container {
             padding: 20px;
-            background: #f8f9fa;
             min-height: 100vh;
         }
         .header-fila {
@@ -74,60 +74,121 @@
         .refresh-btn:hover {
             background-color: #0056b3;
         }
-        .chamado-card {
-            background: white;
+         /* Layout da Esteira */
+        .esteira-container {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0;
+            min-height: 400px;
+        }
+        
+        .coluna-esteira {
+            flex: 0 0 300px;
+            background: #f8f9fa;
             border-radius: 8px;
+            padding: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            padding: 20px;
+        }
+        
+        .coluna-esteira h5 {
+            text-align: center;
             margin-bottom: 15px;
-            transition: transform 0.2s ease-in-out;
-            border-left: 5px solid transparent;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            color: #495057;
         }
-        .chamado-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
-        }
-        .chamado-card h5 {
-            color: #007bff;
+        
+        .coluna-aberto h5 { border-bottom-color: #359fdc; }
+        .coluna-andamento h5 { border-bottom-color: #ffc107; }
+        .coluna-aguardando h5 { border-bottom-color: #fd7e14; }
+        .coluna-reaberto h5 { border-bottom-color: #eb0c0c; }
+        
+        .card-chamado-esteira {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
             margin-bottom: 10px;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            white-space: normal;
-            font-size: 1.1rem; 
-        }
-        .chamado-card p {
-            margin-bottom: 5px;
-            color: #555;
-            font-size: 0.95em;
-        }
-        .chamado-card strong {
-            color: #333;
-        }
-        .btn-detalhes {
-            background-color: #6c757d;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid #359fdc;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            float: right;
-            margin-top: 10px;
+            transition: all 0.2s ease;
         }
-        .btn-detalhes:hover {
-            background-color: #5a6268;
+        
+        .card-chamado-esteira:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
         }
-        /* Cores dos status no card */
-        .status-badge-aberto { background-color: #359fdc; color: white; border-left-color: #dc3545; }
-        .status-badge-em-andamento { background-color: #ffc107; color: #343a40; border-left-color: #ffc107; }
-        .status-badge-fechado { background-color: #28a745; color: white; border-left-color: #28a745; }
-        .status-badge-reaberto { background-color: #eb0c0c; color: white; border-left-color: #fd7e14; }
-        .chamado-card.status-aberto { border-left-color: #359fdc; }
-        .chamado-card.status-em-andamento { border-left-color: #ffc107; }
-        .chamado-card.status-fechado { border-left-color: #28a745; }
-        .chamado-card.status-reaberto { border-left-color: #eb0c0c; }
-        .descricao-label {
-            font-weight: normal;
+        
+        .card-chamado-esteira.status-em-andamento { border-left-color: #ffc107; }
+        .card-chamado-esteira.status-aguardando { border-left-color: #fd7e14; }
+        .card-chamado-esteira.status-reaberto { border-left-color: #eb0c0c; }
+        
+        .chamado-id {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .chamado-solicitante {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        
+        .chamado-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8em;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+        
+        .status-aberto { background-color: #d1ecf1; color: #0c5460; }
+        .status-andamento { background-color: #fff3cd; color: #856404; }
+        .status-aguardando { background-color: #ffeaa7; color: #856404; }
+        .status-reaberto { background-color: #f8d7da; color: #721c24; }
+        
+        .azure-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .azure-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .azure-in-progress { background-color: #007bff; }
+        .azure-closed { background-color: #28a745; }
+        .azure-unknown { background-color: #6c757d; }
+        
+        .chamado-novo {
+            animation: pulse 2s infinite;
+            border: 1px solid #007bff;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4); }
+            70% { box-shadow: 0 0 0 5px rgba(0, 123, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+        }
+        
+        .vazio-esteira {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 20px;
         }
         /* Estilos para o modal de detalhes */
         #modalChamado .modal-dialog {
@@ -222,6 +283,7 @@
     </style>
 
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+   
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
     <script src="{{ url_for('static', filename='js/notifications.js') }}"></script> 
@@ -238,8 +300,28 @@
             <button class="refresh-btn" id="refreshBtn">Atualizar Lista</button>
         </div>
 
-        <div id="listaChamados" class="row">
+        <!-- Esteira de Chamados -->
+        <div class="esteira-container" id="esteiraChamados">
+            <div class="coluna-esteira coluna-aberto">
+                <h5>Aberto</h5>
+                <div id="coluna-aberto" class="coluna-chamados"></div>
             </div>
+            
+            <div class="coluna-esteira coluna-andamento">
+                <h5>Em Andamento</h5>
+                <div id="coluna-andamento" class="coluna-chamados"></div>
+            </div>
+            
+            <div class="coluna-esteira coluna-aguardando">
+                <h5>Aguardando</h5>
+                <div id="coluna-aguardando" class="coluna-chamados"></div>
+            </div>
+            
+            <div class="coluna-esteira">
+                <h5>Reaberto</h5>
+                <div id="coluna-reaberto" class="coluna-chamados"></div>
+            </div>
+        </div>
     </div>
 
     <div class="modal fade" id="modalChamado" tabindex="-1" aria-labelledby="modalChamadoLabel" aria-hidden="true">
@@ -421,16 +503,13 @@
             timeout: 10000
         });
 
-        socket.on("connect_error", (err) => {
-            if (window.location.hostname === "localhost") {
-                console.warn("Erro de conexão com Socket.IO:", err.message);
-            }
-        });
+        let cacheChamados = {};
+        let ultimaAtualizacao = null;
+        let intervaloAtualizacao = null; 
+
         const SUPABASE_URL = '{{ supabase_url }}';
         const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
-        const SUPABASE_BUCKET_NAME = 'chamadoanexos';         
-
-       // console.log("Verificando tipo supabase:", typeof supabase); 
+        const SUPABASE_BUCKET_NAME = 'chamadoanexos';
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         function fetchChamados() {
@@ -440,195 +519,176 @@
                     return response.json();
                 })
                 .then(chamados => {
-                    const listaChamados = document.getElementById('listaChamados');
-                    listaChamados.innerHTML = '';
+
+                    const hash = JSON.stringify(chamados);
+                    if (hash === ultimaAtualizacao) {
+                        return; 
+                    }
+                    ultimaAtualizacao = hash;
+                    
+                    atualizarEsteira(chamados);
                     document.getElementById('contadorChamados').textContent = `Chamados Abertos: ${chamados.length}`;
-
-                    if (chamados.length === 0) {
-                        listaChamados.innerHTML = '<p class="text-muted text-center mt-3">Nenhum chamado aberto no momento.</p>';
-                        return;
-                    }
-
-                    const idsAzure = [];
-
-                    chamados.forEach(chamado => {
-                        const chamadoCard = document.createElement('div');
-
-                        if (chamado.comentario_novo) {
-                            chamadoCard.classList.add('neon-alert');
-                        }
-
-                        const displayId = chamado.id_chamado_azure
-                            ? `Azure: ${chamado.id_chamado_azure}`
-                            : `Interno: ${chamado.id_chamado}`;
-
-                        let statusClass = '';
-                        switch (chamado.status_chamado.toLowerCase()) {
-                            case 'aberto': statusClass = 'status-badge-aberto'; break;
-                            case 'em andamento':
-                            case 'andamento': statusClass = 'status-badge-em-andamento'; break;
-                            case 'fechado': statusClass = 'status-badge-fechado'; break;
-                            case 'reaberto': statusClass = 'status-badge-reaberto'; break;
-                            case 'aguardando usuário': statusClass = 'status-badge-em-andamento'; break;
-                            default: statusClass = 'bg-secondary';
-                        }
-
-                        const dataFormatada2 = moment.utc(chamado.data_criacao).local().format('DD/MM/YYYY HH:mm:ss');
-
-                        chamadoCard.className = `chamado-card col-md-6 col-lg-4 ${statusClass.replace('status-badge-', 'status-')}`;
-                        chamadoCard.innerHTML = `
-                            <h5>${chamado.titulo} <small class="text-muted">(ID: ${displayId})</small></h5>
-                            <p><strong>Solicitante:</strong> ${chamado.usuario_nome}</p>
-                            <p><strong>Empresa:</strong> ${chamado.empresa_chamado || 'N/A'}</p>
-                            <p><strong>Plataforma:</strong> ${chamado.plataforma_chamado || 'N/A'}</p>
-                            <p><strong>Filial:</strong> ${chamado.filial_chamado || 'N/A'}</p>
-                            <p><strong>Criado em:</strong> ${dataFormatada2}</p>
-                            <p><strong>Prioridade:</strong> <span class="badge bg-info">${chamado.prioridade || 'N/A'}</span></p>
-                            <p><strong>Responsável:</strong> ${chamado.responsavel_atendimento || 'N/A'}</p>
-                            <p><strong>Categoria:</strong> <span class="badge bg-info">${chamado.categoria || 'N/A'}</span></p>
-                            <p><strong>Status:</strong> <span class="badge ${statusClass}">${chamado.status_chamado || 'N/A'}</span></p>
-                            ${chamado.id_chamado_azure ? `
-                                <p>
-                                    <strong>ID Azure:</strong>
-                                    <span class="azure-status-dot" id="dot-${chamado.id_chamado_azure}"
-                                        style="display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; background-color:#ccc;"
-                                        title="Carregando...">
-                                    </span>
-                                    ${chamado.id_chamado_azure}
-                                </p>` : ''}
-
-                            <button type="button" class="btn btn-detalhes" data-id="${chamado.id_chamado}">Ver Detalhes</button>
-                        `;
-
-                        listaChamados.appendChild(chamadoCard);
-
-                        if (chamado.id_chamado_azure) {
-                            idsAzure.push(chamado.id_chamado_azure);
-                        }
-                    });
-
-                    attachModalEventListeners();
-
-                    // Requisição em lote para obter estados Azure
-                    if (idsAzure.length > 0) {
-                        fetch('/api/estados_chamados', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ ids: idsAzure })
-                        })
-                            .then(res => res.json())
-                            .then(estados => {
-                                for (const [id, estado] of Object.entries(estados)) {
-                                    const dot = document.getElementById(`dot-${id}`);
-                                    if (!dot) continue;
-
-                                    switch (estado) {
-                                        case "In Progress":
-                                            dot.style.backgroundColor = "#007bff"; // Azul
-                                            break;
-                                        case "Closed":
-                                            dot.style.backgroundColor = "#28a745"; // Verde
-                                            break;
-                                        default:
-                                            dot.style.backgroundColor = "#6c757d"; // Cinza
-                                    }
-
-                                    dot.title = estado;
-                                }
-                            })
-                            .catch(err => console.error("Erro ao buscar estados Azure:", err));
-                    }
                 })
                 .catch(error => {
                     console.error('Erro ao carregar chamados:', error);
-                    listaChamados.innerHTML = '<p class="text-danger text-center mt-3">Erro ao carregar chamados.</p>';
                 });
         }
 
-        function attachModalEventListeners() {
-            document.querySelectorAll('.btn-detalhes').forEach(btn => {
-                btn.removeEventListener('click', handleDetalhesClick);
-                btn.addEventListener('click', handleDetalhesClick);
+        function atualizarEsteira(chamados) {
+            const colunas = ['aberto', 'andamento', 'aguardando', 'reaberto'];
+            colunas.forEach(status => {
+                const coluna = document.getElementById(`coluna-${status}`);
+                coluna.innerHTML = '<div class="vazio-esteira">Nenhum chamado</div>';
             });
+
+            if (chamados.length === 0) return;
+
+            const idsAzure = [];
+
+            chamados.forEach(chamado => {
+                const statusNormalizado = normalizarStatus(chamado.status_chamado);
+                const coluna = document.getElementById(`coluna-${statusNormalizado}`);
+                
+                if (coluna.querySelector('.vazio-esteira')) {
+                    coluna.innerHTML = '';
+                }
+
+                const card = criarCardChamado(chamado);
+                coluna.appendChild(card);
+
+                if (chamado.id_chamado_azure) {
+                    idsAzure.push(chamado.id_chamado_azure);
+                }
+            });
+
+            if (idsAzure.length > 0) {
+                atualizarEstadosAzure(idsAzure);
+            }
         }
 
-        async function handleDetalhesClick() {
-            const id = this.getAttribute('data-id');
-            document.getElementById('modalIdChamado').value = id;
+        function normalizarStatus(status) {
+            if (!status) return 'aberto';
+            
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('andamento')) return 'andamento';
+            if (statusLower.includes('aguardando')) return 'aguardando';
+            if (statusLower.includes('reaberto')) return 'reaberto';
+            return 'aberto';
+        }
+
+        function criarCardChamado(chamado) {
+            const card = document.createElement('div');
+            const statusNormalizado = normalizarStatus(chamado.status_chamado);
+            
+            card.className = `card-chamado-esteira status-${statusNormalizado}`;
+            if (chamado.comentario_novo) {
+                card.classList.add('chamado-novo');
+            }
+            
+            const displayId = chamado.id_chamado_azure 
+                ? `Azure: ${chamado.id_chamado_azure}`
+                : `Interno: ${chamado.id_chamado}`;
+
+            const statusClass = `status-${statusNormalizado}`;
+            const statusText = chamado.status_chamado || 'Aberto';
+
+            card.innerHTML = `
+                <div class="chamado-id">${displayId}</div>
+                <div class="chamado-solicitante">
+                    <i class="fas fa-user"></i> ${chamado.usuario_nome || 'N/A'}
+                </div>
+                <div class="chamado-status">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                    ${chamado.id_chamado_azure ? `
+                        <div class="azure-status">
+                            <span class="azure-dot azure-unknown" id="dot-${chamado.id_chamado_azure}" title="Carregando..."></span>
+                        </div>
+                    ` : ''}
+                </div>
+                <!-- 🆕 BOTÃO DE DETALHES ADICIONADO NO FINAL -->
+                <div class="chamado-actions">
+                    <button class="btn-detalhes-esteira" data-id="${chamado.id_chamado}">
+                        <i class="fas fa-search me-1"></i>Ver Detalhes
+                    </button>
+                </div>
+            `;
+
+            const btnDetalhes = card.querySelector('.btn-detalhes-esteira');
+            btnDetalhes.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                abrirDetalhesChamado(chamado.id_chamado);
+            });
+
+            card.addEventListener('click', () => abrirDetalhesChamado(chamado.id_chamado));
+
+            return card;
+        }
+
+        function atualizarEstadosAzure(idsAzure) {
+            fetch('/api/estados_chamados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsAzure })
+            })
+            .then(res => res.json())
+            .then(estados => {
+                for (const [id, estado] of Object.entries(estados)) {
+                    const dot = document.getElementById(`dot-${id}`);
+                    if (!dot) continue;
+
+                    dot.classList.remove('azure-unknown', 'azure-in-progress', 'azure-closed');
+                    
+                    if (estado === "In Progress") {
+                        dot.classList.add('azure-in-progress');
+                        dot.title = "Em Andamento";
+                    } else if (estado === "Closed") {
+                        dot.classList.add('azure-closed');
+                        dot.title = "Fechado";
+                    } else {
+                        dot.classList.add('azure-unknown');
+                        dot.title = estado || "Desconhecido";
+                    }
+                }
+            })
+            .catch(err => console.error("Erro ao buscar estados Azure:", err));
+        }
+
+        async function abrirDetalhesChamado(idChamado) {
+            document.querySelectorAll('.chamado-novo').forEach(card => {
+                if (card.innerHTML.includes(idChamado)) {
+                    card.classList.remove('chamado-novo');
+                }
+            });
+            document.querySelectorAll('.neon-alert').forEach(card => {
+                if (card.innerHTML.includes(idChamado)) {
+                    card.classList.remove('neon-alert');
+                }
+            });
+
+            try {
+                await fetch(`/api/atualizar_chamado/${idChamado}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comentario_novo: false })
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar status de visualização:', error);
+            }
+
+            document.getElementById('modalIdChamado').value = idChamado;
 
             document.getElementById('comentarioTexto').value = '';
             document.getElementById('anexosInput').value = '';
             document.getElementById('listaComentarios').innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
 
             try {
-                document.querySelectorAll('.neon-alert').forEach(card => {
-                    if (card.innerHTML.includes(id)) {
-                        card.classList.remove('neon-alert');
-                    }
-                });
-
-                await fetch(`/api/atualizar_chamado/${id}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ comentario_novo: false })
-                });
-
-                const response = await fetch(`/api/detalhes_chamado/${id}`);
+                const response = await fetch(`/api/detalhes_chamado/${idChamado}`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 const data = await response.json();
 
-                // Exibe o ID do Azure e busca o estado
-                if (data.id_chamado_azure) {
-                    const azureContainer = document.getElementById('azure-id-container');
-                    if (azureContainer) {
-                        azureContainer.style.display = 'block';
-                    }
-                    const azureText = document.getElementById('azure-id-text');
-                    if (azureText) {
-                        azureText.textContent = data.id_chamado_azure;
-                    }
-
-                    fetch(`/api/chamado/estado_azure/${data.id_chamado_azure}`)
-                        .then(res => res.json())
-                        .then(result => {
-                            const estado = result.state || "Unknown";
-                            const statusDot = document.getElementById("azure-status-indicator");
-
-                            if (statusDot) {
-                                if (estado === "In Progress") {
-                                    statusDot.style.backgroundColor = "#007bff"; // Azul
-                                } else if (estado === "Closed") {
-                                    statusDot.style.backgroundColor = "#28a745"; // Verde
-                                } else {
-                                    statusDot.style.backgroundColor = "#6c757d"; // Cinza
-                                }
-
-                                statusDot.title = estado;
-                            } else {
-                                console.warn("Elemento #azure-status-indicator não encontrado.");
-                            }
-                        })
-                        .catch(err => {
-                            console.error("Erro ao buscar estado Azure:", err);
-                        });
-                } else {
-                    document.getElementById('azure-id-container').style.display = 'none';
-                    document.getElementById('modal-id-azure').textContent = '';
-                }
-
-                // Resto da lógica permanece a mesma
                 if (data.erro) {
                     alert(data.erro);
                     return;
-                }
-
-                const azureIdContainer = document.getElementById('azure-id-container');
-                const modalIdAzure = document.getElementById('modal-id-azure');
-                if (data.id_chamado_azure) {
-                    azureIdContainer.style.display = 'block';
-                    modalIdAzure.textContent = data.id_chamado_azure;
-                } else {
-                    azureIdContainer.style.display = 'none';
                 }
 
                 const tituloFormatado = (data.titulo || 'N/A').replace(/\n/g, '<br>');
@@ -661,16 +721,41 @@
                     selectResponsavel.appendChild(newOption);
                     selectResponsavel.value = data.responsavel_atendimento;
                 }
-                const options = Array.from(selectResponsavel.options).map(opt => opt.value);
-                const uniqueOptions = [...new Set(options)];
-                selectResponsavel.innerHTML = '';
-                uniqueOptions.forEach(value => {
-                    const option = document.createElement('option');
-                    option.value = value;
-                    option.textContent = value;
-                    selectResponsavel.appendChild(option);
-                });
-                selectResponsavel.value = data.responsavel_atendimento || '';
+
+                if (data.id_chamado_azure) {
+                    const azureContainer = document.getElementById('azure-id-container');
+                    if (azureContainer) {
+                        azureContainer.style.display = 'block';
+                    }
+                    const azureText = document.getElementById('azure-id-text');
+                    if (azureText) {
+                        azureText.textContent = data.id_chamado_azure;
+                    }
+
+                    fetch(`/api/chamado/estado_azure/${data.id_chamado_azure}`)
+                        .then(res => res.json())
+                        .then(result => {
+                            const estado = result.state || "Unknown";
+                            const statusDot = document.getElementById("azure-status-indicator");
+
+                            if (statusDot) {
+                                if (estado === "In Progress") {
+                                    statusDot.style.backgroundColor = "#007bff";
+                                } else if (estado === "Closed") {
+                                    statusDot.style.backgroundColor = "#28a745";
+                                } else {
+                                    statusDot.style.backgroundColor = "#6c757d";
+                                }
+                                statusDot.title = estado;
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Erro ao buscar estado Azure:", err);
+                        });
+                } else {
+                    document.getElementById('azure-id-container').style.display = 'none';
+                    document.getElementById('modal-id-azure').textContent = '';
+                }
 
                 const anexosContainer = document.getElementById("anexosChamadoContainer");
                 anexosContainer.innerHTML = `<strong>Anexos:</strong><br>`;
@@ -693,7 +778,7 @@
                     anexosContainer.innerHTML = `<p class="text-muted">Nenhum anexo.</p>`;
                 }
 
-                await carregarComentarios(id, data.id_chamado_azure || null, data.plataforma_chamado || null);
+                await carregarComentarios(idChamado, data.id_chamado_azure || null, data.plataforma_chamado || null);
 
                 const modal = new bootstrap.Modal(document.getElementById('modalChamado'));
                 modal.show();
@@ -708,8 +793,6 @@
             }
         }
 
-
-   
         document.getElementById('btnSalvarAlteracoes').addEventListener('click', async () => {
             const id_chamado = document.getElementById('modalIdChamado').value;
             const dataToUpdate = {
@@ -737,32 +820,9 @@
                 const result = await response.json();
                 if (result.message) {
                     notificationSystem.info(result.message);
-
-                    const responsavel = dataToUpdate.responsavel_atendimento;
-                    const usurioLogado = "{{ usuario_logado_nome }}";
-
-                  /*  if (responsavel !== usurioLogado) {
-                        const azureResponse = await fetch ('/api/criar_chamado_azure', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                id_chamado: id_chamado,
-                                responsavel: responsavel
-                            })
-                        });
-
-                        const azureData = await azureResponse.json();
-                        if (azureData.success){
-                            notificationSystem.success(`Criado chamado interno: ${azureData.id_azure}`);
-                            console.log(`Criado chamado interno: ${azureData.id_azure}`);
-                        } else {
-                            notificationSystem.error(`Erro ao criar chamado interno: ${azureData.error}`);
-                            console.log(`Erro ao criar chamado interno: ${azureData.error}`);
-                        }
-                    }*/
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalChamado'))
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalChamado'));
                     modal.hide();
-                    fetchChamados();
+                    fetchChamados(); 
                 } else {
                     notificationSystem.error(result.error || 'Erro ao salvar as alterações.');
                 }
@@ -770,6 +830,40 @@
                 console.error('Erro ao salvar as alterações:', error);
                 notificationSystem.error('Erro de conexão ou servidor ao salvar as alterações: ' + error.message);
             }
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', fetchChamados);
+            }
+
+            fetchChamados();
+            clearInterval(intervaloAtualizacao); 
+            intervaloAtualizacao = setInterval(fetchChamados, 10000); 
+        });
+
+        socket.on('chamado_atualizado', function(data) {
+            console.log('Chamado atualizado:', data);
+            setTimeout(fetchChamados, 1000); 
+        });
+
+        socket.on('atualizacao_chamado', function() {
+            console.log('Atualização geral de chamados');
+            setTimeout(fetchChamados, 1000);
+        });
+
+        socket.on('novo_chamado_criado', function(data) {
+            console.log('Novo chamado criado:', data);
+            setTimeout(fetchChamados, 1000); 
+        });
+
+        document.getElementById("btnAdicionarComentario").addEventListener("click", async () => {
+            await addComentario(); 
+            const idChamado = document.getElementById("modalIdChamado").value;
+            const idChamadoAzure = document.getElementById("modal-id-azure").innerText.trim();
+            const plataformaChamado = document.getElementById("modalPlataformaChamado").value; 
+            await carregarComentarios(idChamado, idChamadoAzure, plataformaChamado);
         });
 
         async function fetchComentarios(chamadoId) {
@@ -845,15 +939,7 @@
                 listaComentariosDiv.appendChild(comentarioCard);
             });
             attachAnexoEventListeners();
-        }
-
-       document.getElementById("btnAdicionarComentario").addEventListener("click", async () => {
-            await addComentario(); 
-            const idChamado = document.getElementById("modalIdChamado").value;
-            const idChamadoAzure = document.getElementById("modal-id-azure").innerText.trim();
-            const plataformaChamado = document.getElementById("modalPlataformaChamado").value; 
-            await carregarComentarios(idChamado, idChamadoAzure, plataformaChamado);
-        });
+        }      
 
 
         async function addComentario() {            
@@ -1030,17 +1116,7 @@
             if (mimetype.includes('xml')) return 'fas fa-file-code';
             if (mimetype.includes('text/plain')) return 'fas fa-file-alt';
             return 'fas fa-file';
-        }
-
-        document.addEventListener("DOMContentLoaded", function () {
-            const refreshBtn = document.getElementById('refreshBtn');
-            if (refreshBtn) {
-                refreshBtn.addEventListener('click', fetchChamados);
-            }
-
-            fetchChamados(); // Executa imediatamente após carregar
-            setInterval(fetchChamados, 3000); // Atualiza a cada 3 segundos
-        });
+        }   
 
 
 
@@ -1058,7 +1134,7 @@
 
         socket.on('chamado_atualizado', function(data) {
             console.log('Chamado atualizado:', data);
-            fetchChamados();
+            setTimeout(fetchChamados, 1000);
         });
 
         socket.on('atualizacao_chamado', function() {

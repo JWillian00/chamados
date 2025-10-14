@@ -7,7 +7,7 @@ import os
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
 from werkzeug.security import generate_password_hash, check_password_hash
-#from supabase_config import supabase
+from supabase_config import supabase
 from supabase import create_client, Client
 from functools import wraps
 import random
@@ -409,11 +409,12 @@ def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filia
 
         if response.data and len(response.data) > 0:           
             mov_registrada = registrar_movimentacao_chamado(
-                id_chamadoid_chamado_azure=id_chamado_azure,
+                id_chamado_azure=id_chamado_azure,
                 tipo='Criação de Chamado',
                 valor_anterior='N/A',
                 valor_novo='Aberto',
-                usuario=responsavel 
+                usuario=responsavel,
+                id_chamado=id_chamado 
             )
             if not mov_registrada:
                 print(f"ATENÇÃO: Chamado {id_chamado_azure} criado, mas falha ao registrar movimentação de criação.")
@@ -613,8 +614,7 @@ def abertura():
         except Exception as e:
             flash(f"Erro interno do servidor: {str(e)}", "error")
             return redirect(url_for("abertura"))
-    return
-    #return render_template("menu_modulo.html")  
+    return render_template('menu_modulo.html')
 
 @app.route('/registrar_chamado', methods=['GET', 'POST'])
 @login_required
@@ -799,37 +799,13 @@ def atualizar_chamado(id_chamado_azure):
         sucesso = update_chamado(id_chamado_azure, campos_atualizacao)
 
         if sucesso:
-            # Registrar movimentações para mudanças de status e responsável
-            if 'status_chamado' in campos_atualizacao and dados_atuais['status_chamado'] != campos_atualizacao['status_chamado']:
-                
-                if 'status_chamado' in campos_atualizacao and dados_atuais['status_chamado'] != campos_atualizacao['status_chamado']:
-                    registrar_movimentacao_chamado(
-                        id_chamado_azure, 
-                        'status alterado para', 
-                        dados_atuais['status_chamado'], 
-                        campos_atualizacao['status_chamado'], 
-                        usuario_logado
-                    )
-
-            if 'responsavel_atendimento' in campos_atualizacao and dados_atuais.get('responsavel_atendimento') != campos_atualizacao['responsavel_atendimento']:
-                registrar_movimentacao_chamado(
-                    id_chamado_azure, 
-                    'responsável alterado para', 
-                    dados_atuais.get('responsavel_atendimento', 'Não definido'), 
-                    campos_atualizacao['responsavel_atendimento'], 
-                    usuario_logado
-                )
-                socketio.emit('chamado_atualizado', {
-                    'id': id_chamado_azure,
-                    'status': campos_atualizacao.get('status_chamado', ''),
-                    'responsavel': campos_atualizacao.get('responsavel_atendimento', ''),
-                })
-            # Emitir eventos WebSocket para notificar sobre a atualização
-            socketio.emit('chamado_atualizado', {'id': id_chamado_azure, 'status': campos_atualizacao.get('status_chamado')})
-            socketio.emit('atualizacao_chamado')  # Para atualizar o dashboard
-            return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200
-        else:
-            return jsonify({'success': False, 'error': 'Falha ao atualizar o chamado no banco de dados'}), 500
+            socketio.emit('chamado_atualizado_parcial',{
+                'id': id_chamado_azure,
+                'campo_alterado': list(campos_atualizacao.keys())[0],
+                'novo_valor': list(campos_atualizacao.values())[0],
+                'timestamp': datetime.now().isoformat()
+            })
+        return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200           
 
     except Exception as e:
         print(f"Erro ao atualizar chamado: {str(e)}")
@@ -1511,7 +1487,7 @@ def dashboard():
 @socketio.on('connect')
 def handle_connect():
     app_logger.info('Cliente conectado')
-    emit_dashboard_data()
+    emit('connection_established', {'message': 'Conexão estabelecida com sucesso!'})
 
 def emit_dashboard_data():
     try:
@@ -1538,19 +1514,21 @@ def emit_dashboard_data():
         total_abertos = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'aberto')
         total_fechados = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'fechado')
         total_em_andamento = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'em andamento')
-
-        dashboard_data = {
-            "fechados": fechados,
-            "movimentacoes": movimentacoes,
-            "comentarios": comentarios,
+        
+                
+        socketio.emit('dashboard_update',{
+            "novos_fechados": fechados,
+            "novas_movimentacoes": movimentacoes,
+            "novos_comentarios": comentarios,
             "grafico": {
                 "abertos": total_abertos,
                 "fechados": total_fechados,
                 "em_andamento": total_em_andamento
-            }
-        }
-        socketio.emit('dashboard_update', dashboard_data)
-        app_logger.info('Dados do dashboard emitidos via SocketIO.')
+            },
+            "timestamp": datetime.now().isoformat()
+
+        })
+        
     except Exception as e:
         app_logger.error(f"Erro ao emitir dados do dashboard: {e}")
 
@@ -2010,6 +1988,3 @@ def estados_chamados_api():
 
     except Exception as e:
         return jsonify({"error": f"Erro ao buscar estados: {str(e)}"}), 500
-
-
-
