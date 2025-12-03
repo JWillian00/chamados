@@ -861,7 +861,7 @@
                                     <select id="plataforma" name="plataforma" style="font-size: 14px; padding: 10px;">
                                         <option value="E-commerce">ONIZ E-commerce</option>
                                         <option value="click">Click</option>
-                                        <option value="Bodegamix">BraveoShop</option>
+                                        <option value="BraveoShop">BraveoShop</option>
                                     </select>
                                 </div>
 
@@ -960,7 +960,7 @@
                             <select id="plataforma-consulta" name="plataforma-consulta" style="font-size: 14px;">
                                 <option value=" E-commerce">E-commerce</option>
                                 <option value="click">Click</option>
-                                <option value="Bodegamix">Bodegamix</option>
+                                <option value="BraveoShop">BraveoShop</option>
                             </select>
                         </div>
                                             
@@ -1007,68 +1007,8 @@
                 </div>
         <div id="relatorio" class="content-section">
             <div class="card">
-                <h2>Relatório de Chamados</h2>
+                <iframe src="/relatorio" style="width: 100%; height: 90vh; border: none;"></iframe>             
                 
-                <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label for="filtro-data">Data Inicial</label>
-                        <input type="date" id="filtro-data" name="filtro-data">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="filtro-data-fim">Data Final</label>
-                        <input type="date" id="filtro-data-fim" name="filtro-data-fim">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label for="filtro-status">Status</label>
-                        <select id="filtro-status" name="filtro-status">
-                            <option value="">Todos</option>
-                            <option value="aberto">Aberto</option>
-                            <option value="andamento">Em Andamento</option>
-                            <option value="fechado">Fechado</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <button class="btn" style="margin-bottom: 20px;">Gerar Relatório</button>
-                
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>ID</th>
-                            <th>Título</th>
-                            <th>Categoria</th>
-                            <th>Status</th>
-                            <th>Data</th>
-                            <th>Prioridade</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>#001</td>
-                            <td>Problema na impressora</td>
-                            <td>Hardware</td>
-                            <td><span class="status aberto">Aberto</span></td>
-                            <td>04/06/2025</td>
-                            <td>Alta</td>
-                        </tr>
-                        <tr>
-                            <td>#002</td>
-                            <td>Sistema lento</td>
-                            <td>Software</td>
-                            <td><span class="status andamento">Em Andamento</span></td>
-                            <td>03/06/2025</td>
-                            <td>Média</td>
-                        </tr>
-                        <tr>
-                            <td>#003</td>
-                            <td>Configurar email</td>
-                            <td>Software</td>
-                            <td><span class="status fechado">Fechado</span></td>
-                            <td>02/06/2025</td>
-                            <td>Baixa</td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </div>
 

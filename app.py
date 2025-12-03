@@ -7,7 +7,7 @@ import os
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
 from werkzeug.security import generate_password_hash, check_password_hash
-#from supabase_config import supabase
+from supabase_config import supabase
 from supabase import create_client, Client
 from functools import wraps
 import random
@@ -203,6 +203,67 @@ def enviar_email(to_email, subject, body_html):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def verificar_chamados_azure():
+    print("🔄 Verificando chamados no Azure...")
+
+    resp = supabase.table("chamados").select("*").neq("status_chamado", "Fechado").execute()
+    chamados = resp.data
+
+    if not chamados:
+        print("🚫 Nenhuma chamado pendente para atualizar.")
+        return
+    
+    map_priority = {
+        1: "Baixa",
+        2: "Média",
+        3: "Alta",
+        4: "Urgente"
+    }
+
+    for chamado in chamados:
+        id_azure = chamado.get("id_chamado_azure")
+
+        if not id_azure:
+            continue
+        try:
+
+            azure_resp = obter_estado_chamado_azure(id_azure)
+
+            #import json
+            #print("JSON CARD")
+            #print(json.dumps(azure_resp, indent=4, ensure_ascii=False))
+
+
+            azure_state = azure_resp.get("state").lower()
+            azure_priority = azure_resp.get("priority")
+
+            try:
+                azure_priority = int(azure_priority)
+            except ValueError:
+                azure_priority = None
+
+            print(f"Chamado {id_azure} → Azure estado: {azure_state} ")
+            
+            if azure_state == "closed":
+                prioridade_sistema = map_priority.get(azure_priority, "Baixa")
+
+                supabase.table("chamados").update({
+                    "status_chamado": "Fechado",
+                    "data_fechamento": datetime.now(SP_TZ).isoformat(),
+                    "prioridade": prioridade_sistema
+                }).eq("id_chamado_azure", id_azure).execute()
+
+                print(f"✔ Chamado {id_azure} fechado automaticamente. Prioridade: {prioridade_sistema}")
+        except Exception as e:
+            print(f"❌ Erro ao atualizar chamado {id_azure}: {str(e)}")
+
+@app.route("/cron/verificar_chamados", methods=["GET"])
+def cron_verificar_chamados():
+    try:
+        verificar_chamados_azure()
+        return jsonify({"success": True, "message": "Verificação concluída."})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 
@@ -701,7 +762,7 @@ def consultar_chamado_supabase():
         if not id_chamado_azure:
             return jsonify({"error": "ID do chamado é obrigatório."})
 
-        response = supabase.table('chamados').select('*').eq('id_chamado_azure', id_chamado_azure).execute()
+        response = supabase.table('chamados').select().eq('id_chamado_azure', id_chamado_azure).execute()
 
         if response.data and len(response.data) > 0:
             chamado = response.data[0]
@@ -1988,3 +2049,119 @@ def estados_chamados_api():
 
     except Exception as e:
         return jsonify({"error": f"Erro ao buscar estados: {str(e)}"}), 500
+    
+
+@app.route('/relatorio', methods=['GET'])
+@login_required
+def tela_relatorio():
+    return render_template('tela_relatorio.html')
+
+@app.route('/relatorio', methods=['POST'])
+@login_required
+def relatorio():
+    data = request.get_json() or {}
+
+    campos = [
+        data.get('data_inicial', '').strip(),
+        data.get('data_final', '').strip(),
+        data.get('filial_chamado', '').strip(),
+        data.get('email', '').strip(),
+        data.get('empresa', '').strip(),
+        data.get('plataforma', '').strip(),
+        data.get('titulo', '').strip()
+    ]
+
+    if not any(campos):
+        return jsonify({"error": "Por favor, preencha pelo menos um campo."}), 400  
+
+    id_chamado_azure = data.get('id_chamado_azure', '').strip()
+    data_inicial = data.get('data_inicial', '').strip()
+    data_final = data.get('data_final', '').strip()
+    filtro_data = data.get('filtro_data', 'abertura').strip()
+    filial = data.get('filial_chamado', '').strip()
+    email = data.get('email', '').strip()
+    empresa = data.get('empresa', '').strip()
+    plataforma = data.get('plataforma', '').strip()
+    titulo = data.get('titulo', '').strip()
+
+    data_col = 'data_criacao' if filtro_data == 'abertura' else 'data_fechamento'
+
+    query = supabase.table('chamados').select('*')   
+
+    if data_inicial:
+
+        start_iso = data_inicial + "T00:00:00Z"
+        query = query.gte(data_col, start_iso)
+
+    if data_final:
+
+        end_iso = data_final + "T23:59:59Z"
+        query = query.lte(data_col, end_iso)
+
+    if filial:
+        query = query.ilike('filial_chamado', f'%{filial}%')
+    if email:
+        query = query.ilike('email_solicitante', f'%{email}%')
+    if empresa:
+        query = query.ilike('empresa_chamado', f'%{empresa}%')
+    if plataforma:
+        query = query.ilike('plataforma_chamado', f'%{plataforma}%')
+    if titulo:
+        query = query.ilike('titulo', f'%{titulo}%')
+    if id_chamado_azure:
+        query = query.eq('id_chamado_azure', id_chamado_azure)
+
+    query = query.order('data_criacao', desc=True).limit(1000)
+
+    resp = query.execute()
+
+    chamados_raw = resp.data or []
+    
+
+    formatted = []
+    for c in chamados_raw:
+        data_criacao = c.get('data_criacao')
+        data_fechamento = c.get('data_fechamento')
+
+        def format_dt(v):
+            if not v:
+                return ''
+            if isinstance(v, str):
+               try:
+                   dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                   return dt.strftime('%d/%m/%Y %H:%M:%S')
+               except ValueError:
+                   return v
+            try:
+                return v.strftime('%d/%m/%Y %H:%M:%S')
+            except Exception:
+                return str(v)
+            
+        formatted.append({
+            'id_chamado_azure': c.get('id_chamado_azure') or '',
+            'titulo': c.get('titulo') or '',
+            'status_chamado': c.get('status_chamado') or '',
+            'prioridade': c.get('prioridade') or '',
+            'data_criacao': format_dt(data_criacao),
+            'data_fechamento': format_dt(data_fechamento),
+            'email': c.get('email_solicitante') or '',
+            'empresa': c.get('empresa_chamado') or '',
+            'filial': c.get('filial_chamado') or '',
+            'plataforma': c.get('plataforma_chamado') or '',
+            'descricao': c.get('descricao') or '',
+        })
+    #chamados = formatted
+
+    return jsonify({"chamados": formatted})
+
+#@app.route('/relatorio/detalhar/<int:id_chamado>', methods=['GET'])
+#@login_required 
+
+#def relatorio_detalhar(id_chamado):
+ #   resp = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).single().execute()
+ #   if resp.error:
+  #      return jsonify({'error': 'Chamado não encontrado'}), 404
+   # chamado = resp.data
+
+    #return jsonify(chamado)
+

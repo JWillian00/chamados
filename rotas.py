@@ -30,7 +30,6 @@ CONFIG = {
 }
 
 
-
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
@@ -157,6 +156,8 @@ def consultar_chamado(id_chamado, plataforma):
         response.raise_for_status()
 
         chamado_data = response.json()
+
+        print("chamados json ====>", chamado_data)
 
         if not isinstance(chamado_data, dict):
             return {"error": "Resposta da API Azure está em formato inesperado."}
@@ -469,7 +470,10 @@ def obter_estado_chamado_azure(id_chamado_azure):
         if not state:
             return {"error": "Estado não encontrado no chamado."}
 
-        return {"state": state}
+        return {
+                "state": data["fields"].get("System.State"),
+                "priority": data["fields"].get("Microsoft.VSTS.Common.Priority")
+                }
     except requests.exceptions.RequestException as e:
         print(f"Erro ao consultar estado Azure: {e}")
         return {"error": str(e)}
