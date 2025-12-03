@@ -259,6 +259,11 @@ def verificar_chamados_azure():
 
 @app.route("/cron/verificar_chamados", methods=["GET"])
 def cron_verificar_chamados():
+
+    token = request.headers.get("X-CRON-TOKEN")
+    #if not token or token != os.getenv("CRON_TOKEN"):
+    if not token or token != "MEU_TOKEN_SECRETO_123":
+        return jsonify({"error": "Acesso não autorizado."}), 403
     try:
         verificar_chamados_azure()
         return jsonify({"success": True, "message": "Verificação concluída."})
@@ -1034,16 +1039,34 @@ def debug_session():
 
 @app.before_request
 def check_session():
-    public_routes = ['login', 'tela_login', 'cadastro', 'static', 'abertura','solicitar_recuperacao_senha',
-    'processar_recuperacao_senha',
-    'redefinir_senha_confirmar']
-    if request.endpoint in public_routes:
+
+    public_paths = [
+        '/login',
+        '/cadastro',
+        '/abertura',
+        '/solicitar_recuperacao_senha',
+        '/processar_recuperacao_senha',
+        '/redefinir_senha_confirmar',
+
+        # LIBERA O CRON AQUI
+        '/cron/verificar_chamados'
+    ]
+
+    # libera arquivos estáticos
+    if request.path.startswith('/static/'):
         return
 
-    if request.endpoint and not session.get('usuario_logado'):
-        if request.is_json or request.headers.get('Content-Type') == 'application/json':
+    # libera caminhos públicos
+    if request.path in public_paths:
+        return
+
+    # bloqueia se não estiver logado
+    if not session.get('usuario_logado'):
+        if request.is_json:
             return jsonify({"error": "Sessão expirada. Faça login novamente."}), 401
+        
         return redirect(url_for('login'))
+
 
 @app.context_processor
 def inject_user():

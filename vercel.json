@@ -8,10 +8,25 @@
       }
     }
   ],
+
   "outputDirectory": "static",
+
   "rewrites": [
     { "source": "/(.*)", "destination": "/app.py" }
   ],
+
+  "headers": [
+    {
+      "source": "/cron/verificar_chamados",
+      "headers": [
+        {
+          "key": "X-CRON-TOKEN",
+          "value": "allowed"
+        }
+      ]
+    }
+  ],
+
   "build": {
     "env": {
       "PYTHON_VERSION": "3.10"
