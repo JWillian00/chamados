@@ -16,11 +16,5 @@
     "env": {
       "PYTHON_VERSION": "3.10"
     }
-  },
-  "crons": [
-    {
-      "path": "/cron/verificar_chamados",
-      "schedule": "*/10 * * * *"
-    }
-  ]
+  }
 }
