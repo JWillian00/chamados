@@ -46,6 +46,7 @@ app = Flask(__name__)
 
 
 app.secret_key = os.getenv("SECRET_KEY")
+print("SECRET_KEY carregada?", bool(app.secret_key))
 
 SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'http://braveo.vercel.app/') #alterar em prd
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
@@ -260,8 +261,6 @@ def verificar_chamados_azure():
 
 from flask import Flask, request, jsonify
 import os
-
-app = Flask(__name__)
 
 @app.route("/debug_headers")
 def debug_headers():
