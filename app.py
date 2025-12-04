@@ -36,8 +36,8 @@ from rotas import obter_estado_chamado_azure
 load_dotenv()
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+#supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 app_logger = logging.getLogger(__name__)
@@ -257,18 +257,22 @@ def verificar_chamados_azure():
         except Exception as e:
             print(f"❌ Erro ao atualizar chamado {id_azure}: {str(e)}")
 
+
+@app.route("/debug_headers")
+def debug_headers():
+    print("HEADERS RECEBIDOS:", dict(request.headers))
+    return dict(request.headers)
+
+
 @app.route("/cron/verificar_chamados", methods=["GET"])
 def cron_verificar_chamados():
 
     token = request.headers.get("X-CRON-TOKEN")
-    #if not token or token != os.getenv("CRON_TOKEN"):
-    if not token or token != "MEU_TOKEN_SECRETO_123":
-        return jsonify({"error": "Acesso não autorizado."}), 403
-    try:
-        verificar_chamados_azure()
-        return jsonify({"success": True, "message": "Verificação concluída."})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    if token != "MEU_TOKEN_SECRETO_123":
+        return jsonify({"error": "Acesso negado"}), 403
+
+    verificar_chamados_azure()
+    return jsonify({"message": "Chamados verificados com sucesso"}), 200
 
 
 
@@ -1047,8 +1051,7 @@ def check_session():
         '/solicitar_recuperacao_senha',
         '/processar_recuperacao_senha',
         '/redefinir_senha_confirmar',
-
-        # LIBERA O CRON AQUI
+        '/debug_headers',
         '/cron/verificar_chamados'
     ]
 
