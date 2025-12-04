@@ -268,11 +268,13 @@ def debug_headers():
 def cron_verificar_chamados():
 
     token = request.headers.get("X-CRON-TOKEN")
-    if token != "MEU_TOKEN_SECRETO_123":
+    expected_token = os.environ.get("CRON_TOKEN")
+    #print("Token recebido:", token)
+    if token != expected_token:
         return jsonify({"error": "Acesso negado"}), 403
 
     verificar_chamados_azure()
-    return jsonify({"message": "Chamados verificados com sucesso"}), 200
+    return jsonify({"status": "Verificação concluída"}), 200
 
 
 
