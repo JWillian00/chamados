@@ -20,7 +20,7 @@
       "source": "/cron/verificar_chamados",
       "headers": [
         {
-          "key": "X-CRON-TOKEN",
+          "key": "X_CRON_TOKEN",
           "value": "allowed"
         }
       ]
@@ -31,5 +31,12 @@
     "env": {
       "PYTHON_VERSION": "3.10"
     }
-  }
+  },
+
+  "crons": [
+    {
+      "path": "/cron/verificar_chamados",
+      "schedule": "0 10 * * *"
+    }
+  ]
 }

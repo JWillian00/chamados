@@ -33,6 +33,7 @@ from rotas import obter_estado_chamado_azure
 
 
 
+
 load_dotenv()
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
@@ -288,17 +289,19 @@ def debug_headers():
 
 @app.route('/cron/verificar_chamados')
 def verificar_chamados():
-    token_recebido = request.headers.get('X-CRON-TOKEN')
-    CRON_TOKEN = os.environ.get("X_CRON_TOKEN")
-    print("[DEBUG_HEADERS] Token recebido:", token_recebido)
-    print("[DEBUG_HEADERS] Token esperado definido?", bool(CRON_TOKEN))
 
-    if not CRON_TOKEN or token_recebido != CRON_TOKEN:
-        return jsonify({"error": "Acesso negado"}), 403
+    auth_header = request.headers.get("Authorization", "")
+    token = auth_header.replace("Bearer ", "")
 
+    CRON_TOKEN = os.environ.get("CRON_SECRET")
 
+    if not CRON_TOKEN or token != CRON_TOKEN:
+        print("❌ Acesso não autorizado à rota de verificação de chamados.")
+        return jsonify({"error": "Acesso nãsimo autorizado"}), 401
+
+    print("✅ Token autorizado. Executando verificação de chamados no Azure.")
+    verificar_chamados_azure()  
     return jsonify({"success": True})
-
 
 #@app.route("/auth/microsoft")
 #def microsoft_login():
