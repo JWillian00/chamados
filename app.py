@@ -38,6 +38,7 @@ SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 #supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+CRON_TOKEN = os.environ.get('X_CRON_TOKEN')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 app_logger = logging.getLogger(__name__)
@@ -264,17 +265,13 @@ import os
 
 @app.route("/debug_headers")
 def debug_headers():
-     # Normaliza os headers para maiúsculas
     headers = {k.upper(): v for k, v in request.headers.items()}
 
-    # Pega o token enviado
     token = headers.get("X-CRON-TOKEN") or headers.get("X-Cron-Token")
 
-    # Token esperado no ambiente
-    expected_token = os.environ.get("CRON_TOKEN")
+    expected_token = os.environ.get("X_CRON_TOKEN")
     token_ok = token == expected_token
 
-    # Debug no log da Vercel
     print("[DEBUG_HEADERS] Todos os headers recebidos:", headers)
     print("[DEBUG_HEADERS] Token recebido:", token)
     print("[DEBUG_HEADERS] Token esperado definido?", bool(expected_token))
@@ -289,33 +286,18 @@ def debug_headers():
     })
 
 
-@app.route("/cron/verificar_chamados")
+@app.route('/cron/verificar_chamados')
 def verificar_chamados():
-    # Pega o token recebido via header
-    token_recebido = request.headers.get("X-CRON-TOKEN") or request.args.get("token")
+    token_recebido = request.headers.get('X-CRON-TOKEN')
+    CRON_TOKEN = os.environ.get("X_CRON_TOKEN")
+    print("[DEBUG_HEADERS] Token recebido:", token_recebido)
+    print("[DEBUG_HEADERS] Token esperado definido?", bool(CRON_TOKEN))
 
-    # Pega o token esperado no ambiente no momento da requisição
-    expected_token = os.environ.get("CRON_TOKEN")
-
-    # Verifica se bate
-    token_valido = token_recebido == expected_token
-
-    if not token_valido:
-        return jsonify({
-            "error": "Acesso negado",
-            "token_bate_com_esperado": False,
-            "token_esperado_definido": expected_token is not None,
-            "token_recebido": token_recebido
-        }), 403
-
-    return jsonify({
-        "success": True,
-        "token_bate_com_esperado": True,
-        "token_esperado_definido": True,
-        "token_recebido": token_recebido
-    })
+    if not CRON_TOKEN or token_recebido != CRON_TOKEN:
+        return jsonify({"error": "Acesso negado"}), 403
 
 
+    return jsonify({"success": True})
 
 
 #@app.route("/auth/microsoft")
