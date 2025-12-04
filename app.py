@@ -290,18 +290,22 @@ def debug_headers():
     })
 
 
-CRON_TOKEN_ESPERADO = os.environ.get("CRON_TOKEN")
-
 @app.route("/cron/verificar_chamados")
 def verificar_chamados():
-    token_recebido = request.headers.get("X-CRON-TOKEN")
-    token_valido = token_recebido == CRON_TOKEN_ESPERADO
+    # Pega o token recebido via header
+    token_recebido = request.headers.get("X-CRON-TOKEN") or request.args.get("token")
+
+    # Pega o token esperado no ambiente no momento da requisição
+    expected_token = os.environ.get("CRON_TOKEN")
+
+    # Verifica se bate
+    token_valido = token_recebido == expected_token
 
     if not token_valido:
         return jsonify({
             "error": "Acesso negado",
             "token_bate_com_esperado": False,
-            "token_esperado_definido": CRON_TOKEN_ESPERADO is not None,
+            "token_esperado_definido": expected_token is not None,
             "token_recebido": token_recebido
         }), 403
 
