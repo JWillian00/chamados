@@ -258,23 +258,60 @@ def verificar_chamados_azure():
             print(f"❌ Erro ao atualizar chamado {id_azure}: {str(e)}")
 
 
+from flask import Flask, request, jsonify
+import os
+
+app = Flask(__name__)
+
 @app.route("/debug_headers")
 def debug_headers():
-    print("HEADERS RECEBIDOS:", dict(request.headers))
-    return dict(request.headers)
+    # Todos os headers recebidos
+    headers = dict(request.headers)
+
+    # Token recebido via header
+    token_recebido = headers.get("X-CRON-TOKEN")
+    # Token esperado no ambiente
+    expected_token = os.environ.get("CRON_TOKEN")
+
+    # Verificação se bate
+    token_ok = token_recebido == expected_token
+
+    # Log no servidor
+    print("[DEBUG_HEADERS] Todos os headers recebidos:", headers)
+    print("[DEBUG_HEADERS] Token recebido:", token_recebido)
+    print("[DEBUG_HEADERS] Token esperado no ambiente:", expected_token)
+    print("[DEBUG_HEADERS] Token bate com esperado?", token_ok)
+
+    # Retorno em JSON
+    return jsonify({
+        "headers_recebidos": headers,
+        "token_recebido": token_recebido,
+        "token_esperado_definido": bool(expected_token),
+        "token_bate_com_esperado": token_ok
+    })
+
 
 
 @app.route("/cron/verificar_chamados", methods=["GET"])
 def cron_verificar_chamados():
 
-    token = request.headers.get("X-CRON-TOKEN")
+    token = (
+        request.args.get("token") or
+        request.headers.get("X-CRON-TOKEN") or
+        request.environ.get("HTTP_X_CRON_TOKEN")
+    )
+
     expected_token = os.environ.get("CRON_TOKEN")
-    #print("Token recebido:", token)
+
+    print("Token recebido:", repr(token))
+    print("Token esperado:", repr(expected_token))
+    print("Todos os headers:", dict(request.headers))
+
     if token != expected_token:
         return jsonify({"error": "Acesso negado"}), 403
 
     verificar_chamados_azure()
-    return jsonify({"status": "Verificação concluída"}), 200
+    return jsonify({"status": "Verificação concluída"})
 
 
 
