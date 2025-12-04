@@ -265,53 +265,55 @@ app = Flask(__name__)
 
 @app.route("/debug_headers")
 def debug_headers():
-    # Todos os headers recebidos
-    headers = dict(request.headers)
+     # Normaliza os headers para maiúsculas
+    headers = {k.upper(): v for k, v in request.headers.items()}
 
-    # Token recebido via header
-    token_recebido = headers.get("X-CRON-TOKEN")
+    # Pega o token enviado
+    token = headers.get("X-CRON-TOKEN") or headers.get("X-Cron-Token")
+
     # Token esperado no ambiente
     expected_token = os.environ.get("CRON_TOKEN")
+    token_ok = token == expected_token
 
-    # Verificação se bate
-    token_ok = token_recebido == expected_token
-
-    # Log no servidor
+    # Debug no log da Vercel
     print("[DEBUG_HEADERS] Todos os headers recebidos:", headers)
-    print("[DEBUG_HEADERS] Token recebido:", token_recebido)
-    print("[DEBUG_HEADERS] Token esperado no ambiente:", expected_token)
+    print("[DEBUG_HEADERS] Token recebido:", token)
+    print("[DEBUG_HEADERS] Token esperado definido?", bool(expected_token))
     print("[DEBUG_HEADERS] Token bate com esperado?", token_ok)
 
     # Retorno em JSON
     return jsonify({
         "headers_recebidos": headers,
-        "token_recebido": token_recebido,
+        "token_recebido": token,
         "token_esperado_definido": bool(expected_token),
         "token_bate_com_esperado": token_ok
     })
 
 
-
 @app.route("/cron/verificar_chamados", methods=["GET"])
 def cron_verificar_chamados():
-
-    token = (
-        request.args.get("token") or
-        request.headers.get("X-CRON-TOKEN") or
-        request.environ.get("HTTP_X_CRON_TOKEN")
-    )
-
+    headers = {k.upper(): v for k, v in request.headers.items()}
+    token = headers.get("X-CRON-TOKEN") or headers.get("X-Cron-Token")
     expected_token = os.environ.get("CRON_TOKEN")
+    token_ok = token == expected_token
 
-    print("Token recebido:", repr(token))
-    print("Token esperado:", repr(expected_token))
-    print("Todos os headers:", dict(request.headers))
+    # Debug no log da Vercel
+    print("[CRON] Token recebido:", token)
+    print("[CRON] Token esperado definido?", bool(expected_token))
+    print("[CRON] Token bate com esperado?", token_ok)
 
-    if token != expected_token:
-        return jsonify({"error": "Acesso negado"}), 403
+    if not token_ok:
+        return jsonify({
+            "error": "Acesso negado",
+            "token_recebido": token,
+            "token_esperado_definido": bool(expected_token),
+            "token_bate_com_esperado": token_ok
+        }), 403
 
+    # Aqui chama sua função de verificação real
     verificar_chamados_azure()
-    return jsonify({"status": "Verificação concluída"})
+
+    return jsonify({"status": "Verificação concluída"}), 200
 
 
 
