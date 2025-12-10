@@ -33,6 +33,7 @@
 <script>
 const socket = io();
 
+
 function carregarDashboard() {
   fetch('/dashboard_data')
     .then(res => {
@@ -77,7 +78,7 @@ function atualizarDashboard(data) {
     const data = f.data_fechamento || f.data_atualizacao || null;
     const li = document.createElement('li');
     li.className = 'text-xs truncate';
-    li.innerHTML = `Chamado <strong>${f.id_chamado}</strong> fechado em ${dataFormatada(data)}`;
+    li.innerHTML = `Chamado <strong>${f.id_chamado_azure}</strong> fechado em ${dataFormatada(data)}`;
     listaFechados.appendChild(li);
   });
     if (fechadosOrdenados.length === 0) {
@@ -89,7 +90,7 @@ function atualizarDashboard(data) {
   movimentacoesOrdenadas.forEach(m => {
     const li = document.createElement('li');
     li.className = 'text-xs truncate';
-    li.innerHTML = `Chamado <strong>${m.id_chamado}</strong> ${m.tipo} ${m.valor_novo} por ${m.usuario} em ${new Date(m.data).toLocaleString()}`;
+    li.innerHTML = `Chamado <strong>${m.id_chamado_azure}</strong> ${m.tipo} ${m.valor_novo} por ${m.usuario} em ${new Date(m.data).toLocaleString()}`;
     listaMovimentacoes.appendChild(li);
   });
   if (movimentacoesOrdenadas.length === 0) {
@@ -174,8 +175,8 @@ socket.on('movimentacao_chamado', (mov) => {
 
   const data = new Date(mov.data).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   const texto = mov.tipo === 'reabertura'
-    ? `Chamado <strong>${mov.id_chamado}</strong> por ${mov.responsavel} em ${data}<br><span class="text-gray-500 italic">Motivo: ${mov.motivo}</span>`
-    : `Chamado <strong>${mov.id_chamado}</strong> ${mov.tipo} ${mov.valor_novo} por ${mov.usuario} em ${data}`;
+    ? `Chamado <strong>${mov.id_chamado_azure}</strong> por ${mov.responsavel} em ${data}<br><span class="text-gray-500 italic">Motivo: ${mov.motivo}</span>`
+    : `Chamado <strong>${mov.id_chamado_azure}</strong> ${mov.tipo} ${mov.valor_novo} por ${mov.usuario} em ${data}`;
 
   li.innerHTML = texto;
   listaMovimentacoes.prepend(li);
