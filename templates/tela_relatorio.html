@@ -208,6 +208,20 @@
             </table>
         </div>
 
+        <!-- Modal de envio por e-mail -->
+        <div id="modal-email" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); align-items:center; justify-content:center; z-index:200;">
+            <div style="background:#fff; border-radius:8px; padding:20px; width:420px; box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+                <h3 style="margin-top:0;">Enviar relatório por e-mail</h3>
+                <p style="margin:6px 0 12px; color:#555;">Informe o destinatário</p>
+                <input id="input-email-dest" type="email" placeholder="email@exemplo.com" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px; margin-bottom:12px;" />
+                <textarea id="input-email-msg" rows="5" placeholder="Mensagem que acompanhará o anexo (opcional)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">Olá, segue em anexo o relatório solicitado.</textarea>
+                <div style="display:flex; gap:10px; margin-top:12px;">
+                <button id="btn-email-cancel" class="btn" style="flex:1; background:#ddd; color:#111;">Cancelar</button>
+                <button id="btn-email-send" class="btn" style="flex:1;">Enviar E-mail</button>
+                </div>
+            </div>
+        </div>
+
         <div class="buttons">
             <button type="button" class="btn" onclick="gerarRelatorio()">Gerar Relatório</button>
             <button type="button" class="btn" onclick="exportarExcel()">Exportar Excel</button>

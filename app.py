@@ -29,17 +29,23 @@ from urllib.parse import urlencode
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import pandas as pd
+from io import BytesIO
+from email import encoders
+from email.mime.base import MIMEBase
 from rotas import obter_estado_chamado_azure
-
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+from dateutil import parser
 
 
 
 load_dotenv()
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-#supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-CRON_TOKEN = os.environ.get('X_CRON_TOKEN')
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+CRON_TOKEN = os.environ.get('CRON_TOKEN')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 app_logger = logging.getLogger(__name__)
@@ -48,7 +54,7 @@ app = Flask(__name__)
 
 
 app.secret_key = os.getenv("SECRET_KEY")
-print("SECRET_KEY carregada?", bool(app.secret_key))
+#print("SECRET_KEY carregada?", bool(app.secret_key))
 
 SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'http://braveo.vercel.app/') #alterar em prd
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
@@ -231,6 +237,7 @@ def verificar_chamados_azure():
         try:
 
             azure_resp = obter_estado_chamado_azure(id_azure)
+            fields = azure_resp.get("fields", {})
 
             #import json
             #print("JSON CARD")
@@ -239,6 +246,7 @@ def verificar_chamados_azure():
 
             azure_state = azure_resp.get("state").lower()
             azure_priority = azure_resp.get("priority")
+            azure_data_fechamento = fields.get("System.ChangedDate")
 
             try:
                 azure_priority = int(azure_priority)
@@ -249,10 +257,27 @@ def verificar_chamados_azure():
             
             if azure_state == "closed":
                 prioridade_sistema = map_priority.get(azure_priority, "Baixa")
+                azure_data_fechamento = (
+                    fields.get("System.ClosedDate")
+                    or fields.get("Microsoft.VSTS.Common.StateChangeDate")
+                    or fields.get("System.ChangedDate")
+                )
+
+                if azure_data_fechamento:
+                    try:
+                        data_azure = datetime.fromisoformat(
+                            azure_data_fechamento.replace("Z", "+00:00")
+                        )
+                    except Exception as e:
+                        print(f"⚠ Erro ao converter data '{azure_data_fechamento}': {e}")
+                        data_azure = None
+                else:
+                    print(f"⚠ Chamado {id_azure} fechado, porém o Azure não retornou NENHUMA data.")
+                    data_azure = None
 
                 supabase.table("chamados").update({
                     "status_chamado": "Fechado",
-                    "data_fechamento": datetime.now(SP_TZ).isoformat(),
+                    "data_fechamento": azure_data_fechamento,
                     "prioridade": prioridade_sistema
                 }).eq("id_chamado_azure", id_azure).execute()
 
@@ -260,6 +285,93 @@ def verificar_chamados_azure():
         except Exception as e:
             print(f"❌ Erro ao atualizar chamado {id_azure}: {str(e)}")
 
+            #print("📌 JSON retornado pelo Azure:")
+            try:
+                print(json.dumps(azure_resp, indent=4, ensure_ascii=False))
+            except:
+                print("⚠ Não foi possível imprimir o JSON do Azure.")
+
+            # Print do JSON do Supabase (card salvo localmente)
+            #print("📌 JSON do chamado no Supabase:")
+            try:
+                print(json.dumps(chamado, indent=4, ensure_ascii=False))
+            except:
+                print("⚠ Não foi possível imprimir o JSON do chamado local.")
+
+
+def gerar_excel_relatorio(df, filtros):
+    output = BytesIO()
+    total_registros = len(df)
+
+    colunas_data = ['data_criacao', 'data_fechamento']
+
+    for col in colunas_data:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: parser.parse(x).replace(tzinfo=None)
+                if isinstance(x, str) and x
+                else x
+            )
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sheet_name = 'Relatório de Chamados'
+
+        df.to_excel(writer, index=False, sheet_name=sheet_name, startrow=4)
+        ws = writer.sheets[sheet_name]
+
+        date_format = 'DD/MM/YYYY HH:MM:SS'
+
+        for col_idx, column_name in enumerate(df.columns, start=1):
+            if column_name in colunas_data:
+                for row in range(6, 6 + len(df)):
+                    cell = ws.cell(row=row, column=col_idx)
+                    if isinstance(cell.value, datetime):
+                        cell.number_format = date_format
+
+        ws['A1'] = 'Relatório de Chamados'
+        ws['A1'].font = Font(size=14, bold=True)
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df.columns))
+
+        def fmt(data):
+            try:
+                return parser.parse(str(data)).strftime('%d/%m/%Y')
+            except Exception:
+                return '-'
+
+        ws['A2'] = f"Período: {fmt(filtros.get('data_inicial'))} até {fmt(filtros.get('data_final'))}"
+        ws['A2'].font = Font(italic=True)
+
+        ws['A3'] = 'Total de registros:'
+        ws['B3'] = total_registros
+        ws['A3'].font = Font(bold=True)
+        ws['B3'].font = Font(bold=True)
+
+        header_fill = PatternFill("solid", fgColor="007BFF")
+        header_font = Font(color="FFFFFF", bold=True)
+        header_align = Alignment(horizontal="center")
+
+        header_row = 5
+        for col in range(1, len(df.columns) + 1):
+            cell = ws.cell(row=header_row, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_align
+
+        ws.auto_filter.ref = (
+            f"A{header_row}:{get_column_letter(len(df.columns))}{header_row + total_registros}"
+        )
+        ws.freeze_panes = f"A{header_row + 1}"
+
+        for col_idx, column_name in enumerate(df.columns, start=1):
+            max_len = len(str(column_name))
+            for row in range(6, 6 + len(df)):
+                val = ws.cell(row=row, column=col_idx).value
+                if val:
+                    max_len = max(max_len, len(str(val)))
+            ws.column_dimensions[get_column_letter(col_idx)].width = max_len + 3
+
+    output.seek(0)
+    return output.read()
 
 from flask import Flask, request, jsonify
 import os
@@ -291,13 +403,16 @@ def debug_headers():
 def verificar_chamados():
 
     auth_header = request.headers.get("Authorization", "")
-    token = auth_header.replace("Bearer ", "")
+    bearer_token = auth_header.replace("Bearer ", "")
+    header_token = request.headers.get("X-CRON-TOKEN")
 
-    CRON_TOKEN = os.environ.get("CRON_SECRET")
+    token = bearer_token or header_token
 
-    if not CRON_TOKEN or token != CRON_TOKEN:
+    expected = os.environ.get("CRON_TOKEN")
+
+    if not expected or token != expected:
         print("❌ Acesso não autorizado à rota de verificação de chamados.")
-        return jsonify({"error": "Acesso nãsimo autorizado"}), 401
+        return jsonify({"error": "Acesso não autorizado"}), 401
 
     print("✅ Token autorizado. Executando verificação de chamados no Azure.")
     verificar_chamados_azure()  
@@ -953,6 +1068,7 @@ def consultar_chamado_route():
 
     if "error" in resultado:
         return jsonify({"error": resultado["error"]})
+    
     else:
         try:
             dados = {
@@ -965,8 +1081,26 @@ def consultar_chamado_route():
             return jsonify({"error": f"Erro ao traduzir: {str(e)}"})
         return jsonify(dados)
 
+
+#TEMPORARIO
+@app.route("/consultar_raw", methods=["POST"])
+def consultar_chamado_raw():
+    data = request.get_json()
+    id_chamado = data.get("id_chamado")
+    plataforma = "board_sustentacao" 
+    
+    #plataforma = data.get("plataforma")
+
+    if not id_chamado:
+        return jsonify({"error": "ID do chamado é obrigatório."})
+
+    resultado = consultar_chamado(id_chamado, plataforma)
+
+    return jsonify(resultado)
+
+
+
 @app.route("/consultar_comentarios_azure", methods=["GET"])
-@login_required
 def consultar_comentarios_route():
     id_chamado = request.args.get("id_chamado")
     plataforma = request.args.get("plataforma")
@@ -2107,7 +2241,7 @@ def estados_chamados_api():
 @app.route('/relatorio', methods=['GET'])
 @login_required
 def tela_relatorio():
-    return render_template('tela_relatorio.html')
+    return render_template('tela_relatorio.html', usuario_email=session.get('email'))
 
 @app.route('/relatorio', methods=['POST'])
 @login_required
@@ -2218,3 +2352,177 @@ def relatorio():
 
     #return jsonify(chamado)
 
+
+@app.route('/relatorio/exportar', methods=['POST'])
+@login_required
+def relatorio_exportar():
+    try:
+        filtros = request.get_json() or {}
+
+        dados = buscar_chamados_para_relatorio(filtros)
+        df = pd.DataFrame(dados)
+
+        cols = [
+            ('id_chamado_azure', 'ID'),
+            ('data_criacao', 'Abertura'),
+            ('data_fechamento', 'Fechamento'),
+            ('filial_chamado', 'Filial'),
+            ('email_solicitante', 'Email'),
+            ('empresa_chamado', 'Empresa'),
+            ('plataforma_chamado', 'Plataforma'),
+            ('titulo', 'Título'),
+        ]
+
+        df = df[[c[0] for c in cols if c[0] in df.columns]]
+        df.columns = [c[1] for c in cols if c[0] in df.columns]
+        excel_bytes = gerar_excel_relatorio(df, filtros)
+
+        return Response(
+            excel_bytes,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={
+                "Content-Disposition": "attachment; filename=relatorio_chamados.xlsx"
+            }
+        )
+
+    except Exception as e:
+        app_logger.error(f"Erro ao exportar relatório: {e}", exc_info=True)
+        return jsonify({"error": "Erro ao exportar relatório."}), 500
+@app.route('/relatorio/export_email', methods=['POST'])
+@login_required
+def relatorio_export_email():
+    try:
+        data = request.get_json() or {}
+        dest_email = data.get('dest_email')
+        mensagem = data.get('mensagem', '').strip()
+
+        if not dest_email:
+            return jsonify({"error": "E-mail de destino é obrigatório."}), 400
+
+        filtros = data
+
+        dados = buscar_chamados_para_relatorio(filtros)
+        df = pd.DataFrame(dados)
+
+        cols = [
+            ('id_chamado_azure', 'ID'),
+            ('data_criacao', 'Abertura'),
+            ('data_fechamento', 'Fechamento'),
+            ('filial_chamado', 'Filial'),
+            ('email_solicitante', 'Email'),
+            ('empresa_chamado', 'Empresa'),
+            ('plataforma_chamado', 'Plataforma'),
+            ('titulo', 'Título'),
+        ]
+
+        df = df[[c[0] for c in cols if c[0] in df.columns]]
+        df.columns = [c[1] for c in cols if c[0] in df.columns]
+        excel_bytes = gerar_excel_relatorio(df, filtros)
+
+        assunto = "Relatório de Chamados"
+        corpo_html = f"""
+        <html>
+        <body style="font-family:Arial,sans-serif;">
+            <h2 style="color:#007bff;">Relatório de Chamados</h2>
+            <p>{mensagem or 'Segue em anexo o relatório solicitado.'}</p>
+            <p>
+                <strong>Total de registros:</strong> {len(df)}<br>
+                <strong>Período:</strong> {filtros.get('data_inicial','-')} até {filtros.get('data_final','-')}
+            </p>
+            <p>Atenciosamente,<br><strong>Equipe de Suporte</strong></p>
+        </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = assunto
+        remetente = "jonathanwillian710@gmail.com"
+        msg["From"] = remetente
+        msg["To"] = dest_email
+        msg.attach(MIMEText(corpo_html, "html"))
+
+        part = MIMEBase(
+            "application",
+            "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        part.set_payload(excel_bytes)
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            "attachment",
+            filename="relatorio_chamados.xlsx"
+        )
+        msg.attach(part)
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(remetente, "ipwz cujh frdv ivjj")
+            server.sendmail(remetente, dest_email, msg.as_string())
+
+        return jsonify({"success": "E-mail enviado com sucesso."}), 200
+
+    except Exception as e:
+        app_logger.error(f"Erro ao exportar e-mail do relatório: {e}", exc_info=True)
+        return jsonify({"error": "Erro ao exportar e-mail do relatório."}), 500
+    
+            
+def buscar_chamados_para_relatorio(filtros):
+
+    data_inicial = filtros.get('data_inicial', '').strip()
+    data_final = filtros.get('data_final', '').strip()
+    filtro_data = filtros.get('filtro_data', 'abertura').strip()
+    filial = filtros.get('filial_chamado', '').strip()
+    email = filtros.get('email', '').strip()
+    empresa = filtros.get('empresa', '').strip()
+    plataforma = filtros.get('plataforma', '').strip()
+    titulo = filtros.get('titulo', '').strip()
+    id_chamado_azure = filtros.get('id_chamado_azure', '').strip()
+
+    data_col = 'data_criacao' if filtro_data == 'abertura' else 'data_fechamento'
+
+    query = supabase.table('chamados').select('*')   
+
+    if data_inicial:
+
+        start_iso = data_inicial + "T00:00:00Z"
+        query = query.gte(data_col, start_iso)
+
+    if data_final:
+
+        end_iso = data_final + "T23:59:59Z"
+        query = query.lte(data_col, end_iso)
+
+    if filial:
+        query = query.ilike('filial_chamado', f'%{filial}%')
+    if email:
+        query = query.ilike('email_solicitante', f'%{email}%')
+    if empresa:
+        query = query.ilike('empresa_chamado', f'%{empresa}%')
+    if plataforma:
+        query = query.ilike('plataforma_chamado', f'%{plataforma}%')
+    if titulo:
+        query = query.ilike('titulo', f'%{titulo}%')
+    if id_chamado_azure:
+        query = query.eq('id_chamado_azure', id_chamado_azure)
+
+    query = query.order('data_criacao', desc=True).limit(1000)
+
+    resp = query.execute()
+
+    chamados_raw = resp.data or []
+
+    formatted = []
+    for c in chamados_raw:
+
+        formatted.append({
+        'id_chamado_azure': c.get('id_chamado_azure'),
+        'data_criacao': c.get('data_criacao') or '',
+        'data_fechamento': c.get('data_fechamento') or '',
+        'filial_chamado': c.get('filial_chamado') or '',
+        'email_solicitante': c.get('email_solicitante') or '',
+        'empresa_chamado': c.get('empresa_chamado') or '',
+        'plataforma_chamado': c.get('plataforma_chamado') or '',
+        'titulo': c.get('titulo') or ''
+
+        })
+
+    return formatted
