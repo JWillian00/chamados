@@ -18,7 +18,7 @@ CONFIG = {
     },
     "board_bodegamix": {
         "organization": "BRAVEO",
-        "project": "Bodegamix",
+        "project": "BraveoShop",
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     },
  
