@@ -30,6 +30,7 @@ CONFIG = {
 }
 
 
+
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
@@ -293,7 +294,6 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
                 print(f"🔥 Erro inesperado com anexo {filename}: {e}")
                 descricao_formatada += f'<p>❌ Erro inesperado no anexo: {filename}</p>'
 
-    # Limite no tamanho da descrição para evitar problemas
     if len(descricao_formatada) > 32000:
         descricao_formatada = descricao_formatada[:31900] + "<p>...Conteúdo truncado devido ao tamanho.</p>"
 
@@ -347,7 +347,7 @@ def adicionar_comentario_card(id_chamado, comentario, plataforma, anexos=None, n
         return {"error": "ID do chamado inválido."}
 
     if not comentario or not isinstance(comentario, str):
-        return {"error": "Comentário deve ser uma string não vazia."}
+        return {"error": "Comentário deve ser uma string não vazia."}    
 
     if not plataforma or not isinstance(plataforma, str):
         return {"error": "Plataforma inválida ou não informada."}
@@ -457,7 +457,11 @@ def obter_estado_chamado_azure(id_chamado_azure):
     if not config:
         return {"error": "Configuração Azure não encontrada."}
 
-    url = f"https://dev.azure.com/{config['organization']}/{config['project']}/_apis/wit/workitems/{id_chamado_azure}?api-version=7.1"
+    url = (
+        f"https://dev.azure.com/{config['organization']}/"
+        f"{config['project']}/_apis/wit/workitems/{id_chamado_azure}"
+        f"?api-version=7.1"
+    )
     headers = get_headers(config["token"])
 
     try:
@@ -465,15 +469,16 @@ def obter_estado_chamado_azure(id_chamado_azure):
         response.raise_for_status()
 
         data = response.json()
-        state = data.get("fields", {}).get("System.State", None)
-
-        if not state:
-            return {"error": "Estado não encontrado no chamado."}
+        fields = data.get("fields", {})
 
         return {
-                "state": data["fields"].get("System.State"),
-                "priority": data["fields"].get("Microsoft.VSTS.Common.Priority")
-                }
+            "state": fields.get("System.State"),
+            "priority": fields.get("Microsoft.VSTS.Common.Priority"),
+            "created_date": fields.get("System.CreatedDate"),
+            "changed_date": fields.get("System.ChangedDate"),
+            "closed_date": fields.get("Microsoft.VSTS.Common.ClosedDate")
+        }
+
     except requests.exceptions.RequestException as e:
         print(f"Erro ao consultar estado Azure: {e}")
         return {"error": str(e)}
