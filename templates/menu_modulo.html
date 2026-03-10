@@ -780,7 +780,7 @@
                 {% endif %}
 
                 {% if session['acesso'] in ['admin', 'ku'] %}
-                <div class="menu-item" onclick="showSection('consulta')">
+                <div class="menu-item" onclick="showSection('consulta'); loadUserTickets()">
                     <span class="icon">🔎</span>
                     <span class="text">Consultar Chamados</span>
                 </div>
@@ -829,15 +829,22 @@
                     <div class="content-area">
                         <div class="card">
                             <div id="flash-messages">
-                                {% with messages = get_flashed_messages(with_categories=true) %}
-                                    {% if messages %}
-                                        {% for category, message in messages %}
-                                            <div id="mensagem-temporaria" class="alert {% if category == 'success' %}alert-success{% elif category == 'error' %}alert-danger{% endif %}">
-                                                {{ message }}
-                                            </div>
-                                        {% endfor %}
-                                    {% endif %}
-                                {% endwith %}
+                                        {% with messages = get_flashed_messages(with_categories=true) %}
+                                            {% if messages %}
+                                                {% for category, message in messages %}
+                                                    <div class="alert 
+                                                        {% if category == 'success' %}alert-success
+                                                        {% elif category == 'error' %}alert-danger
+                                                        {% elif category == 'warning' %}alert-warning
+                                                        {% elif category == 'info' %}alert-info
+                                                        {% endif %}
+                                                        alert-dismissible fade show">                                                        
+                                                        {{ message }}
+                                                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                                    </div>
+                                                {% endfor %}
+                                            {% endif %}
+                                        {% endwith %}
                             </div>
                     
                             <h2 style="font-size: 24px; margin-bottom: 20px; color: #333;">📝 Abertura de Chamado</h2>
@@ -1040,6 +1047,7 @@
     <script src="{{ url_for('static', filename='js/consultar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/aberturaChamado.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/permissao_notifica.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/consultar_chamado.js') }}"></script>
    
     <a href="{{ url_for('consultar_chamado_page') }}" class="menu-item">Consulta</a>
     
@@ -1157,5 +1165,6 @@
         <span id="whatsapp-message"></span>
         <button class="close-btn" onclick="closeWhatsappNotification()">×</button>
     </div>
+    
 </body>
 </html>

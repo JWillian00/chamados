@@ -8,10 +8,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script> -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script>
     const SUPABASE_URL = '{{ supabase_url }}';
     const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
@@ -347,7 +347,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Abertos</dt>
-                                <dd class="text-lg font-medium text-gray-900" id="abertos-count">0</dd>
+                                <dd class="text-lg font-medium text-gray-900" id="aberto-chamados">0</dd>
                                
                             </dl>
                         </div>
@@ -366,7 +366,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Em Andamento</dt>
-                                <dd class="text-lg font-medium text-gray-900" id="andamento-count">0</dd>
+                                <dd class="text-lg font-medium text-gray-900" id="andamento-chamados">0</dd>
                             </dl>
                         </div>
                     </div>
@@ -384,7 +384,7 @@
                         <div class="ml-5 w-0 flex-1">
                             <dl>
                                 <dt class="text-sm font-medium text-gray-500 truncate">Fechados</dt>
-                                <dd class="text-lg font-medium text-gray-900" id="fechados-count">0</dd>
+                                <dd class="text-lg font-medium text-gray-900" id="fechado-chamados">0</dd>
                             </dl>
                         </div>
                     </div>
@@ -435,7 +435,7 @@
                                 <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data de Criação</th> <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ações</th>
                             </tr>
                         </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
+                        <tbody id="tickets-table-body" class="bg-white divide-y divide-gray-200">
                             </tbody>
                     </table>
                     </div>
@@ -482,47 +482,46 @@
 
     <script>
     let allTickets = [];
-    let ticketsCarregandos = false; 
     let currentTicketAttachments = []; 
     let currentAttachmentIndex = 0; 
-    const socket = io();
+    // const socket = io();
 
-    socket.on('novo_comentario', (data) => {
-        if (document.getElementById('modal-overlay').style.display === 'flex') {
-            const modalContent = document.getElementById('modal-content-details');
-            if (modalContent.innerHTML.includes(data.id_chamado)) {
-                openModal(data.id_chamado); 
-            }
-        }
-        toastr.info(`Novo comentário no chamado ${data.id_chamado}`);
-    });
+    // socket.on('novo_comentario', (data) => {
+    //     if (document.getElementById('modal-overlay').style.display === 'flex') {
+    //         const modalContent = document.getElementById('modal-content-details');
+    //         if (modalContent.innerHTML.includes(data.id_chamado)) {
+    //             openModal(data.id_chamado); 
+    //         }
+    //     }
+    //     toastr.info(`Novo comentário no chamado ${data.id_chamado}`);
+    // });
 
-    socket.on('chamado_atualizado', (data) => {
-        fetchTickets(); 
-        toastr.info(`Chamado ${data.id} atualizado para ${data.status}`);
-    });
+    // socket.on('chamado_atualizado', (data) => {
+    //     fetchTickets(); 
+    //     toastr.info(`Chamado ${data.id} atualizado para ${data.status}`);
+    // });
 
-    $(document).ready(function() {
-        fetchTickets();
+    // $(document).ready(function() {
+    //     fetchTickets();
        
        // var socket = io.connect(window.location.origin);
-       var socket = io.connect('http://braveo.vercel.app/')
+    //    var socket = io.connect('http://braveo.vercel.app/')
 
-        socket.on('connect', function() {
-            console.log('Conectado ao servidor SocketIO');
-        });
+    //     socket.on('connect', function() {
+    //         console.log('Conectado ao servidor SocketIO');
+    //     });
 
-        socket.on('novo_chamado_criado', function(data) {
-            toastr.info(`Novo chamado #${data.id} criado: ${data.titulo}`);
-            fetchTickets();
-        });
+    //     socket.on('novo_chamado_criado', function(data) {
+    //         toastr.info(`Novo chamado #${data.id} criado: ${data.titulo}`);
+    //         fetchTickets();
+    //     });
 
-        socket.on('chamado_atualizado', function(data) {
-            toastr.success(`Chamado #${data.id} atualizado para status: ${data.status}`);
-            fetchTickets(); 
-        });
+    //     socket.on('chamado_atualizado', function(data) {
+    //         toastr.success(`Chamado #${data.id} atualizado para status: ${data.status}`);
+    //         fetchTickets(); 
+    //     });
 
-    });
+    // });
 
     function fetchTickets() {
         $.get("/api/meus-chamados", function(data) {
@@ -686,70 +685,13 @@
         document.getElementById('fechados-count').innerText = tickets.filter(t => ['fechado', 'concluido'].includes(t.status_chamado.toLowerCase())).length;
     }
 
-    function renderTickets(ticketsToRender) {
-        const tableBody = $('#tickets-table tbody');    
-
-        tableBody.empty();
-        if (ticketsToRender.length > 0) {
-            $('#tickets-table').show();
-            $('#no-tickets-message').hide();
-            ticketsToRender.forEach(chamado => {
-                const dataCriacaoFormatada = moment(chamado.data_criacao).format("DD/MM/YYYY HH:mm");
-                const row = `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${chamado.id_chamado_azure}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.titulo}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">
-                                ${chamado.status_chamado}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.prioridade}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.email_solicitante}</td> <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.empresa_chamado}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${chamado.plataforma_chamado}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${dataCriacaoFormatada}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <a href="#" onclick="openModal('${chamado.id_chamado}')" class="text-blue-600 hover:text-blue-900">Detalhes</a>
-                        </td>
-                    </tr>
-                `;
-                tableBody.append(row);
-            });
-        } else {
-            $('#tickets-table').hide();
-            $('#no-tickets-message').show();
-        }
-    }
+    
 
     function formatarChamadoID(input) {
         input.value = input.value.replace(/\D/g, '')
-    }
+    }  
 
     
-
-    function searchTicket() {
-        if (!ticketsCarregandos){
-            toastr.info("Aguarde, carregando os chamados...");
-            return;
-        }
-        const searchId = $('#search-ticket-id').val().trim();
-        if (searchId){
-            const filteredTickets = allTickets.filter(ticket => 
-                (ticket.id_chamado_azure || "").toString().includes(searchId) ||
-                ticket.titulo.toLowerCase().includes(searchId.toLowerCase())
-            );
-            if(filteredTickets.length > 0){
-                renderTickets(filteredTickets);
-                toastr.success("Busca realizado com sucesso!!");
-            } else{
-                renderTickets([]);
-                toastr.info("Nenhum chamado encontrado para o usuário logado.");
-            }
-        } else {
-            renderTickets(allTickets)
-            toastr.info("Mostrando todos os chamados.");
-        }
-    } 
 
     async function carregarComentariosMesclados(idChamado, idAzure, plataforma) {
         try {
@@ -1337,6 +1279,9 @@ function abrirReaberturaChamado(id) {
             </div>
         </div>
     </div>
+
+    <script src="{{ url_for('static', filename='js/consultar_chamado.js') }}"></script>
+    
 
 </body>
 </html>

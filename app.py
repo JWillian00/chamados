@@ -79,7 +79,7 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 
 
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+#socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 SP_TZ = pytz.timezone('America/Sao_Paulo')
 
@@ -757,8 +757,10 @@ def abertura():
             usuario_id = session.get('usuario_id')
 
             if not all([titulo, descricao, email, empresa, plataforma]):
-                flash("Todos os campos marcados são obrigatórios.", "error")
-                return redirect(url_for("abertura"))
+                return jsonify({
+                    "success": False,
+                    "error": "Todos os campos obrigatórios devem ser preenchidos."
+                }),400
             
             uploaded_files = request.files.getlist('evidencia')
             anexos = []
@@ -815,7 +817,8 @@ def abertura():
 
                 if resultado_supabase['success']:
                     flash(f"Chamado criado com sucesso! O ID do seu chamado é: {id_chamado_azure}", "success")
-                    socketio.emit('novo_chamado_criado', {'id': id_chamado_azure, 'titulo': titulo})
+                    #socketio.emit('novo_chamado_criado', {'id': id_chamado_azure, 'titulo': titulo})
+
                 else:
                     flash(f"ALERTA: Card criado no Azure (ID: {id_chamado_azure}), mas falhou ao registrar no sistema. Contate o suporte.", "error")
             else:
@@ -864,10 +867,10 @@ def registrar_chamado():
 
             if response.data:
                 flash('Chamado registrado com sucesso!', 'success')
-                socketio.emit('novo_chamado_criado', {
-                    'id': response.data[0]['id_chamado_azure'],
-                    'titulo': response.data[0]['titulo']
-                })
+                # socketio.emit('novo_chamado_criado', {
+                #     'id': response.data[0]['id_chamado_azure'],
+                #     'titulo': response.data[0]['titulo']
+                # })
                
                 return redirect(url_for('index'))
             else:
@@ -1011,13 +1014,14 @@ def atualizar_chamado(id_chamado_azure):
         sucesso = update_chamado(id_chamado_azure, campos_atualizacao)
 
         if sucesso:
-            socketio.emit('chamado_atualizado_parcial',{
-                'id': id_chamado_azure,
-                'campo_alterado': list(campos_atualizacao.keys())[0],
-                'novo_valor': list(campos_atualizacao.values())[0],
-                'timestamp': datetime.now().isoformat()
-            })
-        return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200           
+            return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200  
+            # socketio.emit('chamado_atualizado_parcial',{
+            #     'id': id_chamado_azure,
+            #     'campo_alterado': list(campos_atualizacao.keys())[0],
+            #     'novo_valor': list(campos_atualizacao.values())[0],
+            #     'timestamp': datetime.now().isoformat()
+            # })
+                 
 
     except Exception as e:
         print(f"Erro ao atualizar chamado: {str(e)}")
@@ -1282,9 +1286,9 @@ def handle_adicionar_comentario(id_chamado):
             if not resultado_azure.get("success"):
                 app_logger.error(f"Falha ao adicionar comentário no Azure DevOps para o chamado {id_chamado} (Azure ID: {id_azure}): {resultado_azure.get('error')}")
 
-        if 'socketio' in globals():
-            socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': novo_comentario_supabase})
-            emit_dashboard_data()
+        # if 'socketio' in globals():
+        #     socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': novo_comentario_supabase})
+        #     emit_dashboard_data()
 
         if isinstance(novo_comentario_supabase.get('data_hora'), datetime):
             novo_comentario_supabase['data_hora'] = novo_comentario_supabase['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
@@ -1328,7 +1332,7 @@ def adicionar_comentario_api(id_chamado):
         novo_comentario = add_comentario(id_chamado, nome_usuario, email_usuario, comentario_texto, anexos)
 
         if novo_comentario:
-            socketio.emit('novo_comentario', {'id_chamado': id_chamado})
+            # socketio.emit('novo_comentario', {'id_chamado': id_chamado})
             if isinstance(novo_comentario.get('data_hora'), datetime):
                 novo_comentario['data_hora'] = novo_comentario['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
             return jsonify(novo_comentario), 200
@@ -1732,10 +1736,10 @@ def dashboard_data():
 @login_required
 def dashboard():
     return render_template("dashboard_real.html", usuario_nome=session.get('nome'))
-@socketio.on('connect')
-def handle_connect():
-    app_logger.info('Cliente conectado')
-    emit('connection_established', {'message': 'Conexão estabelecida com sucesso!'})
+# @socketio.on('connect')
+# def handle_connect():
+#     app_logger.info('Cliente conectado')
+#     emit('connection_established', {'message': 'Conexão estabelecida com sucesso!'})
 
 def emit_dashboard_data():
     try:
@@ -1764,18 +1768,18 @@ def emit_dashboard_data():
         total_em_andamento = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'em andamento')
         
                 
-        socketio.emit('dashboard_update',{
-            "novos_fechados": fechados,
-            "novas_movimentacoes": movimentacoes,
-            "novos_comentarios": comentarios,
-            "grafico": {
-                "abertos": total_abertos,
-                "fechados": total_fechados,
-                "em_andamento": total_em_andamento
-            },
-            "timestamp": datetime.now().isoformat()
+        # socketio.emit('dashboard_update',{
+        #     "novos_fechados": fechados,
+        #     "novas_movimentacoes": movimentacoes,
+        #     "novos_comentarios": comentarios,
+        #     "grafico": {
+        #         "abertos": total_abertos,
+        #         "fechados": total_fechados,
+        #         "em_andamento": total_em_andamento
+        #     },
+        #     "timestamp": datetime.now().isoformat()
 
-        })
+        # })
         
     except Exception as e:
         app_logger.error(f"Erro ao emitir dados do dashboard: {e}")
@@ -2110,8 +2114,8 @@ def reabrir_chamado(id_chamado):
             return jsonify({'error': 'Chamado reaberto, mas falha ao registrar o comentário.'}), 500
 
 
-        if 'socketio' in globals():
-            socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': comentario})
+        # if 'socketio' in globals():
+        #     socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': comentario})
 
         return jsonify({"success": True, "message": "Chamado reaberto com sucesso!", "comentario": comentario}), 200
 
@@ -2271,9 +2275,15 @@ def relatorio():
     plataforma = data.get('plataforma', '').strip()
     titulo = data.get('titulo', '').strip()
 
-    data_col = 'data_criacao' if filtro_data == 'abertura' else 'data_fechamento'
+    if filtro_data == 'fechamento':
+        data_col = 'data_fechamento'
+    else:
+        data_col = 'data_criacao'        
 
-    query = supabase.table('chamados').select('*')   
+    query = supabase.table('chamados').select('*') 
+
+    if filtro_data == 'fechamento':
+        query = query.not_.is_('data_fechamento', 'null') 
 
     if data_inicial:
 

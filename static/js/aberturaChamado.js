@@ -1,23 +1,25 @@
-    document.addEventListener('DOMContentLoaded', function() {
+    showFlashMessage = document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('formchamado');
     const btnEnviar = document.getElementById('btnEnviar');
     const flashContainer = document.getElementById('flash-messages');
 
     // Função para mostrar mensagens de flash
     function showFlashMessage(message, type) {
-        const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
-        const alertHtml = `
-            <div class="alert ${alertClass}" style="margin-bottom: 15px; padding: 10px; border-radius: 4px;">
-                ${message}
-            </div>
-        `;
-        flashContainer.innerHTML = alertHtml;
+        switch(type) {
+            case 'success':
+                toastr.success(message, 'Sucesso');
+                break;
+            case 'error':
+                toastr.error(message, 'Erro');
+                break;
+            case 'warning':
+                toastr.warning(message, 'Atenção');
+            break
+            case 'info':
+                toastr.info(message, 'Info');
+            break;       
 
-        setTimeout(() => {
-            flashContainer.innerHTML = '';
-        }, 20000);
-
-        flashContainer.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     function validateForm(formData) {
@@ -59,13 +61,13 @@
             const missingFields = validateForm(formData);
             if (missingFields.length > 0) {
                 const message = `Os seguintes campos são obrigatórios: ${missingFields.join(', ')}`;
-                showFlashMessage(message, 'error');
+                toastr.error(message, 'error');
                 return;
             }
 
             const email = formData.get('email');
             if (!validateEmail(email)) {
-                showFlashMessage('Por favor, insira um e-mail válido.', 'error');
+                toastr.error('Por favor, insira um e-mail válido.', 'error');
                 return;
             }
 
@@ -100,7 +102,7 @@
 
         } catch (error) {
             console.error('Erro ao enviar chamado:', error);
-            showFlashMessage('Erro interno do servidor. Tente novamente.', 'error');
+            toastr.error('Erro interno do servidor. Tente novamente.', 'error');
         } finally {
             btnEnviar.disabled = false;
             btnEnviar.textContent = 'Enviar Chamado';
