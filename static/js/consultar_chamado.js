@@ -1,89 +1,186 @@
+let ticketsTableBody
+let todosCards = []
+let ticketsCarregandos = false
 
-document.addEventListener('DOMContentLoaded', function() {
-    const socket = io(); 
 
-    const ticketsTableBody = document.getElementById('tickets-table-body');
-    const noTicketsMessage = document.getElementById('no-tickets-message');
-    const ticketsTable = document.getElementById('tickets-table');
-    const searchInput = document.getElementById('search-ticket-input');
+function renderTickets(ticketsToRender){
 
-    async function loadUserTickets() {
-        try {
-            const response = await fetch('/api/meus_chamados');
-            if (!response.ok) {                
-                const errorData = await response.json();
-                throw new Error(errorData.error || `Erro HTTP: ${response.status}`);
-            }
-            const tickets = await response.json();
-            
-            ticketsTableBody.innerHTML = '';
+    const tableBody = $('#tickets-table-body') 
+    tableBody.empty()
+     //limpa a tabela antes de renderizar os novos chamados
 
-            if (tickets.length === 0) {
-                noTicketsMessage.style.display = 'block';
-                ticketsTable.style.display = 'none';
-            } else {
-                noTicketsMessage.style.display = 'none';
-                ticketsTable.style.display = 'table'; 
+    if(ticketsToRender.length > 0){
 
-                tickets.forEach(ticket => {
-                    const row = ticketsTableBody.insertRow();
-                    row.className = 'ticket-row';
+        $('#tickets-table').show()
+        $('#no-tickets-message').hide()
 
-                    row.insertCell(0).textContent = ticket.id_chamado;
-                    row.insertCell(1).textContent = ticket.titulo;
-                    row.insertCell(2).textContent = ticket.status;
-                    row.insertCell(3).textContent = ticket.prioridade;
-                    row.insertCell(4).textContent = ticket.solicitante_nome || 'N/A'; 
-                    row.insertCell(5).textContent = ticket.departamento || 'N/A'; 
-                    row.insertCell(6).textContent = ticket.data_abertura;
+        ticketsToRender.forEach(chamado => {
 
-                    
-                    const actionsCell = row.insertCell(7);
-                    const detailsButton = document.createElement('button');
-                    detailsButton.textContent = 'Ver Detalhes';
-                    detailsButton.className = 'details-button';
-                    detailsButton.onclick = () => {
-                        
-                        window.location.href = `/detalhes_chamados/${ticket.id_chamado}`;
-                    };
-                    actionsCell.appendChild(detailsButton);
-                });
-            }
-        } catch (error) {
-            console.error('Erro ao carregar chamados:', error);
-            toastr.error(`Erro ao carregar chamados: ${error.message}`);
-            noTicketsMessage.textContent = 'Erro ao carregar chamados. Por favor, tente novamente.';
-            noTicketsMessage.style.display = 'block';
-            ticketsTable.style.display = 'none';
+            const data = new Date(chamado.data_criacao)
+
+            const dataCriacaoFormatada =
+            data.toLocaleDateString('pt-BR') + " " +
+            data.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})
+
+            const row = `
+            <tr class="hover:bg-gray-50 ticket-row">
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${chamado.id_chamado_azure}</td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${chamado.titulo}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full status-${chamado.status_chamado.toLowerCase().replace(' ', '_')}">
+                                ${chamado.status_chamado}
+                            </span>
+                        </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${chamado.prioridade}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${chamado.email_solicitante}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${chamado.empresa_chamado}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${chamado.plataforma_chamado}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    ${dataCriacaoFormatada}
+                </td>
+
+                <td class="px-6 py-4 whitespace-nowrap text-sm">
+                    <a href="#" onclick="openModal('${chamado.id_chamado}')">
+                        Detalhes
+                    </a>
+                </td>
+
+            </tr>
+            `
+
+            tableBody.append(row)
+
+        })
+
+    }
+    else{
+
+        $('#tickets-table').hide()
+        $('#no-tickets-message').show()
+
+    }
+}
+
+
+
+async function loadUserTickets(){
+
+    try{
+
+        const response = await fetch('/api/meus-chamados')
+
+        if(!response.ok){
+            throw new Error("Erro API")
         }
+
+        const tickets = await response.json()
+
+        todosCards = tickets
+        ticketsCarregandos = true
+
+        renderTickets(todosCards)
+        contadorChamados(todosCards)
+
+    }
+    catch(error){
+
+        console.error(error)
+
+        toastr.error("Erro ao carregar chamados")
+
     }
 
-    
-    loadUserTickets();
+}
 
-    
-    searchInput.addEventListener('keyup', function() {
-        const filter = searchInput.value.toLowerCase();
-        const rows = ticketsTableBody.querySelectorAll('.ticket-row'); 
 
-        rows.forEach(row => {
-            const rowText = Array.from(row.cells).slice(0, -1).map(cell => cell.textContent).join(' ').toLowerCase();
-            if (rowText.includes(filter)) {
-                row.style.display = ''; // Exibe a linha
-            } else {
-                row.style.display = 'none'; // Oculta a linha
-            }
-        });
-    });
 
-   
-    socket.on('chamado_atualizado', (data) => {
-        console.log('Chamado atualizado', data);
-        loadUserTickets(); 
-    });
-    socket.on('novo_chamado', (data) => {
-        console.log('Novo chamado', data);
-        loadUserTickets(); // Recarrega os chamados para incluir o novo
-    });
-    
-});
+function searchTicket(){
+
+    if(!ticketsCarregandos){
+        toastr.info("Carregando chamados...")
+        return
+    }
+
+    const searchId = $('#search-ticket-id').val().trim()
+
+    if(searchId){
+
+        const filtered = todosCards.filter(ticket =>
+
+            (ticket.id_chamado_azure || "").toString().includes(searchId)
+            ||
+            ticket.titulo.toLowerCase().includes(searchId.toLowerCase())
+
+        )
+
+        renderTickets(filtered)
+        contadorChamados(filtered)
+
+    }
+    else{
+
+        renderTickets(todosCards)
+        contadorChamados(todosCards)
+
+    }
+
+}
+
+
+
+document.addEventListener('DOMContentLoaded', function(){
+
+    ticketsTableBody = document.getElementById('tickets-table-body')
+
+    loadUserTickets()
+
+})
+
+function contadorChamados(ticket){
+
+    let total = ticket.length
+    let aberto = 0
+    let andamento = 0
+    let fechados = 0
+
+    ticket.forEach(ticket => {
+
+        const status = ticket.status_chamado.toLowerCase()
+
+        if(status.includes("aberto")){
+            aberto++
+        }
+        else if(status.includes("andamento")){
+            andamento++
+        }
+        else if(status.includes("fechado")){
+            fechados++
+        }
+
+    })
+
+    $('#total-chamados').hide().text(total).fadeIn(200)
+    $('#aberto-chamados').text(aberto)
+    $('#andamento-chamados').text(andamento)
+    $('#fechado-chamados').text(fechados)
+    $('#total-chamados').hide().text(total).fadeIn(200)
+
+}
