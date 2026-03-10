@@ -93,6 +93,29 @@ async function loadUserTickets(){
 
         const tickets = await response.json()
 
+        tickets.sort((a, b) => {
+            const prioridadeStatus = {
+                "aberto": 1,
+                "em andamento": 2,
+                "andamento": 2,
+                "fechado": 3
+            }
+
+            const statuA = (a.status_chamado || "").toLowerCase()
+            const statuB = (b.status_chamado || "").toLowerCase()
+
+            const prioridadeA = prioridadeStatus[statuA] || 99
+            const prioridadeB = prioridadeStatus[statuB] || 99
+
+            if (prioridadeA !== prioridadeB) {
+                return prioridadeA - prioridadeB
+            }
+
+            return new Date(b.data_criacao) - new Date(a.data_criacao)
+
+
+        })
+
         todosCards = tickets
         ticketsCarregandos = true
 
