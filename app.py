@@ -1217,8 +1217,13 @@ def check_session():
         '/processar_recuperacao_senha',
         '/redefinir_senha_confirmar',
         '/debug_headers',
-        '/cron/verificar_chamados'
+        '/cron/verificar_chamados',
+        '/recuperar-senha',
+        '/redefinir_senha'
     ]
+
+    if request.path.startswith('/redefinir-senha'):
+        return
 
     # libera arquivos estáticos
     if request.path.startswith('/static/'):
@@ -1372,33 +1377,29 @@ def meus_chamados():
         if not user_email:
             return jsonify({"error": "Usuário não logado"}), 401
 
-        todos_chamados = supabase.table('chamados').select('*').execute().data or []
-        chamados_filtrados = [
-            c for c in todos_chamados 
-            if str(c.get('email_solicitante')).lower() == str(user_email).lower()
-        ]
+        page = int(request.args.get("page", 1))
+        per_page = 20
 
-        formatted_chamados = []
-        for chamado in chamados_filtrados:
-            data_criacao = chamado.get('data_criacao')
-            if isinstance(data_criacao, datetime):
-                data_criacao = data_criacao.isoformat()
+        start = (page - 1) * per_page
+        end = start + per_page - 1
 
-            formatted_chamados.append({
-                'id_chamado': chamado.get('id_chamado'),
-                'id_chamado_azure': chamado.get('id_chamado_azure', 'N/A'),
-                'titulo': chamado.get('titulo'),
-                'status_chamado': chamado.get('status_chamado'),
-                'prioridade': chamado.get('prioridade'),
-                'data_criacao': data_criacao,
-                'email_solicitante': chamado.get('email_solicitante'),
-                'empresa_chamado': chamado.get('empresa_chamado'),
-                'plataforma_chamado': chamado.get('plataforma_chamado'),
-                'descricao': chamado.get('descricao'),
-                'anexos': chamado.get('anexos'),
-            })
+        response = (
+            supabase
+            .table('chamados')
+            .select("*")
+            .eq('email_solicitante', user_email)
+            .order('data_criacao', desc=True)
+            .range(start, end)
+            .execute()
+        )
 
-        return jsonify(formatted_chamados)
+
+        chamados = response.data or []
+
+        return jsonify({
+            "tickets": chamados,
+            "page": page
+        })
 
     except Exception as e:
         print(f"Erro ao carregar chamados do usuário: {e}")

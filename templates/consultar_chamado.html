@@ -439,7 +439,29 @@
                             </tbody>
                     </table>
                     </div>
-                
+
+                    <div class="flex justify-center items-center gap-4 mt-6">
+
+                        <button 
+                            id="btn-anterior"
+                            onclick="paginaAnterior()"
+                            class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">
+                            ◀
+                        </button>
+
+                        <span class="text-sm">
+                            Página <span id="pagina-atual">1</span>
+                        </span>
+
+                        <button 
+                            id="btn-proximo"
+                            onclick="proximaPagina()"
+                            class="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">
+                            ▶
+                        </button>
+
+                    </div>
+                                    
                 <div id="no-tickets-message" class="text-center py-12">
                     <div class="mx-auto h-12 w-12 text-gray-400">
                         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
