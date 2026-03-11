@@ -1,6 +1,7 @@
 let ticketsTableBody
 let todosCards = []
 let ticketsCarregandos = false
+let paginaAtual = 1
 
 
 function renderTickets(ticketsToRender){
@@ -82,16 +83,14 @@ function renderTickets(ticketsToRender){
 
 
 async function loadUserTickets(){
-
     try{
-
-        const response = await fetch('/api/meus-chamados')
-
+        const response = await fetch(`/api/meus-chamados?page=${paginaAtual}`)
         if(!response.ok){
             throw new Error("Erro API")
         }
 
-        const tickets = await response.json()
+        const data = await response.json()
+        const tickets = data.tickets
 
         tickets.sort((a, b) => {
             const prioridadeStatus = {
@@ -103,7 +102,6 @@ async function loadUserTickets(){
 
             const statuA = (a.status_chamado || "").toLowerCase()
             const statuB = (b.status_chamado || "").toLowerCase()
-
             const prioridadeA = prioridadeStatus[statuA] || 99
             const prioridadeB = prioridadeStatus[statuB] || 99
 
@@ -112,8 +110,6 @@ async function loadUserTickets(){
             }
 
             return new Date(b.data_criacao) - new Date(a.data_criacao)
-
-
         })
 
         todosCards = tickets
@@ -121,6 +117,10 @@ async function loadUserTickets(){
 
         renderTickets(todosCards)
         contadorChamados(todosCards)
+
+        $('#pagina-atual').text(data.page)
+
+        controlarBotoesPaginacao(tickets.length)
 
     }
     catch(error){
@@ -133,7 +133,23 @@ async function loadUserTickets(){
 
 }
 
+function controlarBotoesPaginacao(qtdChamados){
+    const perPage = 20
 
+    if(paginaAtual === 1){
+        $('#btn-anterior').prop('disabled', true)
+    }
+    else{
+        $('#btn-anterior').prop('disabled', false)
+    }    
+
+    if(qtdChamados < perPage){
+        $('#btn-proximo').prop('disabled', true)
+    } else {
+        $('#btn-proximo').prop('disabled', false)
+    }
+    
+}
 
 function searchTicket(){
 
@@ -206,4 +222,15 @@ function contadorChamados(ticket){
     $('#fechado-chamados').text(fechados)
     $('#total-chamados').hide().text(total).fadeIn(200)
 
+}
+
+function proximaPagina(){
+    paginaAtual++
+    loadUserTickets()
+}
+function paginaAnterior(){
+    if(paginaAtual > 1){
+        paginaAtual--
+        loadUserTickets()
+    }
 }
