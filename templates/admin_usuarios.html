@@ -1,6 +1,7 @@
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <!-- <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script> -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
 
 
 <div id="usuarios" class="p-6 content-section">
@@ -125,6 +126,7 @@
         </div>
     </div>
 </div>
+<script type="module" src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 
 <script>
   let usuarioParaExcluir = null;
@@ -287,25 +289,8 @@
       usuarioParaExcluir = null;
   }
 
-  // Placeholder para mostrarNotificacao (se você já tiver uma global, remova esta)
-  function mostrarNotificacao(mensagem, tipo) {
-      // Exemplo básico de notificação. Se estiver usando Toastr.js, substitua.
-      const notificacao = document.createElement('div');
-      notificacao.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg transition-all duration-300 ${
-          tipo === 'success' 
-              ? 'bg-green-500 text-white' 
-              : tipo === 'warning'
-              ? 'bg-yellow-500 text-white'
-              : tipo === 'info'
-              ? 'bg-blue-500 text-white'
-              : 'bg-red-500 text-white'
-      }`;
-      notificacao.textContent = mensagem;
-      document.body.appendChild(notificacao);
-      setTimeout(() => {
-          notificacao.remove();
-      }, 5000);
-  }
+  // Placeholder para mostrarNotificacao 
+  
 
   // **Novas funções para salvar edição e reset de senha**
   async function salvarEdicaoUsuario() {
@@ -391,4 +376,3 @@
       mostrarNotificacao('Funcionalidade de novo usuário ainda não implementada.', 'info');
   }
 </script>
-

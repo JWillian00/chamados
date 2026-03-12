@@ -740,7 +740,10 @@ def index():
 def menu_modulo():
     print(f"Sessão atual: {dict(session)}")
     print(f"Sessão permanente: {session.permanent}")
-    return render_template('menu_modulo.html')
+    return render_template('menu_modulo.html',
+        email_logado=session.get('email'),
+        nome_usuario=session.get('nome'),
+        empresa_usuario=session.get('empresa'))
 
 @app.route("/aberturaChamado", methods=["GET", "POST"])
 @login_required
@@ -749,14 +752,14 @@ def abertura():
         try:
             empresa = request.form.get("empresa")
             plataforma = request.form.get("plataforma")
-            email = request.form.get("email")
+            email = session.get('email')
             titulo = request.form.get("titulo2")
             descricao = request.form.get("descricao")
             filial = request.form.get("filial")
             categoria = request.form.get("categoria")
             usuario_id = session.get('usuario_id')
 
-            if not all([titulo, descricao, email, empresa, plataforma]):
+            if not all([titulo, descricao, empresa, plataforma]):
                 return jsonify({
                     "success": False,
                     "error": "Todos os campos obrigatórios devem ser preenchidos."
@@ -829,7 +832,8 @@ def abertura():
         except Exception as e:
             flash(f"Erro interno do servidor: {str(e)}", "error")
             return redirect(url_for("abertura"))
-    return render_template('menu_modulo.html')
+            print("EMAIL NA SESSÃO:", session.get('email'))
+    return render_template('menu_modulo.html', email_logado=session.get('email'))
 
 @app.route('/registrar_chamado', methods=['GET', 'POST'])
 @login_required

@@ -4,6 +4,8 @@ let ticketsCarregandos = false
 let paginaAtual = 1
 
 
+
+
 function renderTickets(ticketsToRender){
 
     const tableBody = $('#tickets-table-body') 

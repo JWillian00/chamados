@@ -1,34 +1,34 @@
+export function mostrarNotificacao(mensagem, tipo) {
+      const notificacao = document.createElement('div');
+      notificacao.className = `fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg transition-all duration-300 ${
+          tipo === 'success' 
+              ? 'bg-green-500 text-white' 
+              : tipo === 'warning'
+              ? 'bg-yellow-500 text-white'
+              : tipo === 'info'
+              ? 'bg-blue-500 text-white'
+              : 'bg-red-500 text-white'
+      }`;
+      notificacao.textContent = mensagem;
+      document.body.appendChild(notificacao);
+      setTimeout(() => {
+          notificacao.remove();
+      }, 5000);
+  }
 
-toastr.options = {
-    "closeButton": true,
-    "debug": false,
-    "newestOnTop": true,
-    "progressBar": true,
-    "positionClass": "toast-top-right",  
-    "preventDuplicates": true,
-    "showDuration": "300",
-    "hideDuration": "1000",
-    "timeOut": "5000",  // duração visível (ms)
-    "extendedTimeOut": "1000",
-    "showEasing": "swing",
-    "hideEasing": "linear",
-    "showMethod": "fadeIn",
-    "hideMethod": "fadeOut"
-};
+function salvarNotificacao(mensagem, tipo) {
+    sessionStorage.setItem('notificacaoMensagem', mensagem);
+    sessionStorage.setItem('notificacaoTipo', tipo);
+}
 
-const notificationSystem = {
-    success: function(message, title = 'Sucesso!') {
-        toastr.success(message, title);
-    },
-    error: function(message, title = 'Erro!') {
-        toastr.error(message, title);
-    },
-    info: function(message, title = 'Informação!') { 
-        toastr.info(message, title);
-    },
-    warning: function(message, title = 'Atenção!') { 
-        toastr.warning(message, title);
+document.addEventListener("DOMContentLoaded", () => {
+    const mensagem = sessionStorage.getItem('notificacaoMensagem');
+    const tipo = sessionStorage.getItem('notificacaoTipo');
+    if (mensagem && tipo) {
+        mostrarNotificacao(mensagem, tipo);
+        sessionStorage.removeItem('notificacaoMensagem');
+        sessionStorage.removeItem('notificacaoTipo');
     }
-};
+})
 
-window.notificationSystem = notificationSystem;
+window.mostrarNotificacao = mostrarNotificacao;

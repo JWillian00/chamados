@@ -1,4 +1,6 @@
+import { mostrarNotificacao } from './notifications.js';
 function gerarRelatorio() {
+  
 
     let data_inicial = document.querySelector('input[name="data_inicial"]').value;
     let data_final = document.querySelector('input[name="data_final"]').value;
@@ -12,8 +14,11 @@ function gerarRelatorio() {
     let plataforma = document.querySelector('input[name="plataforma"]').value.trim();
     let titulo = document.querySelector('input[name="titulo"]').value.trim();
 
+
     if (!data_inicial && !data_final && !filial && !email && !empresa && !plataforma && !titulo) {
-        alert("Por favor, preencher os campos de Data Inicial e Data Final para realizar a busca!");
+        
+        
+        mostrarNotificacao("Por favor, preencher os campos de Data Inicial e Data Final para realizar a busca!", "warning");
         return; 
     }
     document.getElementById('loading').style.display = 'flex';
@@ -199,3 +204,5 @@ document.addEventListener('keydown', function(event) {
         }
     }
 });
+
+window.gerarRelatorio = gerarRelatorio;
