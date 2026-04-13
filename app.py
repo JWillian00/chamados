@@ -67,14 +67,14 @@ app.config['SESSION_PERMANENT'] = True
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)  # tempo da seção
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'myapp:'
-app.config['SESSION_FILE_DIR'] = os.path.join(os.getcwd(), 'flask_session')
-app.config['SESSION_FILE_THRESHOLD'] = 500
+# app.config['SESSION_FILE_DIR'] = os.path.join(os.getcwd(), 'flask_session')
+# app.config['SESSION_FILE_THRESHOLD'] = 500
 app.config['SESSION_COOKIE_NAME'] = 'session'
 app.config['SESSION_COOKIE_DOMAIN'] = None
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SECURE'] = True  # True em produção com HTTPS
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 #Session(app)
 
 
@@ -659,12 +659,21 @@ def login_required(f):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        senha = request.form['senha']
+        email = request.form.get('email')
+        senha = request.form.get('senha')
+
+        if not email or not senha:
+            flash('Preencha todos os campos', 'error')
+            return redirect(url_for('login'))
         
 
-        response = supabase.table('usuarios').select('*').eq('email', email).execute()
-        dados = response.data
+        try:
+            response = supabase.table('usuarios').select('*').eq('email', email).execute()
+            dados = response.data or []
+        except Exception as e:
+            print(f"❌ Erro ao buscar usuário: {str(e)}")
+            flash('Erro ao acessar o banco de dados', 'error')
+            return redirect(url_for('login'))
 
         if not dados:
             flash('E-mail ou senha incorretos', 'error')
@@ -683,6 +692,7 @@ def login():
             session['funcao'] = usuario['funcao']
             session['login_time'] = datetime.now(SP_TZ).isoformat()
             session['acesso'] = usuario['acesso']
+            session.modified = True
 
             supabase.table('log_acessos').insert({
                 'usuario_id': usuario['id'],
