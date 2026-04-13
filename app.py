@@ -13,7 +13,7 @@ from functools import wraps
 import random
 import json
 import string
-from flask_socketio import SocketIO, emit
+#from flask_socketio import SocketIO, emit
 from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
 from werkzeug.utils import secure_filename
 import uuid
@@ -73,7 +73,7 @@ app.config['SESSION_COOKIE_NAME'] = 'session'
 app.config['SESSION_COOKIE_DOMAIN'] = None
 app.config['SESSION_COOKIE_PATH'] = '/'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SECURE'] = False  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SECURE'] = True  # True em produção com HTTPS
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 #Session(app)
 
@@ -237,7 +237,7 @@ def verificar_chamados_azure():
         try:
 
             azure_resp = obter_estado_chamado_azure(id_azure)
-            fields = azure_resp.get("fields", {})
+
 
             #import json
             #print("JSON CARD")
@@ -246,7 +246,7 @@ def verificar_chamados_azure():
 
             azure_state = azure_resp.get("state").lower()
             azure_priority = azure_resp.get("priority")
-            azure_data_fechamento = fields.get("System.ChangedDate")
+            azure_data_fechamento = azure_resp.get("changed_date")
 
             try:
                 azure_priority = int(azure_priority)
@@ -257,11 +257,7 @@ def verificar_chamados_azure():
             
             if azure_state == "closed":
                 prioridade_sistema = map_priority.get(azure_priority, "Baixa")
-                azure_data_fechamento = (
-                    fields.get("System.ClosedDate")
-                    or fields.get("Microsoft.VSTS.Common.StateChangeDate")
-                    or fields.get("System.ChangedDate")
-                )
+                azure_data_fechamento = azure_resp.get("changed_date")
 
                 if azure_data_fechamento:
                     try:
@@ -832,7 +828,6 @@ def abertura():
         except Exception as e:
             flash(f"Erro interno do servidor: {str(e)}", "error")
             return redirect(url_for("abertura"))
-            print("EMAIL NA SESSÃO:", session.get('email'))
     return render_template('menu_modulo.html', email_logado=session.get('email'))
 
 @app.route('/registrar_chamado', methods=['GET', 'POST'])
@@ -2280,36 +2275,66 @@ def relatorio():
     plataforma = data.get('plataforma', '').strip()
     titulo = data.get('titulo', '').strip()
 
-    if filtro_data == 'fechamento':
-        data_col = 'data_fechamento'
-    else:
-        data_col = 'data_criacao'        
+    query = supabase.table('chamados').select('*')
 
-    query = supabase.table('chamados').select('*') 
-
-    if filtro_data == 'fechamento':
-        query = query.not_.is_('data_fechamento', 'null') 
+    # -----------------------------
+    # CORREÇÃO DO FILTRO DE DATAS
+    # -----------------------------
+    start_iso = None
+    end_iso = None
 
     if data_inicial:
-
-        start_iso = data_inicial + "T00:00:00Z"
-        query = query.gte(data_col, start_iso)
+        start_iso = data_inicial + "T00:00:00"
 
     if data_final:
+        end_iso = data_final + "T23:59:59"
 
-        end_iso = data_final + "T23:59:59Z"
-        query = query.lte(data_col, end_iso)
+    if filtro_data == 'abertura':
 
+        if start_iso:
+            query = query.gte('data_criacao', start_iso)
+
+        if end_iso:
+            query = query.lte('data_criacao', end_iso)
+
+    elif filtro_data == 'fechamento':
+
+        query = query.not_.is_('data_fechamento', None)
+
+        if start_iso:
+            query = query.gte('data_fechamento', start_iso)
+
+        if end_iso:
+            query = query.lte('data_fechamento', end_iso)
+
+    elif filtro_data == 'todos':
+
+        if start_iso and end_iso:
+            query = query.or_(
+                f"data_criacao.gte.{start_iso},"
+                f"data_criacao.lte.{end_iso},"
+                f"data_fechamento.gte.{start_iso},"
+                f"data_fechamento.lte.{end_iso}"
+            )
+
+    # -----------------------------
+    # OUTROS FILTROS (inalterados)
+    # -----------------------------
     if filial:
         query = query.ilike('filial_chamado', f'%{filial}%')
+
     if email:
         query = query.ilike('email_solicitante', f'%{email}%')
+
     if empresa:
         query = query.ilike('empresa_chamado', f'%{empresa}%')
+
     if plataforma:
         query = query.ilike('plataforma_chamado', f'%{plataforma}%')
+
     if titulo:
         query = query.ilike('titulo', f'%{titulo}%')
+
     if id_chamado_azure:
         query = query.eq('id_chamado_azure', id_chamado_azure)
 
@@ -2318,7 +2343,6 @@ def relatorio():
     resp = query.execute()
 
     chamados_raw = resp.data or []
-    
 
     formatted = []
     for c in chamados_raw:
@@ -2329,16 +2353,16 @@ def relatorio():
             if not v:
                 return ''
             if isinstance(v, str):
-               try:
-                   dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
-                   return dt.strftime('%d/%m/%Y %H:%M:%S')
-               except ValueError:
-                   return v
+                try:
+                    dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                    return dt.strftime('%d/%m/%Y %H:%M:%S')
+                except ValueError:
+                    return v
             try:
                 return v.strftime('%d/%m/%Y %H:%M:%S')
             except Exception:
                 return str(v)
-            
+
         formatted.append({
             'id_chamado_azure': c.get('id_chamado_azure') or '',
             'titulo': c.get('titulo') or '',
@@ -2352,7 +2376,6 @@ def relatorio():
             'plataforma': c.get('plataforma_chamado') or '',
             'descricao': c.get('descricao') or '',
         })
-    #chamados = formatted
 
     return jsonify({"chamados": formatted})
 
