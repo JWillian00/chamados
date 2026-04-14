@@ -292,7 +292,7 @@
 <body>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script> -->
 
     <div class="fila-container">
         <div class="header-fila">
@@ -497,11 +497,11 @@
 
     <script>
        // const socket = io();
-        const socket = io({
-            transports: ['polling'],
-            reconnectionAttempts: 10,
-            timeout: 10000
-        });
+        // const socket = io({
+        //     transports: ['polling'],
+        //     reconnectionAttempts: 10,
+        //     timeout: 10000
+        // });
 
         let cacheChamados = {};
         let ultimaAtualizacao = null;
@@ -842,20 +842,20 @@
             intervaloAtualizacao = setInterval(fetchChamados, 10000); 
         });
 
-        socket.on('chamado_atualizado', function(data) {
-            console.log('Chamado atualizado:', data);
-            setTimeout(fetchChamados, 1000); 
-        });
+        // socket.on('chamado_atualizado', function(data) {
+        //     console.log('Chamado atualizado:', data);
+        //     setTimeout(fetchChamados, 1000); 
+        // });
 
-        socket.on('atualizacao_chamado', function() {
-            console.log('Atualização geral de chamados');
-            setTimeout(fetchChamados, 1000);
-        });
+        // socket.on('atualizacao_chamado', function() {
+        //     console.log('Atualização geral de chamados');
+        //     setTimeout(fetchChamados, 1000);
+        // });
 
-        socket.on('novo_chamado_criado', function(data) {
-            console.log('Novo chamado criado:', data);
-            setTimeout(fetchChamados, 1000); 
-        });
+        // socket.on('novo_chamado_criado', function(data) {
+        //     console.log('Novo chamado criado:', data);
+        //     setTimeout(fetchChamados, 1000); 
+        // });
 
         document.getElementById("btnAdicionarComentario").addEventListener("click", async () => {
             await addComentario(); 
@@ -1131,20 +1131,20 @@
             //}
 //        });
 
-        socket.on('chamado_atualizado', function(data) {
-            console.log('Chamado atualizado:', data);
-            setTimeout(fetchChamados, 1000);
-        });
+        // socket.on('chamado_atualizado', function(data) {
+        //     console.log('Chamado atualizado:', data);
+        //     setTimeout(fetchChamados, 1000);
+        // });
 
-        socket.on('atualizacao_chamado', function() {
-            console.log('Atualização geral de chamados');
-            fetchChamados();
-        });
+        // socket.on('atualizacao_chamado', function() {
+        //     console.log('Atualização geral de chamados');
+        //     fetchChamados();
+        // });
 
-        socket.on('novo_chamado_criado', function(data) {
-            console.log('Novo chamado criado:', data);
-            fetchChamados(); 
-        });
+        // socket.on('novo_chamado_criado', function(data) {
+        //     console.log('Novo chamado criado:', data);
+        //     fetchChamados(); 
+        // });
 
 
         async function carregarComentarios(idChamado, idAzure, plataforma) { 

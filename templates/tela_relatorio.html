@@ -36,7 +36,7 @@
             padding: 25px;
             border-radius: var(--radius);
             box-shadow: var(--shadow);
-            max-width: 1400px;
+            max-width: 1800px;
             margin: auto;
         }
 
@@ -140,6 +140,23 @@
             font-weight: bold;
             z-index: 99;
         }
+        .filtro-data {
+            display: grid;
+            grid-template-columns: 18px auto;
+            row-gap: 6px;
+            column-gap: 6px;
+            align-items: center;
+            margin-top: 22px;
+        }
+
+        .filtro-data .titulo-filtro {
+            grid-column: 1 / -1;
+            margin-bottom: 4px;
+        }
+
+        .filtro-data input[type="radio"] {
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -158,10 +175,17 @@
                         <input type="date" name="data_final">
                     </label>
                 </div>
-                <div>
-                    <label>Filtrar por</label><br>
-                    <label><input type="radio" name="filtro_data" value="abertura" checked> Abertura</label>
-                    <label><input type="radio" name="filtro_data" value="fechamento"> Fechamento</label>
+                <div class="filtro-data">
+                    <label class="titulo-filtro">Filtrar por</label>
+
+                    <input type="radio" name="filtro_data" value="abertura" checked>
+                    <span>Abertura</span>
+
+                    <input type="radio" name="filtro_data" value="fechamento">
+                    <span>Fechamento</span>
+
+                    <input type="radio" name="filtro_data" value="todos">
+                    <span>Todos</span>
                 </div>
                 <div>
                     <label>Filial
