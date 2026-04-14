@@ -805,9 +805,6 @@ def abertura():
             )
             print("Resposta Azure:", resultado_azure)
             id_chamado_azure = resultado_azure.get("id")
-            if id_chamado_azure:
-                flash(f"Chamado criado! ID: {id_chamado_azure}", "success")
-
 
             if id_chamado_azure:
                 resultado_supabase = salvar_chamado_supabase(
@@ -824,19 +821,29 @@ def abertura():
                     id_chamado_azure=id_chamado_azure
                 )
 
-                if resultado_supabase['success']:
-                    flash(f"Chamado criado com sucesso! O ID do seu chamado é: {id_chamado_azure}", "success")
-                    #socketio.emit('novo_chamado_criado', {'id': id_chamado_azure, 'titulo': titulo})
-
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                if id_chamado_azure:
+                    return jsonify({
+                        "success": True,
+                        "id_chamado": id_chamado_azure,
+                        "message": "Chamado criado com sucesso",
+                        "redirect_url": url_for("abertura")
+                    })
                 else:
-                    flash(f"ALERTA: Card criado no Azure (ID: {id_chamado_azure}), mas falhou ao registrar no sistema. Contate o suporte.", "error")
-            else:
-                flash("Falha ao criar chamado no Azure. Tente novamente.", "error")
+                    return jsonify({
+                        "success": False,
+                        "error": "Falha ao criar chamado no Azure"
+                    }), 400
 
             return redirect(url_for("abertura"))
 
         except Exception as e:
-            flash(f"Erro interno do servidor: {str(e)}", "error")
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({
+                    "success": False,
+                    "error": f"Erro ao criar o chamado: {str(e)}"
+                }), 500
+            flash(f"Erro ao criar o chamado: {str(e)}", "error")
             return redirect(url_for("abertura"))
     return render_template('menu_modulo.html', email_logado=session.get('email'))
 

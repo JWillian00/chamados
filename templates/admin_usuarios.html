@@ -2,7 +2,7 @@
 <!-- <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script> -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
 <script src="https://cdn.tailwindcss.com"></script>
-
+<script type="module" src="{{ url_for('static', filename='js/notification.js') }}"></script>
 
 <div id="usuarios" class="p-6 content-section">
   <h2 class="text-3xl font-bold text-gray-800 mb-6">Administração de Usuários</h2>
@@ -126,7 +126,7 @@
         </div>
     </div>
 </div>
-<script type="module" src="{{ url_for('static', filename='js/notifications.js') }}"></script>
+<!-- <script type="module" src="{{ url_for('static', filename='js/notification.js') }}"></script> -->
 
 <script>
   let usuarioParaExcluir = null;

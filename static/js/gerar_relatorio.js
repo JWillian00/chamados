@@ -1,4 +1,4 @@
-import { mostrarNotificacao } from './notifications.js';
+import { mostrarNotificacao } from './notification.js';
 function gerarRelatorio() {
   
 

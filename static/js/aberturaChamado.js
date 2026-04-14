@@ -1,26 +1,9 @@
-    showFlashMessage = document.addEventListener('DOMContentLoaded', function() {
+    import {mostrarNotificacao, salvarNotificacao} from './notification.js';
+    
+    document.addEventListener('DOMContentLoaded', function() {
+
     const form = document.getElementById('formchamado');
     const btnEnviar = document.getElementById('btnEnviar');
-    const flashContainer = document.getElementById('flash-messages');
-
-    // Função para mostrar mensagens de flash
-    function showFlashMessage(message, type) {
-        switch(type) {
-            case 'success':
-                toastr.success(message, 'Sucesso');
-                break;
-            case 'error':
-                toastr.error(message, 'Erro');
-                break;
-            case 'warning':
-                toastr.warning(message, 'Atenção');
-            break
-            case 'info':
-                toastr.info(message, 'Info');
-            break;       
-
-        }
-    }
 
     function validateForm(formData) {
         const requiredFields = [
@@ -58,16 +41,20 @@
         try {
             const formData = new FormData(form);
 
+            console.log('enviando fetch');
+
             const missingFields = validateForm(formData);
+            console.log("Campos faltando:", missingFields);
+            console.log("Entrou na validação ❌");
             if (missingFields.length > 0) {
-                const message = `Os seguintes campos são obrigatórios: ${missingFields.join(', ')}`;
-                toastr.error(message, 'error');
+                console.log("Chamando notificação 🚨");
+                mostrarNotificacao(`Os seguintes campos são obrigatórios: ${missingFields.join(', ')}`, 'warning');
                 return;
             }
 
             const email = formData.get('email');
             if (!validateEmail(email)) {
-                toastr.error('Por favor, insira um e-mail válido.', 'error');
+                mostrarNotificacao('Por favor, insira um e-mail válido.', 'warning');
                 return;
             }
 
@@ -79,30 +66,37 @@
                 body: formData
             });
 
+            console.log("response", response);
+            
+
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const result = await response.json();
+                console.log('Resposta do servidor:', result);
 
-                if (result.flash_messages && result.flash_messages.length > 0) {
-                    flashContainer.innerHTML = '';
+                if (result.success) {
+                    const id = result.id_chamado || null;
+                    mostrarNotificacao(`Chamado criado! ID: ${id}`, 'success', id);
 
-                    result.flash_messages.forEach(([category, message]) => {
-                        showFlashMessage(message, category);
-
-                        if (category === 'success') {
-                            showWhatsappNotification(message);
-                            form.reset();
-                            document.getElementById('empresa').focus();
-                        }
-                    });
+                    form.reset();
+                    const preview = document.getElementById('image-preview-container');
+                    if (preview) preview.innerHTML = '';
+                    
+                } else {
+                    console.error('Erro ao abrir chamado:', result.message);
+                    mostrarNotificacao('Erro ao abrir chamado.', 'error');
                 }
             } else {
                 window.location.reload();
             }
 
         } catch (error) {
-            console.error('Erro ao enviar chamado:', error);
-            toastr.error('Erro interno do servidor. Tente novamente.', 'error');
+            console.error('Erro no fetch:', error);
+
+            mostrarNotificacao(
+                'Erro de conexão com o servidor.',
+                'error'
+            );
         } finally {
             btnEnviar.disabled = false;
             btnEnviar.textContent = 'Enviar Chamado';
@@ -137,13 +131,13 @@
         }
     };
 
-    const inputs = form.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            const alerts = flashContainer.querySelectorAll('.alert-danger');
-            alerts.forEach(alert => alert.remove());
-        });
-    });
+    // const inputs = form.querySelectorAll('input, select, textarea');
+    // inputs.forEach(input => {
+    //     input.addEventListener('input', function() {
+    //         const alerts = flashContainer.querySelectorAll('.alert-danger');
+    //         alerts.forEach(alert => alert.remove());
+    //     });
+    // });
 
     function showWhatsappNotification(message) {
         const notification = document.getElementById('whatsapp-notification');

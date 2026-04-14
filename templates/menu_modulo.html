@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <link rel="icon" type="image/favicon.icon" href="{{ url_for('static', filename='image/favicon.ico') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Braveodesk</title>
@@ -165,7 +164,7 @@
 
         /* Menu Lateral */
         .sidebar {
-            width: 250px;
+            width: 200px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             display: flex;
@@ -850,7 +849,7 @@
                             <h2 style="font-size: 24px; margin-bottom: 20px; color: #333;">📝 Abertura de Chamado</h2>
                             <p style="font-size: 14px; color: #666; margin-bottom: 25px;">Preencha os dados abaixo para abrir um novo chamado</p>
                             
-                            <form id="formchamado" method="POST" enctype="multipart/form-data">
+                            <form id="formchamado" method="POST" enctype="multipart/form-data" action="/aberturaChamado">
                                 <div class="form-group">
                                     <label for="empresa" style="font-size: 14px; font-weight: 500;">Selecione a empresa:</label>
                                     <select id="empresa" name="empresa" style="font-size: 14px; padding: 10px;">
@@ -1047,9 +1046,12 @@
     <script src="{{ url_for('static', filename='js/previewImages.js') }}"></script>
     <script src="{{ url_for('static', filename='js/senha_relatorio.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/consultar.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/aberturaChamado.js') }}" defer></script>
+    <script type="module" src="{{ url_for('static', filename='js/aberturaChamado.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/permissao_notifica.js') }}"></script>
     <script src="{{ url_for('static', filename='js/consultar_chamado.js') }}"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- <script src="{{ url_for('static', filename='js/notification.js')}}"></script> -->
+    <script type="module" src="{{ url_for('static', filename='js/notification.js') }}"></script>
    
     <a href="{{ url_for('consultar_chamado_page') }}" class="menu-item">Consulta</a>
     
@@ -1167,6 +1169,30 @@
         <span id="whatsapp-message"></span>
         <button class="close-btn" onclick="closeWhatsappNotification()">×</button>
     </div>
+
+
+
+    <div id="flash-data"
+     data-mensagens='{{ get_flashed_messages(with_categories=true) | tojson | safe }}'>
+    </div>
+
+    <script>
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const flashElement = document.getElementById("flash-data");
+
+        if (!flashElement) return;
+
+        const mensagens = JSON.parse(flashElement.dataset.mensagens);
+
+        mensagens.forEach(([tipo, mensagem]) => {
+            mostrarNotificacao(mensagem, tipo);
+    });
+
+});
+
+</script>
     
 </body>
 </html>
