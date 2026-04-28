@@ -31,6 +31,7 @@ CONFIG = {
 
 
 
+
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
@@ -41,13 +42,21 @@ PLATAFORMA_MAPEADA = {
     "board_bodegamix": "Globalsys",
     "Globalsys": "board_bodegamix",
     "board_sustentacao": "board_sustentacao",
-    "globalsys": "board_bodegamix"
+    "globalsys": "board_bodegamix",
+    "reppos": "board_sustentacao",
+    "compreagora": "board_sustentacao"
 }
 
 PLATAFORMA_REVERSE_MAPEADA = {
     "board_sustentacao": "Veplex",
     "board_ecomm": "Tiscoski",
     "board_bodegamix": "Globalsys"
+}
+SISTEMAS_AZURE_VALIDOS = {
+    "click",
+    "Reppos",
+    "Compre Agora",
+    "bodegamix"
 }
 
 MAX_FILE_SIZE = 60 * 1024 * 1024 
@@ -211,6 +220,10 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         board_config_key = "board_sustentacao"
     elif plataforma_selecionada.lower() == "bodegamix":
         board_config_key = "board_bodegamix"
+    elif plataforma_selecionada == "Reppos":
+        board_config_key = "board_sustentacao"
+    elif plataforma_selecionada == "Compre Agora":
+        board_config_key = "board_sustentacao"
     else:
         return {"error": f"Plataforma '{plataforma_selecionada}' é inválida ou não suportada."}
 
@@ -308,11 +321,17 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         {"op": "add", "path": "/fields/System.AssignedTo", "value": "Amanda Sobreiro Meneghetti"},
     ]
 
+    sistema = plataforma_selecionada
+
+    if sistema not in SISTEMAS_AZURE_VALIDOS:
+        sistema = "Click"
+
     if board_config_key == "board_sustentacao" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
-        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Click"})
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": sistema.capitalize()})
     elif board_config_key == "board_ecomm" and filial:
-        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial})
+        payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Click"})        
     elif board_config_key == "board_bodegamix" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Bodegamix"})
@@ -320,6 +339,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Oniz"})
     elif filial == "Tiscoski" and board_config_key == "board_ecomm":
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Tiscoski"})
+
 
     sistema_definido = any (
         p["path"] == "/fields/Custom.Sistemas" for p in payload
@@ -469,6 +489,7 @@ def obter_estado_chamado_azure(id_chamado_azure):
         response.raise_for_status()
 
         data = response.json()
+
         fields = data.get("fields", {})
 
         return {
