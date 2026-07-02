@@ -56,7 +56,8 @@ SISTEMAS_AZURE_VALIDOS = {
     "click",
     "Reppos",
     "Compre Agora",
-    "bodegamix"
+    "bodegamix",
+    "E-Commerce BraveoShop"
 }
 
 MAX_FILE_SIZE = 60 * 1024 * 1024 
@@ -218,7 +219,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
             return {"error": "Para a plataforma E-commerce, a empresa deve ser 'Tiscoski' ou 'Oniz'."}
     elif plataforma_selecionada.lower() == "click":
         board_config_key = "board_sustentacao"
-    elif plataforma_selecionada.lower() == "bodegamix":
+    elif plataforma_selecionada == "E-Commerce BraveoShop":
         board_config_key = "board_bodegamix"
     elif plataforma_selecionada == "Reppos":
         board_config_key = "board_sustentacao"
@@ -334,7 +335,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Click"})        
     elif board_config_key == "board_bodegamix" and filial:
         payload.append({"op": "add", "path": "/fields/Custom.Unidade", "value": filial}),
-        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "Bodegamix"})
+        payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-commerce BraveoShop"})
     elif filial == "Oniz" and board_config_key == "board_ecomm":
         payload.append({"op": "add", "path": "/fields/Custom.Sistemas", "value": "E-Commerce Oniz"})
     elif filial == "Tiscoski" and board_config_key == "board_ecomm":
