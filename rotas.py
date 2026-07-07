@@ -31,7 +31,6 @@ CONFIG = {
 
 
 
-
 PLATAFORMA_MAPEADA = {
     "Veplex": "board_sustentacao",
     "Digital": "board_ecomm",
@@ -55,7 +54,7 @@ PLATAFORMA_REVERSE_MAPEADA = {
 SISTEMAS_AZURE_VALIDOS = {
     "click",
     "Reppos",
-    "Compre Agora",
+    "Compra Agora",
     "bodegamix",
     "E-Commerce BraveoShop"
 }
@@ -223,7 +222,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         board_config_key = "board_bodegamix"
     elif plataforma_selecionada == "Reppos":
         board_config_key = "board_sustentacao"
-    elif plataforma_selecionada == "Compre Agora":
+    elif plataforma_selecionada == "Compra Agora":
         board_config_key = "board_sustentacao"
     else:
         return {"error": f"Plataforma '{plataforma_selecionada}' é inválida ou não suportada."}
