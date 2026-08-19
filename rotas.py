@@ -28,6 +28,7 @@ CONFIG = {
          "token": os.environ.get("AZURE_TOKEN_SUSTENTACAO")
     }
 }
+ 
 
 
 
@@ -318,7 +319,7 @@ def create_work_item(titulo, descricao, empresa, plataforma, email, filial="", w
         {"op": "add", "path": "/fields/System.Description", "value": descricao_formatada},
         {"op": "add", "path": "/fields/System.State", "value": "New"},
         {"op": "add", "path": "/fields/Custom.Equipe", "value": "TI Digital"},
-        {"op": "add", "path": "/fields/System.AssignedTo", "value": "Amanda Sobreiro Meneghetti"},
+        {"op": "add", "path": "/fields/System.AssignedTo", "value": "Pedro Henrique Martins Rodrigues Diniz"},
     ]
 
     sistema = plataforma_selecionada
