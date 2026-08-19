@@ -1,1 +1,3 @@
 chave_firebase.json
+.env
+supabase_config.py

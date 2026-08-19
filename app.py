@@ -1,21 +1,1052 @@
-from flask import Flask, request, render_template, flash, redirect, url_for, jsonify, Response, get_flashed_messages
+from flask import Flask, request, render_template, flash, redirect, url_for, jsonify, Response, get_flashed_messages, session
+#from flask_session import Session
+from datetime import datetime, timedelta
+import pytz
 from rotas import create_work_item, consultar_chamado
-from envio_email import enviar_email
 import os
-from enviar_img import upload_to_imgur
 from deep_translator import GoogleTranslator
 from rotas import consultar_comentarios, adicionar_comentario_card
-from gerar_relatorio import gerar_relatorio
-from firebase import db
-from datetime import datetime
-from firebase_admin import firestore
+from werkzeug.security import generate_password_hash, check_password_hash
+#from supabase_config import supabase
+from supabase import create_client, Client
+from functools import wraps
+import random
+import json
+import string
+#from flask_socketio import SocketIO, emit
+from atendimentos import get_chamado_detalhes, get_usuario_by_email, update_chamado, get_chamados_abertos, add_comentario,get_comentarios_by_chamado_id
+from werkzeug.utils import secure_filename
+import uuid
+from dotenv import load_dotenv
+import logging
+import secrets
+from movimentacoes import registrar_movimentacao_chamado
+import requests
+import base64
+from rotas import CONFIG
+from urllib.parse import urlencode
+#from msal import ConfidentialClientApplication
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import pandas as pd
+from io import BytesIO
+from email import encoders
+from email.mime.base import MIMEBase
+from rotas import obter_estado_chamado_azure
+from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl.utils import get_column_letter
+from dateutil import parser
 
+
+
+load_dotenv()
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
+#supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+CRON_TOKEN = os.environ.get('CRON_TOKEN')
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+app_logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = "FlBjRLlDfm2uwNK4m4FOPo7svTs19Yl4oKzcAt1ohQO8I14KfQNuJQQJ99BAACAAAAAxQtTVAAASAZDOJyRB"
 
-@app.route("/", methods=["GET", "POST"])
+
+app.secret_key = os.getenv("SECRET_KEY")
+#print("SECRET_KEY carregada?", bool(app.secret_key))
+
+SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'http://braveo.vercel.app/') #alterar em prd
+SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+EMAIL_FROM = os.getenv('EMAIL_FROM')
+EMAIL_FROM_NAME = os.getenv('EMAIL_FROM_NAME')
+
+# Configuração de sessão
+#app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_PERMANENT'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)  # tempo da seção
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'myapp:'
+# app.config['SESSION_FILE_DIR'] = os.path.join(os.getcwd(), 'flask_session')
+# app.config['SESSION_FILE_THRESHOLD'] = 500
+app.config['SESSION_COOKIE_NAME'] = 'session'
+app.config['SESSION_COOKIE_DOMAIN'] = None
+app.config['SESSION_COOKIE_PATH'] = '/'
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SECURE'] = True  # True em produção com HTTPS
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+#Session(app)
+
+
+
+#socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+SP_TZ = pytz.timezone('America/Sao_Paulo')
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'mov', 'avi', 'wmv', 'pdf', 'doc', 'docx', 'xls', 'xlsx'}
+
+
+def obter_usuario_por_is(usuario_id):
+    try:
+        response = supabase.table('usuarios').select('*').eq('id', usuario_id).single().execute()
+        return response.data
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar usuario{usuario_id}: {e}")
+        return None 
+
+def obter_usuario_por_email_tel(identifier):
+    try:
+        response = supabase.table('usuarios').select('*').eq('email', identifier).execute()
+        if response.data:
+            if len(response.data) > 1:
+                app_logger.warning(f"Múltiplos usuários encontrados para o email {identifier}. Retornando o primeiro.")
+            return response.data[0] 
+    except Exception:
+        pass
+
+    try:
+        clean_phone = ''.join(filter(str.isdigit, identifier))
+        response = supabase.table('usuarios').select('*').eq('telefone', clean_phone).execute()
+        if response.data:
+            if len(response.data) > 1:
+                app_logger.warning(f"Múltiplos usuários encontrados para o telefone {clean_phone}. Retornando o primeiro.")
+            return response.data[0]
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar usuário por email/telefone no Supabase: {e}", exc_info=True)
+        pass
+
+    return None
+def gerar_token_recuperacao():
+    return secrets.token_urlsafe(48)
+
+def salvar_token_recuperacao(user_id, token):
+    try:
+        expires_at = datetime.now(pytz.utc) + timedelta(hours=1)
+        expires_at_iso = expires_at.isoformat(timespec='seconds').replace('+00:00', 'Z')
+        supabase.table('password_reset_tokens').delete().eq('user_id', user_id).execute()
+
+        response = supabase.table('password_reset_tokens').insert({
+            'user_id': user_id,
+            'token': token,
+            'expires_at': expires_at_iso,
+            'created_at': datetime.now(pytz.utc).isoformat(timespec='seconds').replace('+00:00', 'Z')
+        }).execute()
+        return response.data is not None
+    except Exception as e:
+        app_logger.error(f"Erro ao salvar token de recuperação para user {user_id}: {e}", exc_info=True)
+        return False
+
+@app.after_request
+def skip_ngrok_warning(response):
+    response.headers['ngrok-skip-browser-warning'] = 'true'
+    return response
+
+
+def verificar_token_recuperacao(token):
+    try:
+        response = supabase.table('password_reset_tokens').select('user_id, expires_at').eq('token', token).single().execute()
+        token_data = response.data
+
+        if token_data:
+            expires_at_str = token_data.get('expires_at')
+            if expires_at_str:
+                expires_at = datetime.fromisoformat(expires_at_str)
+                
+                if expires_at.tzinfo is None:
+                    expires_at = pytz.utc.localize(expires_at)
+                
+                if datetime.now(pytz.utc) < expires_at:                   
+                    supabase.table('password_reset_tokens').delete().eq('token', token).execute()
+                    return token_data['user_id']
+                else:
+                    app_logger.warning(f"Token de recuperação expirado: {token}")
+                    supabase.table('password_reset_tokens').delete().eq('token', token).execute()
+        else:
+            app_logger.warning(f"Token de recuperação não encontrado: {token}")
+
+    except Exception as e:
+        app_logger.error(f"Erro ao verificar token de recuperação {token}: {e}", exc_info=True)
+    return None
+
+def atualizar_senha_usuario(usuario_id, new_password):
+    try:
+        hashed_password = generate_password_hash(new_password)
+        response = supabase.table('usuarios').update({'senha': hashed_password}).eq('id', usuario_id).execute()
+        
+        if response.data:
+            return True
+        else:
+            app_logger.error(f"Supabase retornou vazio ao atualizar senha para user {usuario_id}. Erro: {response.error}")
+            return False
+    except Exception as e:
+        app_logger.error(f"Erro fatal ao atualizar senha para user {usuario_id}: {e}", exc_info=True)
+        return False
+    
+def enviar_email(to_email, subject, body_html):
+    remetente = "jonathanwillian710@gmail.com"
+    senha = "ipwz cujh frdv ivjj"
+
+    # Montar o e-mail
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = remetente
+    msg["To"] = to_email
+
+    # Corpo do email em HTML
+    part_html = MIMEText(body_html, "html")
+    msg.attach(part_html)
+
+    try:
+        # Conexão com o servidor SMTP do Gmail
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(remetente, senha)
+            server.sendmail(remetente, to_email, msg.as_string())
+        
+        app.logger.info(f"E-mail enviado com sucesso para {to_email} via Gmail.")
+        return True
+
+    except Exception as e:
+        app.logger.error(f"Erro ao enviar e-mail para {to_email} via Gmail: {e}", exc_info=True)
+        return False
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def verificar_chamados_azure():
+    print("🔄 Verificando chamados no Azure...")
+
+    resp = supabase.table("chamados").select("*").neq("status_chamado", "Fechado").execute()
+    chamados = resp.data
+
+    if not chamados:
+        print("🚫 Nenhuma chamado pendente para atualizar.")
+        return
+    
+    map_priority = {
+        1: "Baixa",
+        2: "Média",
+        3: "Alta",
+        4: "Urgente"
+    }
+
+    for chamado in chamados:
+        id_azure = chamado.get("id_chamado_azure")
+
+        if not id_azure:
+            continue
+        try:
+
+            azure_resp = obter_estado_chamado_azure(id_azure)
+
+
+            #import json
+            #print("JSON CARD")
+            #print(json.dumps(azure_resp, indent=4, ensure_ascii=False))
+
+
+            azure_state = azure_resp.get("state").lower()
+            azure_priority = azure_resp.get("priority")
+            azure_data_fechamento = azure_resp.get("changed_date")
+
+            try:
+                azure_priority = int(azure_priority)
+            except ValueError:
+                azure_priority = None
+
+            print(f"Chamado {id_azure} → Azure estado: {azure_state} ")
+            
+            if azure_state == "closed":
+                prioridade_sistema = map_priority.get(azure_priority, "Baixa")
+                azure_data_fechamento = azure_resp.get("changed_date")
+
+                if azure_data_fechamento:
+                    try:
+                        data_azure = datetime.fromisoformat(
+                            azure_data_fechamento.replace("Z", "+00:00")
+                        )
+                    except Exception as e:
+                        print(f"⚠ Erro ao converter data '{azure_data_fechamento}': {e}")
+                        data_azure = None
+                else:
+                    print(f"⚠ Chamado {id_azure} fechado, porém o Azure não retornou NENHUMA data.")
+                    data_azure = None
+
+                supabase.table("chamados").update({
+                    "status_chamado": "Fechado",
+                    "data_fechamento": azure_data_fechamento,
+                    "prioridade": prioridade_sistema
+                }).eq("id_chamado_azure", id_azure).execute()
+
+                print(f"✔ Chamado {id_azure} fechado automaticamente. Prioridade: {prioridade_sistema}")
+        except Exception as e:
+            print(f"❌ Erro ao atualizar chamado {id_azure}: {str(e)}")
+
+            #print("📌 JSON retornado pelo Azure:")
+            try:
+                print(json.dumps(azure_resp, indent=4, ensure_ascii=False))
+            except:
+                print("⚠ Não foi possível imprimir o JSON do Azure.")
+
+            # Print do JSON do Supabase (card salvo localmente)
+            #print("📌 JSON do chamado no Supabase:")
+            try:
+                print(json.dumps(chamado, indent=4, ensure_ascii=False))
+            except:
+                print("⚠ Não foi possível imprimir o JSON do chamado local.")
+
+
+def gerar_excel_relatorio(df, filtros):
+    output = BytesIO()
+    total_registros = len(df)
+
+    colunas_data = ['data_criacao', 'data_fechamento']
+
+    for col in colunas_data:
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: parser.parse(x).replace(tzinfo=None)
+                if isinstance(x, str) and x
+                else x
+            )
+
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        sheet_name = 'Relatório de Chamados'
+
+        df.to_excel(writer, index=False, sheet_name=sheet_name, startrow=4)
+        ws = writer.sheets[sheet_name]
+
+        date_format = 'DD/MM/YYYY HH:MM:SS'
+
+        for col_idx, column_name in enumerate(df.columns, start=1):
+            if column_name in colunas_data:
+                for row in range(6, 6 + len(df)):
+                    cell = ws.cell(row=row, column=col_idx)
+                    if isinstance(cell.value, datetime):
+                        cell.number_format = date_format
+
+        ws['A1'] = 'Relatório de Chamados'
+        ws['A1'].font = Font(size=14, bold=True)
+        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=len(df.columns))
+
+        def fmt(data):
+            try:
+                return parser.parse(str(data)).strftime('%d/%m/%Y')
+            except Exception:
+                return '-'
+
+        ws['A2'] = f"Período: {fmt(filtros.get('data_inicial'))} até {fmt(filtros.get('data_final'))}"
+        ws['A2'].font = Font(italic=True)
+
+        ws['A3'] = 'Total de registros:'
+        ws['B3'] = total_registros
+        ws['A3'].font = Font(bold=True)
+        ws['B3'].font = Font(bold=True)
+
+        header_fill = PatternFill("solid", fgColor="007BFF")
+        header_font = Font(color="FFFFFF", bold=True)
+        header_align = Alignment(horizontal="center")
+
+        header_row = 5
+        for col in range(1, len(df.columns) + 1):
+            cell = ws.cell(row=header_row, column=col)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_align
+
+        ws.auto_filter.ref = (
+            f"A{header_row}:{get_column_letter(len(df.columns))}{header_row + total_registros}"
+        )
+        ws.freeze_panes = f"A{header_row + 1}"
+
+        for col_idx, column_name in enumerate(df.columns, start=1):
+            max_len = len(str(column_name))
+            for row in range(6, 6 + len(df)):
+                val = ws.cell(row=row, column=col_idx).value
+                if val:
+                    max_len = max(max_len, len(str(val)))
+            ws.column_dimensions[get_column_letter(col_idx)].width = max_len + 3
+
+    output.seek(0)
+    return output.read()
+
+from flask import Flask, request, jsonify
+import os
+
+@app.route("/debug_headers")
+def debug_headers():
+    headers = {k.upper(): v for k, v in request.headers.items()}
+
+    token = headers.get("X-CRON-TOKEN") or headers.get("X-Cron-Token")
+
+    expected_token = os.environ.get("X_CRON_TOKEN")
+    token_ok = token == expected_token
+
+    print("[DEBUG_HEADERS] Todos os headers recebidos:", headers)
+    print("[DEBUG_HEADERS] Token recebido:", token)
+    print("[DEBUG_HEADERS] Token esperado definido?", bool(expected_token))
+    print("[DEBUG_HEADERS] Token bate com esperado?", token_ok)
+
+    # Retorno em JSON
+    return jsonify({
+        "headers_recebidos": headers,
+        "token_recebido": token,
+        "token_esperado_definido": bool(expected_token),
+        "token_bate_com_esperado": token_ok
+    })
+
+
+@app.route('/cron/verificar_chamados')
+def verificar_chamados():
+
+    auth_header = request.headers.get("Authorization", "")
+    bearer_token = auth_header.replace("Bearer ", "")
+    header_token = request.headers.get("X-CRON-TOKEN")
+
+    token = bearer_token or header_token
+
+    expected = os.environ.get("CRON_TOKEN")
+
+    if not expected or token != expected:
+        print("❌ Acesso não autorizado à rota de verificação de chamados.")
+        return jsonify({"error": "Acesso não autorizado"}), 401
+
+    print("✅ Token autorizado. Executando verificação de chamados no Azure.")
+    verificar_chamados_azure()  
+    return jsonify({"success": True})
+
+#@app.route("/auth/microsoft")
+#def microsoft_login():
+ #   try:
+  #      import uuid
+   #     state = str(uuid.uuid4())
+    #    session['state'] = state 
+
+     #   auth_url = msal_app.get_authorization_request_url(
+      #  scopes=["openid", "profile", "User.Read"], 
+       # redirect_uri=REDIRECT_URI,
+       # state=state, 
+       # )
+       # return redirect(auth_url)
+     
+ 
+    #except Exception as e:
+     #   logging.exception("ERRO na rota microsoft_login")
+      #  flash(f'Erro ao iniciar autenticação Microsoft: {str(e)}', 'error')
+       # return redirect(url_for('login'))
+
+#@app.route("/getAToken")
+#def get_token():
+    
+ #   try:
+  #      state = request.args.get('state')
+   #     if state != session.get('state'):
+    #        print("Estado inválido:", state)
+     #       return redirect(url_for("tela_login"))
+      #  session.pop('state', None)  
+
+       # error = request.args.get('error')
+       # code = request.args.get('code')
+       # result = msal_app.acquire_token_by_authorization_code(
+       #     code,
+       #     scopes=["openid", "profile", "email", "User.Read"],
+       #     redirect_uri=REDIRECT_URI
+       # )
+       # if "error" in result:
+        #    return f"Erro ao obter token: {result['error_description']}", 400
+        #session["usuario_logado"] = True
+        #session["email"] = result.get("id_token_claims", {}).get("preferred_username")
+        #return redirect(url_for("tela_login"))
+
+    #except Exception as e:
+    #    logging.exception("Erro ao processar callback do Microsoft")
+     #   flash("Erro durante o login com Microsoft.", "error")
+      #  return redirect(url_for("login"))
+
+
+@app.route("/auth/microsoft/salvar", methods=["POST"])
+def salvar_empresa_funcao():
+    try:
+        dados = request.get_json()
+        empresa = dados.get("empresa")
+        funcao = dados.get("funcao")
+
+        if not empresa or not funcao:
+            return jsonify({"error": "Empresa e função são obrigatórios."}), 400
+
+        # Verificar se o usuário está logado na sessão
+        if not session.get('usuario_logado') or not session.get('email'):
+            return jsonify({"error": "Sessão inválida. Faça login novamente."}), 401
+
+        # Inserir usuário no banco
+        resultado = supabase.table("usuarios").insert({
+            "nome": session.get("nome"),
+            "email": session.get("email"),
+            "telefone": session.get("telefone"),
+            "empresa": empresa,
+            "funcao": funcao,
+            "acesso": "ku"
+        }).execute()
+
+        # Atualizar sessão com os novos dados
+        session['empresa'] = empresa
+        session['funcao'] = funcao
+        session['acesso'] = 'ku'
+        
+        if resultado.data:
+            session['usuario_id'] = resultado.data[0]['id']
+
+        return jsonify({"success": True, "redirect": "/menu"})
+        
+    except Exception as e:
+        print(f"ERRO ao salvar empresa/função: {e}")
+        return jsonify({"error": f"Erro interno: {str(e)}"}), 500
+
+@app.route('/api/upload_images', methods=['POST'])
+def upload_images():
+    if 'images' not in request.files:
+        return jsonify({'error': 'Nenhum arquivo na requisição'}), 400
+
+    uploaded_files = request.files.getlist('images')
+    if not uploaded_files:
+        return jsonify({'error': 'Nenhum arquivo selecionado'}), 400
+
+    anexo_urls = []
+    bucket_name = "chamadoanexos" 
+    for file in uploaded_files:
+        if file and allowed_file(file.filename):
+            original_filename = secure_filename(file.filename)           
+            unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}_{original_filename}"
+            
+            try:                
+                file_content = file.read()
+                print(f"DEBUG: Tipo de file_content: {type(file_content)}")               
+                response_upload = supabase.storage.from_(bucket_name).upload(
+                    unique_filename,
+                    file_content,
+                    {'content-type': file.content_type} 
+                )                             
+                if hasattr(response_upload, 'path') and response_upload.path:                  
+                    public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{unique_filename}"
+                    anexo_urls.append({
+                        "url": public_url,
+                        "filename": original_filename,
+                        "mimetype": file.content_type 
+                    })
+                else:                   
+                    print(f"Supabase upload returned unexpected data for {original_filename}: {response_upload}")
+                    return jsonify({'error': f'Falha inesperada ao fazer upload para o Supabase para {original_filename}'}), 500
+            except Exception as e:               
+                print(f"Erro ao processar upload do arquivo {original_filename}: {e}")               
+                if hasattr(e, 'message'): 
+                    return jsonify({'error': f'Erro ao fazer upload para o Supabase: {e.message}'}), 500
+                elif hasattr(e, 'response') and hasattr(e.response, 'json'): 
+                    try:
+                        error_json = e.response.json()
+                        return jsonify({'error': f'Erro ao fazer upload para o Supabase: {error_json.get("error", "Erro desconhecido")}'}), 500
+                    except:
+                        pass 
+                return jsonify({'error': f'Erro interno ao processar o arquivo: {str(e)}'}), 500
+        else:
+            return jsonify({'error': f'Tipo de arquivo não permitido ou arquivo inválido: {file.filename}'}), 400
+
+    return jsonify({'image_urls': anexo_urls}), 200
+
+def get_user_name_by_id(email):
+    try:
+        response = supabase.table('usuarios').select('nome').eq('email', email).execute()
+        if response.data:
+            return response.data[0]['nome']
+        return "Usuario Desconhecido"
+    except Exception as e:
+        print(f"❌ Erro ao obter o nome do usuário: {str(e)}")
+        return "Usuario Desconhecido"
+
+
+def gerar_id_chamado():
+    digitos = ''.join(random.choices(string.digits, k=3))
+    letras = ''.join(random.choices(string.ascii_uppercase, k=3))
+    id_chamado = f"{digitos}-{letras}"
+
+    try:
+        response = supabase.table('chamados').select('id_chamado').eq('id_chamado', id_chamado).execute()
+        if response.data and len(response.data) > 0:
+            return gerar_id_chamado()
+        return id_chamado
+    except Exception as e:
+        print(f"❌ Erro ao gerar o ID do chamado: {str(e)}")
+        return f"{random.randint(100, 999)}{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}{random.choice(string.ascii_uppercase)}"
+
+def salvar_chamado_supabase(titulo, descricao, email, empresa, plataforma, filial, usuario_id, categoria, responsavel, anexos=None,id_chamado_azure=None):
+    try:   
+      
+        if anexos is None:
+            anexos = []
+
+        id_chamado = gerar_id_chamado() 
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        agora = datetime.now(fuso_horario)
+
+        categoria_formatada = categoria.capitalize() if categoria else ''
+        prioridade_original = 'Baixa'
+        
+        prioridade_formatada = prioridade_original[0].lower() + prioridade_original[1:] if prioridade_original else 'baixa'
+
+        dados_chamado = {
+            'id_chamado': id_chamado,
+            'titulo': titulo,
+            'descricao': descricao,
+            'email_solicitante': email,
+            'empresa_chamado': empresa,
+            'plataforma_chamado': plataforma,
+            'filial_chamado': filial,
+            'usuario_id': usuario_id,
+            'categoria': categoria_formatada,
+            'status_chamado': 'Aberto',
+            'data_criacao': agora.strftime('%Y-%m-%dT%H:%M:%S'),
+            'data_atualizacao': agora.isoformat(),
+            'prioridade': prioridade_formatada,
+            'responsavel_atendimento': responsavel,
+            'anexos': anexos,
+            'id_chamado_azure': id_chamado_azure, 
+        }
+
+        print(f"Inserindo chamado no banco: {dados_chamado}")
+        response = supabase.table('chamados').insert(dados_chamado).execute()
+        print(f"Retorno SUPA: {response}")
+            
+
+        if response.data and len(response.data) > 0:           
+            mov_registrada = registrar_movimentacao_chamado(
+                id_chamado_azure=id_chamado_azure,
+                tipo='Criação de Chamado',
+                valor_anterior='N/A',
+                valor_novo='Aberto',
+                usuario=responsavel,
+                id_chamado=id_chamado 
+            )
+            if not mov_registrada:
+                print(f"ATENÇÃO: Chamado {id_chamado_azure} criado, mas falha ao registrar movimentação de criação.")
+
+            return {
+                'success': True,
+                'id_chamado_azure': id_chamado_azure,
+                'message': f'Chamado criado com sucesso! ID: {id_chamado_azure}',
+                'data': response.data[0]
+            }
+        else:            
+            error_message = response.error.message if response.error else "Erro desconhecido ao criar o chamado."
+            print(f"Erro ao criar o chamado no Supabase: {error_message}")
+            return {
+                'success': False,
+                'error': f'Erro ao criar o chamado: {error_message}',
+            }
+    except Exception as e:
+        print(f"❌ Erro ao salvar o chamado: {str(e)}")
+        return {
+            'success': False,
+            'error': f'Erro ao criar o chamado: {str(e)}'
+        }
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'usuario_logado' not in session or not session.get('usuario_logado'):
+            flash('Faça login para acessar essa página.', 'error')
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+# Rota de login
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        senha = request.form.get('senha')
+
+        if not email or not senha:
+            flash('Preencha todos os campos', 'error')
+            return redirect(url_for('login'))
+        
+
+        try:
+            response = supabase.table('usuarios').select('*').eq('email', email).execute()
+            dados = response.data or []
+        except Exception as e:
+            print(f"❌ Erro ao buscar usuário: {str(e)}")
+            flash('Erro ao acessar o banco de dados', 'error')
+            return redirect(url_for('login'))
+
+        if not dados:
+            flash('E-mail ou senha incorretos', 'error')
+            return redirect(url_for('login'))
+
+        usuario = dados[0]
+        senha_hash = usuario['senha']
+
+        if check_password_hash(senha_hash, senha):
+            session.permanent = True
+            session['usuario_logado'] = True
+            session['email'] = email
+            session['usuario_id'] = usuario['id']
+            session['nome'] = usuario['nome']
+            session['empresa'] = usuario['empresa']
+            session['funcao'] = usuario['funcao']
+            session['login_time'] = datetime.now(SP_TZ).isoformat()
+            session['acesso'] = usuario['acesso']
+            session.modified = True
+
+            supabase.table('log_acessos').insert({
+                'usuario_id': usuario['id'],
+                'data_login': session['login_time']
+            }).execute()
+
+            return redirect(url_for('menu_modulo'))
+        else:
+            flash('E-mail ou senha incorretos', 'error')
+            return redirect(url_for('login'))
+
+    if 'usuario_logado' in session and session.get('usuario_logado'):
+        return redirect(url_for('menu_modulo'))
+
+    return render_template('tela_login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    usuario_id = session.get('usuario_id')
+    data_login = session.get('login_time')
+
+    if usuario_id and data_login:
+        response = supabase.table('log_acessos') \
+            .select('id') \
+            .eq('usuario_id', usuario_id) \
+            .eq('data_login', data_login) \
+            .execute()
+
+        if response.data:
+            log_id = response.data[0]['id']
+            data_logout = datetime.now(SP_TZ).isoformat()
+            supabase.table('log_acessos') \
+                .update({'data_logout': data_logout}) \
+                .eq('id', log_id) \
+                .execute()
+
+    session.clear()
+    flash('Logout realizado com sucesso', 'success')
+    return redirect(url_for('login'))
+
+# --- Rotas de Páginas (Renderizam HTML) ---
+@app.route('/')
 def index():
+    if session.get('usuario_logado') and session.get('usuario_id'):
+        return redirect(url_for('menu_modulo'))
+    return redirect(url_for('login'))
+
+@app.route('/menu')
+@login_required
+def menu_modulo():
+    print(f"Sessão atual: {dict(session)}")
+    print(f"Sessão permanente: {session.permanent}")
+    return render_template('menu_modulo.html',
+        email_logado=session.get('email'),
+        nome_usuario=session.get('nome'),
+        empresa_usuario=session.get('empresa'))
+
+@app.route("/aberturaChamado", methods=["GET", "POST"])
+@login_required
+def abertura():
+    if request.method == "POST":
+        try:
+            empresa = request.form.get("empresa")
+            plataforma = request.form.get("plataforma")
+            email = session.get('email')
+            titulo = request.form.get("titulo2")
+            descricao = request.form.get("descricao")
+            filial = request.form.get("filial")
+            categoria = request.form.get("categoria")
+            usuario_id = session.get('usuario_id')
+
+            if not all([titulo, descricao, empresa, plataforma]):
+                return jsonify({
+                    "success": False,
+                    "error": "Todos os campos obrigatórios devem ser preenchidos."
+                }),400
+            
+            uploaded_files = request.files.getlist('evidencia')
+            anexos = []
+            bucket_name = "chamadoanexos"
+
+            for file in uploaded_files:
+                if file and file.filename:
+                    original_filename = secure_filename(file.filename)
+                    unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{random.randint(1000, 9999)}_{original_filename}"
+                    file_content = file.read()
+
+                    response_upload = supabase.storage.from_(bucket_name).upload(
+                        unique_filename,
+                        file_content,
+                        {'content-type': file.content_type}
+                    )
+
+                    public_url = f"{SUPABASE_URL}/storage/v1/object/public/{bucket_name}/{unique_filename}"
+                    anexos.append({
+                        "url": public_url,
+                        "filename": original_filename,
+                        "mimetype": file.content_type
+                    })
+
+            resultado_azure = create_work_item(
+                titulo=titulo.strip(),
+                descricao=descricao.strip(),
+                empresa=empresa.strip(),
+                plataforma=plataforma.strip(),
+                email=email.strip(),
+                filial=filial.strip(),
+                chamado_anexos=anexos  
+            )
+            print("Resposta Azure:", resultado_azure)
+            id_chamado_azure = resultado_azure.get("id")
+
+            if id_chamado_azure:
+                resultado_supabase = salvar_chamado_supabase(
+                    titulo=titulo.strip(),
+                    descricao=descricao.strip(),
+                    email=email.strip(),
+                    empresa=empresa.strip(),
+                    plataforma=plataforma.strip(),
+                    categoria=categoria.strip() if categoria else None,
+                    filial=filial.strip() if filial else None,
+                    usuario_id=usuario_id,
+                    responsavel=session.get('nome', 'Usuário Desconhecido'),
+                    anexos=anexos, 
+                    id_chamado_azure=id_chamado_azure
+                )
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                if id_chamado_azure:
+                    return jsonify({
+                        "success": True,
+                        "id_chamado": id_chamado_azure,
+                        "message": "Chamado criado com sucesso",
+                        "redirect_url": url_for("abertura")
+                    })
+                else:
+                    return jsonify({
+                        "success": False,
+                        "error": "Falha ao criar chamado no Azure"
+                    }), 400
+
+            return redirect(url_for("abertura"))
+
+        except Exception as e:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return jsonify({
+                    "success": False,
+                    "error": f"Erro ao criar o chamado: {str(e)}"
+                }), 500
+            flash(f"Erro ao criar o chamado: {str(e)}", "error")
+            return redirect(url_for("abertura"))
+    return render_template('menu_modulo.html', email_logado=session.get('email'))
+
+@app.route('/registrar_chamado', methods=['GET', 'POST'])
+@login_required
+def registrar_chamado():
+    if request.method == 'POST':
+        try:
+            titulo = request.form['titulo']
+            email_solicitante = request.form['email_solicitante']
+            empresa_chamado = request.form['empresa_chamado']
+            plataforma_chamado = request.form['plataforma_chamado']
+            filial_chamado = request.form['filial_chamado']
+            categoria = request.form['categoria']
+            prioridade = request.form['prioridade']
+            descricao = request.form['descricao']
+            responsavel = session.get('nome', 'Não atribuído')
+
+            data_criacao_sp = datetime.now(SP_TZ)
+            data_criacao_iso = data_criacao_sp.isoformat()
+
+            new_chamado_data = {
+                "titulo": titulo,
+                "email_solicitante": email_solicitante,
+                "empresa_chamado": empresa_chamado,
+                "plataforma_chamado": plataforma_chamado,
+                "filial_chamado": filial_chamado,
+                "status_chamado": "Aberto",
+                "data_criacao": data_criacao_iso,
+                "prioridade": prioridade,
+                "categoria": categoria,
+                "descricao": descricao,
+                "responsavel": responsavel 
+            }
+
+            response = supabase.table('chamados').insert(new_chamado_data).execute()
+
+            if response.data:
+                flash('Chamado registrado com sucesso!', 'success')
+                # socketio.emit('novo_chamado_criado', {
+                #     'id': response.data[0]['id_chamado_azure'],
+                #     'titulo': response.data[0]['titulo']
+                # })
+               
+                return redirect(url_for('index'))
+            else:
+                flash('Erro ao registrar o chamado no banco de dados.', 'danger')
+
+        except Exception as e:
+            flash(f'Erro ao registrar chamado: {e}', 'danger')
+
+    return render_template('registrar_chamado.html')
+
+@app.route('/detalhes_chamados')
+@login_required
+def detalhes_chamados():
+    chamados = get_chamados_abertos()
+    nome_usuario_logado = session.get('nome', 'Usuário Desconhecido')
+
+    for chamado in chamados:
+        usuario = get_usuario_by_email(chamado.get('email_solicitante', ''))
+        chamado['usuario_nome'] = usuario.get('nome', 'Desconhecido')
+        chamado['telefone'] = usuario.get('telefone', '')
+        chamado['id_chamado_azure'] = chamado.get('id_chamado_azure', 'N/A')        
+        #chamado['data_criacao'] = chamado.get('data_criacao', '')
+
+    return render_template(
+        'detalhes_chamados.html',
+        chamados=chamados,
+        supabase_url=SUPABASE_URL,
+        supabase_anon_key=SUPABASE_KEY,
+        usuario_logado_nome=nome_usuario_logado
+    )
+@app.route('/consultar_chamado')
+@login_required
+def consultar_chamado_page():
+    return render_template('consultar_chamado.html', usuario_nome_logado=session.get('nome'),
+                           supabase_url=SUPABASE_URL, supabase_anon_key=SUPABASE_KEY)
+
+@app.route("/consultar_chamado_supabase", methods=["POST"])
+def consultar_chamado_supabase():
+    try:
+        data = request.get_json()
+        id_chamado_azure = data.get("id_chamado_azure")
+
+        if not id_chamado_azure:
+            return jsonify({"error": "ID do chamado é obrigatório."})
+
+        response = supabase.table('chamados').select().eq('id_chamado_azure', id_chamado_azure).execute()
+
+        if response.data and len(response.data) > 0:
+            chamado = response.data[0]
+            return jsonify({
+                "id_chamado_azure": chamado['id_chamado_azure'],
+                "titulo": chamado['titulo'],
+                "descricao": chamado['descricao'],
+                "status": chamado['status_chamado'],
+                "empresa": chamado['empresa_chamado'],
+                "plataforma": chamado['plataforma_chamado'],
+                "data_criacao": chamado['data_criacao'],
+                "email_solicitante": chamado['email_solicitante'],
+                "categoria": chamado['categoria']
+            })
+        else:
+            return jsonify({"error": f"Chamado {id_chamado_azure} não encontrado."})
+
+    except Exception as e:
+        print(f"Erro ao consultar chamado: {str(e)}")
+        return jsonify({"error": f"Erro interno: {str(e)}"})
+
+@app.route('/api/chamados-abertos')
+@login_required
+def api_chamados_abertos():
+    chamados = get_chamados_abertos()
+    for chamado in chamados:
+        usuario = get_usuario_by_email(chamado.get('email_solicitante', ''))
+        chamado['usuario_nome'] = usuario.get('nome', 'Desconhecido')
+        chamado['telefone'] = usuario.get('telefone', '')
+        chamado['email'] = usuario.get('email_solicitante', '')
+        chamado['id_chamado_azure'] = chamado.get('id_chamado_azure', 'N/A')
+
+
+        data_criacao = chamado.get('data_criacao')
+
+        if isinstance(data_criacao, datetime):            
+            data_brasilia = data_criacao + timedelta(hours=3)
+            chamado['data_criacao'] = data_brasilia.strftime('%Y-%m-%dT%H:%M:%S')
+        elif isinstance(data_criacao, str):
+            try:                
+                dt = datetime.fromisoformat(data_criacao)
+                dt_brasilia = dt + timedelta(hours=3)
+                chamado['data_criacao'] = dt_brasilia.strftime('%Y-%m-%dT%H:%M:%S')
+            except Exception as e:
+                print(f"Data inválida: {data_criacao} - {e}")
+                chamado['data_criacao'] = data_criacao
+        else:
+            chamado['data_criacao'] = None
+
+    return jsonify(chamados)
+@app.route('/api/detalhes_chamado/<id_chamado>')
+@login_required
+def api_detalhes_chamado(id_chamado):
+    chamado = get_chamado_detalhes(id_chamado)
+    if chamado:
+        usuario = get_usuario_by_email(chamado.get('email_solicitante', ''))
+        chamado['usuario_nome'] = usuario.get('nome', 'Desconhecido')
+        chamado['telefone'] = usuario.get('telefone', '')
+        chamado['chamado_id'] = id_chamado
+        return jsonify(chamado)
+    else:
+        return jsonify({'error': 'Chamado not found'}), 404
+
+
+@app.route('/api/atualizar_chamado/<string:id_chamado_azure>', methods=['PUT'])
+@login_required
+def atualizar_chamado(id_chamado_azure):
+    try:
+        dados = request.get_json()
+
+        if not id_chamado_azure:
+            return jsonify({'success': False, 'error': 'ID do chamado é obrigatório'}), 400
+
+        # Buscar dados atuais do chamado para comparação
+        chamado_atual = supabase.table('chamados').select('*').eq('id_chamado', id_chamado_azure).single().execute()
+        if not chamado_atual.data:
+            return jsonify({'success': False, 'error': 'Chamado não encontrado'}), 404
+
+        dados_atuais = chamado_atual.data
+        usuario_logado = session.get('nome', 'Sistema')
+
+        campos_atualizacao = {}
+        if 'empresa_chamado' in dados: campos_atualizacao['empresa_chamado'] = dados['empresa_chamado']
+        if 'plataforma_chamado' in dados: campos_atualizacao['plataforma_chamado'] = dados['plataforma_chamado']
+        if 'filial_chamado' in dados: campos_atualizacao['filial_chamado'] = dados['filial_chamado']
+        if 'categoria' in dados: campos_atualizacao['categoria'] = dados['categoria']
+        if 'status_chamado' in dados: campos_atualizacao['status_chamado'] = dados['status_chamado']
+        if 'prioridade' in dados: campos_atualizacao['prioridade'] = dados['prioridade']
+        if 'responsavel_atendimento' in dados: campos_atualizacao['responsavel_atendimento'] = dados['responsavel_atendimento']
+        if 'comentario_novo' in dados: campos_atualizacao['comentario_novo'] = dados['comentario_novo']  # Adicionado campo comentario_novo
+
+        if not campos_atualizacao:
+            return jsonify({'success': False, 'error': 'Nenhum campo para atualizar fornecido'}), 400
+
+        sucesso = update_chamado(id_chamado_azure, campos_atualizacao)
+
+        if sucesso:
+            return jsonify({'success': True, 'message': 'Chamado atualizado com sucesso'}), 200  
+            # socketio.emit('chamado_atualizado_parcial',{
+            #     'id': id_chamado_azure,
+            #     'campo_alterado': list(campos_atualizacao.keys())[0],
+            #     'novo_valor': list(campos_atualizacao.values())[0],
+            #     'timestamp': datetime.now().isoformat()
+            # })
+                 
+
+    except Exception as e:
+        print(f"Erro ao atualizar chamado: {str(e)}")
+        return jsonify({'success': False, 'error': f'Erro interno ao processar atualização: {str(e)}'}), 500
+
+@app.route("/aberturaChamadoAzure", methods=["GET", "POST"])
+@login_required
+def abertura_azure():
+
     if request.method == "POST":
         empresa = request.form.get("empresa")
         plataforma = request.form.get("plataforma")
@@ -25,93 +1056,26 @@ def index():
         evidencia_files = request.files.getlist('evidencia')
         filial = request.form.get("filial")
 
-        print(f"Empresa: {empresa}, Plataforma: {plataforma}, E-mail: {email}, Título: {titulo}, Descrição: {descricao}")
-
-              
         if not email or not titulo or not descricao:
             flash("E-mail, título e descrição são obrigatórios.", "error")
-            #return redirect(url_for("index"))
-            return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})       
+            return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
 
-        
         result = create_work_item(titulo, descricao, empresa, plataforma, email, filial, evidencia_files=evidencia_files)
-        print("Resultado da criação", result)
 
         if isinstance(result, dict) and "error" in result:
             flash(result["error"], "error")
             return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
         else:
             flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
-            titulo = ""
-            descricao = ""
             if result:
                 id_chamado = result.get("id")
                 enviar_email(email, id_chamado)
                 return jsonify({"flash_messages": get_flashed_messages(with_categories=True)})
-                #return redirect(url_for("index"))
-
-        return redirect(url_for("index", titulo=titulo, descricao=descricao,email=email))
-
+        return redirect(url_for("abertura_azure", titulo=titulo, descricao=descricao, email=email))
     return render_template("index.html")
-
-@app.route("/aberturaChamado", methods=["GET", "POST"])
-def abertura():
-    if request.method == "POST":
-        empresa = request.form.get("empresa")
-        plataforma = request.form.get("plataforma")
-        email = request.form.get("email")
-        titulo = request.form.get("titulo2")
-        descricao = request.form.get("descricao")
-        evidencia_files = request.files.getlist('evidencia')
-        filial = request.form.get("filial")
-
-        print(f"Empresa: {empresa}, Plataforma: {plataforma}, E-mail: {email}, Título: {titulo}, Descrição: {descricao}")
-
-       
-        imgur_links = []
-
-       
-        if not email or not titulo or not descricao:
-            flash("E-mail, título e descrição são obrigatórios.", "error")
-            return redirect(url_for("abertura"))
-        
-        for evidencia_file in evidencia_files:
-            if evidencia_file:
-                
-                app.config['UPLOAD_FOLDER'] = 'uploads'
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], evidencia_file.filename)
-                evidencia_file.save(file_path)
-
-                
-                imgur_link = upload_to_imgur(file_path)
-                if imgur_link and imgur_link not in imgur_links:
-                    imgur_links.append(imgur_link)
-                os.remove(file_path)
-
-        
-        if imgur_links:
-            descricao += "<br><br>" + "<br>".join([f'<img src="{link}" alt="Evidência" style="max-width: 100%; height: auto;">' for link in imgur_links])
-
-        
-        result = create_work_item(titulo, descricao, empresa, plataforma, email, filial)
-        print("Resultado da criação", result)
-
-        if isinstance(result, dict) and "error" in result:
-            flash(result["error"], "error")
-        else:
-            flash(f"Chamado criado com sucesso! ID: {result.get('id')}", "success")
-            if result:
-                id_chamado = result.get("id")
-                email = result.get("email")
-                enviar_email(email, id_chamado)
-                return redirect(url_for("abertura"))
-
-        return redirect(url_for("abertura"))
-
-    return render_template("index.html")
-
 
 @app.route("/consultar", methods=["POST"])
+@login_required
 def consultar_chamado_route():
     data = request.get_json()
     id_chamado = data.get("id_chamado")
@@ -120,15 +1084,12 @@ def consultar_chamado_route():
     if not id_chamado or not plataforma:
         return jsonify({"error": "ID do chamado e plataforma são obrigatórios."})
 
-   
     resultado = consultar_chamado(id_chamado, plataforma)
-    print(f"Resultado da consulta: {resultado}")
-    
 
     if "error" in resultado:
         return jsonify({"error": resultado["error"]})
+    
     else:
-        
         try:
             dados = {
                 "titulo": GoogleTranslator(source='auto', target='pt').translate(resultado.get("titulo", "N/A")),
@@ -138,9 +1099,28 @@ def consultar_chamado_route():
             }
         except Exception as e:
             return jsonify({"error": f"Erro ao traduzir: {str(e)}"})
-        print(dados)
         return jsonify(dados)
-@app.route("/consultar_comentarios", methods=["GET"])
+
+
+#TEMPORARIO
+@app.route("/consultar_raw", methods=["POST"])
+def consultar_chamado_raw():
+    data = request.get_json()
+    id_chamado = data.get("id_chamado")
+    plataforma = "board_sustentacao" 
+    
+    #plataforma = data.get("plataforma")
+
+    if not id_chamado:
+        return jsonify({"error": "ID do chamado é obrigatório."})
+
+    resultado = consultar_chamado(id_chamado, plataforma)
+
+    return jsonify(resultado)
+
+
+
+@app.route("/consultar_comentarios_azure", methods=["GET"])
 def consultar_comentarios_route():
     id_chamado = request.args.get("id_chamado")
     plataforma = request.args.get("plataforma")
@@ -151,9 +1131,8 @@ def consultar_comentarios_route():
     resultado = consultar_comentarios(id_chamado, plataforma="click")
 
     if isinstance(resultado, Response):
-        
         resultado = resultado.json
-        
+
     if isinstance(resultado, list):
         return jsonify({"comentarios": resultado})
 
@@ -161,15 +1140,14 @@ def consultar_comentarios_route():
         return jsonify({"error": resultado["error"]})
     else:
         return jsonify({"comentarios": resultado.get("comentarios", [])})
-    
 
-@app.route("/adicionar_comentario", methods=["POST"])
-def adicionar_comentario():
+@app.route("/adicionar_comentario_azure", methods=["POST"])
+@login_required
+def adicionar_comentario_azure():
     data = request.get_json()
     id_chamado = data.get("id_chamado")
     comentario = data.get("comentario")
-    plataforma = data.get("plataforma")  
-    
+    plataforma = data.get("plataforma")
 
     if not id_chamado or not comentario:
         return jsonify({"error": "ID do chamado e comentário são obrigatórios."})
@@ -184,31 +1162,1422 @@ def adicionar_comentario():
 
     resultado = adicionar_comentario_card(id_chamado, comentario, plataforma)
     return jsonify(resultado)
-    
+@app.route('/cadastro', methods=['GET', 'POST'])
+def cadastro():
+    if request.method == 'GET':
+        return render_template("tela_cadastro.html")
 
-
-@app.route('/relatorio', methods=['GET', 'POST'])
-def relatorio():
     if request.method == 'POST':
-        data = request.get_json()
-        data_inicial = data.get('data_inicial')
-        data_final = data.get('data_final')
-        filtro_data = data.get('filtro_data')
-        filial = data.get('filial')
-        email = data.get('email')
-        empresa = data.get('empresa')
-        plataforma = data.get('plataforma')
-        titulo = data.get('titulo')
+        try:
+            data = request.get_json()
 
+            nome = data.get('nome')
+            telefone = data.get('telefone')
+            empresa = data.get('empresa')
+            funcao = data.get('funcao')
+            email = data.get('email')
+            senha = data.get('senha')
+
+            if not all([nome, telefone, empresa, funcao, email, senha]):
+                return jsonify({"error": "Todos os campos são obrigatórios."}), 400
+
+            response = supabase.table('usuarios').select('email').eq('email', email).execute()
+            if response.data and len(response.data) > 0:
+                return jsonify({"error": "E-mail já cadastrado."}), 400
+
+            senha_hash = generate_password_hash(senha)
+
+            insert_response = supabase.table('usuarios').insert({
+                'nome': nome,
+                'telefone': telefone,
+                'empresa': empresa,
+                'funcao': funcao,
+                'email': email,
+                'senha': senha_hash,
+                'acesso': 'ku'
+            }).execute()
+
+            if not insert_response.data:
+                return jsonify({"error": "Erro ao cadastrar usuário."}), 500
+
+            return jsonify({"message": "Cadastro realizado com sucesso!"}), 200
+
+        except Exception as e:
+            print("Erro no cadastro:", e)
+            return jsonify({"error": "Erro na comunicação com o servidor."}), 500
+
+@app.route('/tela_login')
+def tela_login():
+    if session.get('usuario_logado') and session.get('usuario_id'):
+        return redirect(url_for('menu_modulo'))
+    return render_template('tela_login.html')
+
+# (REMOVER EM PRODUÇÃO)
+@app.route('/debug_session')
+def debug_session():
+    return jsonify({
+        'session_data': dict(session),
+        'session_permanent': session.permanent,
+        'session_id': request.cookies.get('session'),
+        'cookies': dict(request.cookies)
+    })
+
+@app.before_request
+def check_session():
+
+    public_paths = [
+        '/login',
+        '/cadastro',
+        '/abertura',
+        '/solicitar_recuperacao_senha',
+        '/processar_recuperacao_senha',
+        '/redefinir_senha_confirmar',
+        '/debug_headers',
+        '/cron/verificar_chamados',
+        '/recuperar-senha',
+        '/redefinir_senha'
+    ]
+
+    if request.path.startswith('/redefinir-senha'):
+        return
+
+    # libera arquivos estáticos
+    if request.path.startswith('/static/'):
+        return
+
+    # libera caminhos públicos
+    if request.path in public_paths:
+        return
+
+    # bloqueia se não estiver logado
+    if not session.get('usuario_logado'):
+        if request.is_json:
+            return jsonify({"error": "Sessão expirada. Faça login novamente."}), 401
         
-        resultado = gerar_relatorio(data_inicial, data_final, filtro_data, filial, email, empresa, plataforma, titulo)
+        return redirect(url_for('login'))
+
+
+@app.context_processor
+def inject_user():
+    if session.get('usuario_logado'):
+        return {
+            'usuario_logado': session.get('usuario_logado'),
+            'usuario_nome': session.get('nome'),
+            'usuario_email': session.get('email'),
+            'usuario_empresa': session.get('empresa')
+        }
+    return {}
+@app.route('/api/chamados/<string:id_chamado>/comentarios', methods=['POST'])
+@login_required
+def handle_adicionar_comentario(id_chamado): 
+    try:
+        dados = request.get_json()
+        comentario_texto = dados.get('comentario_texto')
+        anexos = dados.get('anexos', [])
+
+        if not comentario_texto and not anexos: 
+            return jsonify({"error": "Comentário vazio ou nenhum anexo fornecido"}), 400
         
-        if "error" in resultado:
-            return jsonify({"error": resultado["error"]}), 500
+        nome_usuario = session.get('nome')
+        email_usuario = session.get('email')
 
-        return jsonify(resultado)
+        if not nome_usuario or not email_usuario:
+            return jsonify({"error": "Usuário não encontrado na sessão"}), 400      
+        novo_comentario_supabase = add_comentario(id_chamado, nome_usuario, email_usuario, comentario_texto, anexos)
 
-        #return render_template("tela_relatorio.html", resultado=resultado)
+        if not novo_comentario_supabase:
+            return jsonify({"error": "Erro ao adicionar comentário ao chamado no Supabase"}), 500
+
+        response_chamado = supabase.table('chamados') \
+            .select('id_chamado_azure', 'plataforma_chamado') \
+            .eq('id_chamado', id_chamado) \
+            .single().execute()
+
+        id_azure = None
+        plataforma_azure = None
+        if response_chamado.data:
+            id_azure = response_chamado.data.get('id_chamado_azure')
+            plataforma_azure = response_chamado.data.get('plataforma_chamado')
+
+        if id_azure and plataforma_azure:
+            texto_azure = f"{nome_usuario} comentou:\n\n{comentario_texto}"
+            
+            resultado_azure = adicionar_comentario_card(id_azure, texto_azure, plataforma_azure, anexos)
+            
+            if not resultado_azure.get("success"):
+                app_logger.error(f"Falha ao adicionar comentário no Azure DevOps para o chamado {id_chamado} (Azure ID: {id_azure}): {resultado_azure.get('error')}")
+
+        # if 'socketio' in globals():
+        #     socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': novo_comentario_supabase})
+        #     emit_dashboard_data()
+
+        if isinstance(novo_comentario_supabase.get('data_hora'), datetime):
+            novo_comentario_supabase['data_hora'] = novo_comentario_supabase['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
+
+        return jsonify(novo_comentario_supabase), 200
+
+    except Exception as e:
+        app_logger.error(f"Erro ao adicionar comentário ao chamado {id_chamado}: {e}", exc_info=True)
+        return jsonify({"error": f"Erro ao adicionar comentário ao chamado: {str(e)}"}), 500
+
     
-    return render_template("tela_relatorio.html")
+@app.route('/api/chamados/<string:id_chamado>/comentarios', methods=['GET'])
+@login_required
+def get_comentarios_chamado(id_chamado):
+    try:
+        comentarios = get_comentarios_by_chamado_id(id_chamado)
+        for c in comentarios:
+            if isinstance(c.get('data_hora'), datetime):
+                c['data_hora'] = c['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
 
+        return jsonify(comentarios), 200
+    except Exception as e:
+        print(f"Erro ao buscar comentários para o chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários para o chamado"}), 500
+@app.route('/api/chamados/<string:id_chamado>/adicionar_comentario', methods=['POST'])
+@login_required
+def adicionar_comentario_api(id_chamado):
+    try:
+        data = request.json
+        comentario_texto = data.get('comentario')
+        anexos = data.get('anexos', [])
+
+        if not comentario_texto and not anexos:
+            return jsonify({"error": "Comentarios vazio"}), 400
+        nome_usuario = session.get('nome')
+        email_usuario = session.get('email')
+
+        if not nome_usuario or not email_usuario:
+            return jsonify({"error": "Usuário nao encontrado"}), 400
+
+        novo_comentario = add_comentario(id_chamado, nome_usuario, email_usuario, comentario_texto, anexos)
+
+        if novo_comentario:
+            # socketio.emit('novo_comentario', {'id_chamado': id_chamado})
+            if isinstance(novo_comentario.get('data_hora'), datetime):
+                novo_comentario['data_hora'] = novo_comentario['data_hora'].strftime('%Y-%m-%d %H:%M:%S')
+            return jsonify(novo_comentario), 200
+        else:
+            return jsonify({"error": "Erro ao adicionar comentario ao chamado"}), 500
+    except Exception as e:
+        print(f"Erro ao adicionar comentario ao chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao adicionar comentario ao chamado"}), 500
+    
+@app.route('/api/chamados/<string:id_chamado>', methods=['GET'])
+@login_required
+def get_chamado_detalis_api(id_chamado):
+    try:
+        chamado_detalhes = get_chamado_detalhes(id_chamado)
+        if chamado_detalhes:
+            
+            if 'data_abertura' in chamado_detalhes and isinstance(chamado_detalhes['data_abertura'], datetime):
+                chamado_detalhes['data_abertura'] = chamado_detalhes['data_abertura'].strftime('%Y-%m-%d %H:%M:%S')
+            if 'data_conclusao' in chamado_detalhes and isinstance(chamado_detalhes['data_conclusao'], datetime):
+                chamado_detalhes['data_conclusao'] = chamado_detalhes['data_conclusao'].strftime('%Y-%m-%d %H:%M:%S')
+            if 'id_chamado_azure' not in chamado_detalhes:
+                chamado_detalhes['id_chamado_azure'] = None           
+           
+            if 'anexos' not in chamado_detalhes or chamado_detalhes['anexos'] is None:
+                chamado_detalhes['anexos'] = []
+            return jsonify(chamado_detalhes), 200
+        else:
+            return jsonify({"error": "Chamado nao encontrado"}), 404
+    except Exception as e:    
+        print(f"Erro ao buscar detalhes do chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao buscar detalhes do chamado"}), 500
+@app.route('/api/meus-chamados', methods=['GET'])
+@login_required
+def meus_chamados():
+    try:
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Usuário não logado"}), 401
+
+        page = int(request.args.get("page", 1))
+        per_page = 20
+
+        start = (page - 1) * per_page
+        end = start + per_page - 1
+
+        response = (
+            supabase
+            .table('chamados')
+            .select("*")
+            .eq('email_solicitante', user_email)
+            .order('data_criacao', desc=True)
+            .range(start, end)
+            .execute()
+        )
+
+
+        chamados = response.data or []
+
+        return jsonify({
+            "tickets": chamados,
+            "page": page
+        })
+
+    except Exception as e:
+        print(f"Erro ao carregar chamados do usuário: {e}")
+        return jsonify({"error": "Erro ao carregar chamados."}), 500
+
+@app.route('/api/chamados/<id_chamado>/comentarios')
+@login_required
+def comentarios_chamado(id_chamado):
+    try:
+        response = supabase.table('comentarios_chamados') \
+            .select('comentario, data_hora, nome_usuario, anexos') \
+            .eq('id_chamado', id_chamado) \
+            .order('data_hora', desc=False) \
+            .execute()
+
+        if response.data:
+            comentarios = response.data
+            for c in comentarios:
+                if isinstance(c['data_hora'], str):        
+                    try:
+                        dt = datetime.fromisoformat(c['data_hora'].replace('Z', '+00:00'))
+                    except ValueError:                        
+                        dt = datetime.strptime(c['data_hora'], '%Y-%m-%dT%H:%M:%S.%f')
+                else:
+                    dt = c['data_hora']                  
+                sao_paulo_tz = pytz.timezone('America/Sao_Paulo')
+                dt_local = dt.astimezone(sao_paulo_tz)
+                c['data_hora_formatada'] = dt_local.strftime('%d/%m/%Y %H:%M:%S')
+                anexos_raw = c.get('anexos')
+                if isinstance(anexos_raw, str):
+                    try:
+                        c['anexos'] = json.loads(anexos_raw)
+                    except json.JSONDecodeError:            
+                        c['anexos'] = []
+                elif anexos_raw is None:
+                    c['anexos'] = []
+                elif not isinstance(anexos_raw, list):
+                    c['anexos'] = []              
+               
+
+            return jsonify(comentarios)
+        else:
+            return jsonify([])
+    except Exception as e:
+        print(f"Erro ao buscar comentários para o chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários."}), 500
+    
+@app.route('/api/criar_chamado_azure', methods=['POST'])
+@login_required
+def criar_chamado_azure():
+    try:
+        data = request.get_json()
+        id_chamado = data.get("id_chamado")
+        responsavel = data.get("responsavel")
+
+        response = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).execute()
+        if not response.data:
+            return jsonify({"error": "Chamado não encontrado"}), 404
+
+        chamado = response.data[0]
+        status = chamado.get("status_chamado", "").strip().lower()
+
+        if status == "fechado":
+            print(f"[INFO] Chamado {id_chamado} está fechado. Nenhum card será criado.")
+            return jsonify({"success": True, "message": "Chamado fechado.."}), 200
+
+        anexos_raw = chamado.get("anexos")
+        chamado_anexos_list = []
+        if isinstance(anexos_raw, str):
+            try:
+                chamado_anexos_list = json.loads(anexos_raw)
+                if not isinstance(chamado_anexos_list, list):
+                    chamado_anexos_list = []
+            except json.JSONDecodeError:
+                chamado_anexos_list = []
+                print(f"Erro ao converter anexos para lista: {anexos_raw}")
+        elif isinstance(anexos_raw, list):
+            chamado_anexos_list = anexos_raw
+
+        from rotas import create_work_item
+
+        result = create_work_item(
+            titulo=chamado["titulo"],
+            descricao=chamado["descricao"],
+            empresa=chamado["empresa_chamado"],
+            plataforma=responsavel,
+            email=chamado["email_solicitante"],
+            filial=chamado.get("filial_chamado", ""),
+            chamado_anexos=chamado_anexos_list
+        )
+
+        if "id" in result:
+            id_azure = result["id"]
+            supabase.table('chamados').update({"id_chamado_azure": id_azure}).eq('id_chamado', id_chamado).execute()
+            return jsonify({"success": True, "id_azure": id_azure}), 200
+        else:
+            return jsonify({"error": result}), 500
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+# --- Rotas de Recuperação de Senha ---
+
+@app.route('/recuperar-senha', methods=['GET', 'POST'])
+def solicitar_recuperacao_senha():
+    if request.method == 'POST':
+        identifier = request.form.get('identifier')
+        usuario = obter_usuario_por_email_tel(identifier)
+
+        if not usuario:
+            flash('Usuário não encontrado com o e-mail ou telefone informado.', 'danger')
+            return redirect(url_for('solicitar_recuperacao_senha'))
+
+        token = gerar_token_recuperacao()
+        sucesso = salvar_token_recuperacao(usuario['id'], token)
+
+        if not sucesso:
+            flash('Erro ao gerar token de recuperação.', 'danger')
+            return redirect(url_for('solicitar_recuperacao_senha'))
+
+        link = f"{SITE_BASE_URL}/redefinir-senha/{token}"
+        corpo_email = f"""
+            <!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+                <meta charset="UTF-8">
+                <style>
+                    body {{
+                        font-family: 'Arial', sans-serif;
+                        background-color: #f4f4f4;
+                        margin: 0;
+                        padding: 0;
+                    }}
+                    .container {{
+                        max-width: 600px;
+                        margin: 30px auto;
+                        background-color: #ffffff;
+                        padding: 30px;
+                        border-radius: 8px;
+                        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+                    }}
+                    h2 {{
+                        color: #333333;
+                        margin-bottom: 20px;
+                    }}
+                    p {{
+                        color: #555555;
+                        font-size: 15px;
+                        line-height: 1.6;
+                    }}
+                    .button {{
+                        display: inline-block;
+                        margin-top: 20px;
+                        background-color: #007BFF;
+                        color: white;
+                        padding: 12px 24px;
+                        text-decoration: none;
+                        border-radius: 6px;
+                        font-weight: bold;
+                    }}
+                    .footer {{
+                        margin-top: 30px;
+                        font-size: 13px;
+                        color: #999999;
+                        text-align: center;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Recuperação de Senha</h2>
+                    <p>Olá <strong>{usuario['nome']}</strong>,</p>
+                    <p>Recebemos uma solicitação para redefinir a senha da sua conta. Para prosseguir com a alteração, clique no botão abaixo:</p>
+                    <a class="button" href="{link}">Redefinir Senha</a>
+                    <p>Se o botão acima não funcionar, você também pode copiar e colar este link em seu navegador:</p>
+                    <p><a href="{link}">{link}</a></p>
+                    <p>Este link é válido por <strong>1 hora</strong>.</p>
+                    <p>Se você não solicitou essa alteração, pode ignorar este e-mail com segurança.</p>
+
+                    <div class="footer">
+                        &copy; {datetime.now().year} Sistema de Chamados • Todos os direitos reservados.
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+        enviar_email(usuario['email'], 'Recuperação de Senha', corpo_email)
+        flash('Instruções enviadas para o e-mail informado.', 'success')
+        return redirect(url_for('tela_login'))
+
+    return render_template('recuperar_senha.html')
+
+@app.route('/solicitar-recuperacao-senha', methods=['POST'])
+def processar_recuperacao_senha():
+    identifier = request.form.get('identifier', '').strip()
+    
+    if not identifier:
+        flash("Por favor, informe seu e-mail ou telefone.", "error")
+        return redirect(url_for('recuperar_senha'))
+
+    user = obter_usuario_por_email_tel(identifier)
+
+    if user:
+        token = gerar_token_recuperacao()
+        if salvar_token_recuperacao(user['id'], token):
+            reset_link = f"{SITE_BASE_URL}/redefinir-senha/{token}"
+            
+            email_body_html = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }}
+                    .container {{ background-color: #ffffff; margin: 20px auto; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); max-width: 600px; }}
+                    .header {{ text-align: center; padding-bottom: 20px; border-bottom: 1px solid #eeeeee; }}
+                    .header img {{ max-width: 150px; }}
+                    .content {{ padding: 20px 0; line-height: 1.6; color: #333; }}
+                    .button-container {{ text-align: center; padding: 20px 0; }}
+                    .button {{ background-color: #007bff; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold; }}
+                    .footer {{ text-align: center; padding-top: 20px; border-top: 1px solid #eeeeee; font-size: 0.9em; color: #888; }}
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <img src="{SITE_BASE_URL}/static/image/logo_login.png" alt="Logo do Sistema">
+                        <h2>Recuperação de Senha</h2>
+                    </div>
+                    <div class="content">
+                        <p>Olá <strong>{user.get('nome_completo', 'usuário')}</strong>,</p>
+                        <p>Você solicitou a recuperação de senha para sua conta.</p>
+                        <p>Para redefinir sua senha, por favor clique no botão abaixo:</p>
+                        <div class="button-container">
+                            <a href="{reset_link}" class="button">Redefinir Senha</a>
+                        </div>
+                        <p>Se o botão acima não funcionar, copie e cole o seguinte link em seu navegador:</p>
+                        <p><a href="{reset_link}">{reset_link}</a></p>
+                        <p>Este link é válido por 1 hora. Se você não solicitou esta redefinição de senha, por favor, ignore este e-mail.</p>
+                    </div>
+                    <div class="footer">
+                        <p>Atenciosamente,<br>Equipe de Suporte do Sistema de Chamados</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+
+            if user.get('email'):
+                assunto = "Recuperação de Senha - Sistema de Chamados"
+                if enviar_email(user['email'], assunto, email_body_html):
+                    flash("Se o e-mail estiver cadastrado, as instruções de recuperação de senha foram enviadas. Verifique sua caixa de entrada e spam.", "info")
+                else:
+                    flash("Não foi possível enviar o e-mail de recuperação. Tente novamente mais tarde.", "error")
+            elif user.get('telefone'):               
+                flash("Se o telefone estiver cadastrado, as instruções de recuperação de senha foram enviadas via SMS.", "info")
+            else:
+                flash("Não foi possível encontrar um método de contato para este usuário.", "error")
+        else:
+            flash("Não foi possível iniciar o processo de recuperação de senha. Tente novamente.", "error")
+            app_logger.error(f"Falha ao salvar token para user: {user.get('id')}")
+    else:       
+        flash("Se o e-mail ou telefone estiverem cadastrados, as instruções de recuperação de senha serão enviadas. Verifique sua caixa de entrada e spam.", "info")
+        app_logger.warning(f"Tentativa de recuperação de senha para identificador não encontrado: {identifier}")
+
+    return redirect(url_for('recuperar_senha'))
+@app.route('/redefinir-senha/<token>', methods=['GET', 'POST'])
+def redefinir_senha_confirmar(token):
+    if request.method == 'POST':
+        nova_senha = request.form.get('new_password')
+        confirmar_senha = request.form.get('confirm_password')
+
+        if not nova_senha or nova_senha != confirmar_senha:
+            flash('As senhas não coincidem ou estão vazias.', 'danger')
+            return redirect(request.url)
+
+        usuario_id = verificar_token_recuperacao(token)
+        if not usuario_id:
+            flash('Token inválido ou expirado.', 'danger')
+            return redirect(url_for('tela_login'))
+
+        sucesso = atualizar_senha_usuario(usuario_id, nova_senha)
+        if sucesso:
+            flash('Senha redefinida com sucesso. Faça login.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Erro ao redefinir a senha.', 'danger')
+            return redirect(url_for('tela_login'))
+
+    return render_template('redefinir_senha.html', token=token)
+@app.route('/dashboard_data')
+@login_required
+def dashboard_data():
+    try:
+        usuario_email = session.get('email')
+        agora = datetime.now(pytz.utc)
+        quinze_dias_atras = agora - timedelta(days=15)
+
+        fechados = supabase.table('chamados').select('*') \
+            .eq('email_solicitante', usuario_email) \
+            .eq('status_chamado', 'Fechado') \
+            .gte('data_atualizacao', quinze_dias_atras.isoformat()) \
+            .execute().data
+
+        movimentacoes = supabase.table('movimentacoes_chamado').select('*') \
+            .gte('data', quinze_dias_atras.isoformat()) \
+            .execute().data
+
+        comentarios = supabase.table('comentarios_chamados').select('chamado_id, data_hora') \
+            .gte('data_hora', quinze_dias_atras.isoformat()) \
+            .execute().data
+
+        chamados_totais = supabase.table('chamados').select('status_chamado, data_atualizacao') \
+            .gte('data_atualizacao', quinze_dias_atras.isoformat()) \
+            .execute().data
+
+        total_abertos = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'aberto')
+        total_fechados = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'fechado')
+        total_em_andamento = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'em andamento')
+
+        return jsonify({
+            "fechados": fechados,
+            "movimentacoes": movimentacoes,
+            "comentarios": comentarios,
+            "grafico": {
+                "abertos": total_abertos,
+                "fechados": total_fechados,
+                "em_andamento": total_em_andamento
+            }
+        })
+    except Exception as e:
+        print("Erro ao carregar dashboard:", e)
+        return jsonify({"error": "Erro ao carregar dados do dashboard."}), 500
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template("dashboard_real.html", usuario_nome=session.get('nome'))
+# @socketio.on('connect')
+# def handle_connect():
+#     app_logger.info('Cliente conectado')
+#     emit('connection_established', {'message': 'Conexão estabelecida com sucesso!'})
+
+def emit_dashboard_data():
+    try:
+        fuso_horario = pytz.timezone('America/Sao_Paulo')
+        quinze_dias_atras = datetime.now(fuso_horario) - timedelta(days=15)
+
+        fechados = supabase.table('chamados').select('id_chamado, titulo, data_fechamento') \
+            .not_.is_('data_fechamento', None) \
+            .gte('data_fechamento', quinze_dias_atras.isoformat()) \
+            .order('data_fechamento', desc=True).limit(5).execute().data
+
+        movimentacoes = supabase.table('movimentacoes_chamado').select('*') \
+            .gte('data', quinze_dias_atras.isoformat()) \
+            .order('data', desc=True).limit(10).execute().data 
+
+        comentarios = supabase.table('comentarios_chamados').select('chamado_id, data_hora') \
+            .gte('data_hora', quinze_dias_atras.isoformat()) \
+            .order('data_hora', desc=True).limit(5).execute().data 
+
+        chamados_totais = supabase.table('chamados').select('status_chamado, data_atualizacao') \
+            .gte('data_atualizacao', quinze_dias_atras.isoformat()) \
+            .execute().data
+
+        total_abertos = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'aberto')
+        total_fechados = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'fechado')
+        total_em_andamento = sum(1 for c in chamados_totais if c['status_chamado'].lower() == 'em andamento')
+        
+                
+        # socketio.emit('dashboard_update',{
+        #     "novos_fechados": fechados,
+        #     "novas_movimentacoes": movimentacoes,
+        #     "novos_comentarios": comentarios,
+        #     "grafico": {
+        #         "abertos": total_abertos,
+        #         "fechados": total_fechados,
+        #         "em_andamento": total_em_andamento
+        #     },
+        #     "timestamp": datetime.now().isoformat()
+
+        # })
+        
+    except Exception as e:
+        app_logger.error(f"Erro ao emitir dados do dashboard: {e}")
+
+@app.route('/api/usuarios', methods=['GET'])
+@login_required
+def get_usuarios():
+    if session.get('acesso') not in ['admin']:
+        return jsonify({'error': 'Acesso negado. Você não tem permissão para visualizar usuários.'}), 403
+    try:
+        response = supabase.table('usuarios').select('id, nome, email, empresa, funcao, acesso').execute()
+        if response.data:
+            return jsonify(response.data), 200
+        return jsonify([]), 200
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar usuários: {e}")
+        return jsonify({'error': 'Erro ao buscar usuários.'}), 500
+
+@app.route('/api/usuarios', methods=['POST'])
+@login_required
+def criar_usuario():
+    try:
+        if session.get('acesso') != 'admin':
+            return jsonify({'error': 'Acesso negado. Apenas administradores podem gerenciar usuários.'}), 403
+        
+        data = request.get_json()
+        campos_obrigatorios = ['nome', 'email', 'senha', 'empresa', 'funcao', 'acesso']
+        for campo in campos_obrigatorios:
+            if not data.get(campo):
+                return jsonify({'error': f'Campo {campo} é obrigatório'}), 400
+
+        response = supabase.table('usuarios').select('email').eq('email', data['email']).execute()
+        if response.data:
+            return jsonify({'error': 'Email já cadastrado no sistema'}), 400
+        
+        senha_hash = generate_password_hash(data['senha'])
+
+        novo_usuario = {
+            'nome': data['nome'],
+            'email': data['email'],
+            'senha': senha_hash,
+            'empresa': data['empresa'],
+            'funcao': data['funcao'],
+            'acesso': data['acesso'],
+            'telefone': data.get('telefone', ''),
+            'data_criacao': datetime.now(pytz.utc).isoformat()
+        }
+        
+        
+        response = supabase.table('usuarios').insert(novo_usuario).execute()
+        
+        if response.data:            
+            usuario_criado = response.data[0]
+            if 'senha' in usuario_criado:
+                del usuario_criado['senha']
+            
+            app_logger.info(f"Usuário {data['email']} criado por {session.get('email')}")
+            return jsonify({'message': 'Usuário criado com sucesso', 'usuario': usuario_criado}), 201
+        else:
+            return jsonify({'error': 'Erro ao criar usuário'}), 500
+            
+    except Exception as e:
+        app_logger.error(f"Erro ao criar usuário: {e}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@app.route('/api/usuarios/<string:usuario_id>', methods=['PUT'])
+@login_required
+def update_user(usuario_id):
+    if session.get('acesso') != 'admin':
+        return jsonify({'error': 'Acesso negado. Você não tem permissão para editar usuários.'}), 403
+
+    data = request.json
+    nome = data.get('nome')
+    telefone = data.get('telefone')
+    empresa = data.get('empresa')
+    funcao = data.get('funcao')
+    acesso = data.get('acesso')
+
+    # Validação básica
+    if not all([nome, telefone, empresa, funcao, acesso]):
+        return jsonify({'error': 'Todos os campos são obrigatórios para atualização.'}), 400
+
+    try:
+        response = supabase.table('usuarios').update({
+            'nome': nome,
+            'telefone': telefone,
+            'empresa': empresa,
+            'funcao': funcao,
+            'acesso': acesso
+        }).eq('id', usuario_id).execute()
+
+        if response.data:
+            return jsonify({'message': 'Usuário atualizado com sucesso!'}), 200
+        else:
+            app_logger.error(f"Supabase retornou vazio ao atualizar usuário {usuario_id}. Erro: {response.error}")
+            return jsonify({'error': 'Erro ao atualizar usuário.'}), 500
+    except Exception as e:
+        app_logger.error(f"Erro inesperado ao atualizar usuário {usuario_id}: {e}")
+        return jsonify({'error': 'Erro interno do servidor ao atualizar usuário.'}), 500
+
+@app.route('/api/usuarios/<string:usuario_id>', methods=['DELETE'])
+@login_required
+def deletar_usuario(usuario_id):    
+    try:
+      
+        if session.get('acesso') != 'admin':
+            return jsonify({'error': 'Acesso negado. Apenas administradores podem gerenciar usuários.'}), 403
+        
+   
+        response = supabase.table('usuarios').select('*').eq('id', usuario_id).execute()
+        if not response.data:
+            return jsonify({'error': 'Usuário não encontrado'}), 404
+        
+        usuario = response.data[0]        
+      
+        if usuario_id == session.get('usuario_id'):
+            return jsonify({'error': 'Você não pode deletar sua própria conta'}), 400
+        
+        
+        response_chamados = supabase.table('chamados').select('id_chamado').eq('usuario_id', usuario_id).execute()
+        if response_chamados.data:
+            return jsonify({'error': 'Não é possível deletar usuário com chamados associados'}), 400
+        
+     
+        response = supabase.table('usuarios').delete().eq('id', usuario_id).execute()
+        
+        if response.data:
+            app_logger.info(f"Usuário {usuario['email']} (ID: {usuario_id}) deletado por {session.get('email')}")
+            return jsonify({'message': 'Usuário deletado com sucesso'}), 200
+        else:
+            return jsonify({'error': 'Erro ao deletar usuário'}), 500
+            
+    except Exception as e:
+        app_logger.error(f"Erro ao deletar usuário {usuario_id}: {e}")
+        return jsonify({'error': 'Erro interno do servidor'}), 500
+
+@app.route('/api/usuarios/<string:usuario_id>', methods=['GET'])
+@login_required
+def get_usuario(usuario_id):
+    if session.get('acesso') not in ['admin', 'suporte']:
+        return jsonify({'error': 'Acesso negado. Você não tem permissão para visualizar este usuário.'}), 403
+    try:
+        response = supabase.table('usuarios').select('id, nome, email, telefone, empresa, funcao, acesso').eq('id', usuario_id).single().execute()
+        if response.data:
+            return jsonify(response.data), 200
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar usuário {usuario_id}: {e}")
+        return jsonify({'error': 'Erro ao buscar dados do usuário.'}), 500
+
+@app.route('/api/chamados_resolvidos', methods=['GET'])
+@login_required
+def chamados_resolvidos():
+    try:
+        user_email = session.get('email')
+        if not user_email:
+            return jsonify({"error": "Usuário não logado"}), 401
+
+        response = supabase.table('chamados') \
+            .select('id_chamado') \
+            .eq('email_solicitante', user_email) \
+            .eq('status_chamado', 'Fechado') \
+            .execute()
+
+        quantidade = len(response.data) if response.data else 0
+
+        return jsonify({"quantidade_fechados": quantidade})
+
+    except Exception as e:
+        print(f"Erro ao buscar chamados resolvidos: {e}")
+        return jsonify({"error": "Erro interno ao buscar chamados resolvidos"}), 500
+@app.route('/api/chamados/<id_chamado>')
+@login_required
+def api_chamado(id_chamado):
+    try:
+        # Busca o chamado no banco de dados
+        response = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).single().execute()
+        
+        if not response.data:
+            return jsonify({'error': 'Chamado não encontrado'}), 404
+            
+        chamado = response.data
+        
+        # Busca informações do solicitante
+        email_solicitante = chamado.get('email_solicitante')
+        solicitante = 'Não informado'
+        if email_solicitante:
+            user_response = supabase.table('usuarios').select('nome').eq('email', email_solicitante).single().execute()
+            if user_response.data:
+                solicitante = user_response.data.get('nome', 'Não informado')
+        
+        # Formata os dados para retorno
+        dados_chamado = {
+            'id_chamado': chamado.get('id_chamado'),
+            'titulo': chamado.get('titulo'),
+            'descricao': chamado.get('descricao'),
+            'status_chamado': chamado.get('status_chamado'),
+            'prioridade': chamado.get('prioridade'),
+            'data_criacao': chamado.get('data_criacao'),
+            'nome_solicitante': solicitante,
+            'categoria': chamado.get('categoria'),
+            'empresa_chamado': chamado.get('empresa_chamado'),
+            'plataforma_chamado': chamado.get('plataforma_chamado'),
+            'filial_chamado': chamado.get('filial_chamado')
+        }
+        
+        return jsonify(dados_chamado), 200
+        
+    except Exception as e:
+        print(f"Erro ao buscar chamado {id_chamado}: {e}")
+        return jsonify({'error': 'Erro ao buscar detalhes do chamado'}), 500
+
+@app.route('/admin_usuarios')
+@login_required
+def admin_usuarios():
+    if session.get('acesso') != 'admin':
+        flash('Acesso negado. Você não tem permissão para acessar esta página.', 'error')
+        return redirect(url_for('menu_modulo'))
+    return render_template('admin_usuarios.html')
+@app.route('/cadastro_modal', methods=['GET'])
+@login_required
+def cadastro_modal():
+    try:
+        with app.open_resource('templates/tela_cadastro.html') as f:
+            content = f.read().decode('utf-8')
+        return Response(content, mimetype='text/html')
+    except FileNotFoundError:
+        app_logger.error("tela_cadastro.html não encontrado no diretório templates.")
+        return "Conteúdo do formulário de cadastro não encontrado.", 404
+    except Exception as e:
+        app_logger.error(f"Erro ao ler tela_cadastro.html: {e}")
+        return "Erro interno ao carregar o formulário.", 500
+@app.route('/get_admin_usuarios_content', methods=['GET'])
+@login_required
+def get_admin_usuarios_content():
+    if session.get('acesso') != 'admin':
+        return "Acesso negado. Você não tem permissão para visualizar este conteúdo.", 403
+    try:
+        with app.open_resource('templates/admin_usuarios.html') as f:
+            content = f.read().decode('utf-8')
+        return Response(content, mimetype='text/html')
+    except FileNotFoundError:
+        app_logger.error("admin_usuarios.html não encontrado no diretório templates.")
+        return "Conteúdo da administração de usuários não encontrado.", 404
+    except Exception as e:
+        app_logger.error(f"Erro ao ler admin_usuarios.html: {e}")
+        return "Erro interno ao carregar o conteúdo.", 500
+
+@app.route('/api/reset_password_email', methods=['POST'])
+@login_required
+def reset_password_email():
+    if session.get('acesso') not in ['admin', 'atendente']:
+        return jsonify({'success': False, 'message': 'Acesso negado.'}), 403
+
+    data = request.get_json()
+    user_id = data.get('user_id')
+
+    if not user_id:
+        return jsonify({'success': False, 'message': 'ID do usuário não fornecido.'}), 400
+
+    try:
+        user_data = obter_usuario_por_is(user_id)
+        if not user_data:
+            return jsonify({'success': False, 'message': 'Usuário não encontrado.'}), 404
+
+        token = gerar_token_recuperacao()
+        if not salvar_token_recuperacao(user_id, token):
+            return jsonify({'success': False, 'message': 'Erro ao gerar token de recuperação.'}), 500
+
+        reset_link = f"{SITE_BASE_URL}/redefinir-senha/{token}"
+        subject = "Redefinição de Senha - Sistema de Chamados"
+        body_html = f"""
+            <p>Olá {user_data['nome']},</p>
+            <p>Recebemos uma solicitação para redefinir a senha da sua conta no Sistema de Chamados.</p>
+            <p>Para redefinir sua senha, clique no link abaixo:</p>
+            <p><a href="{reset_link}">Redefinir Senha</a></p>
+            <p>Este link expirará em 1 hora.</p>
+            <p>Se você não solicitou uma redefinição de senha, por favor, ignore este e-mail.</p>
+            <p>Atenciosamente,</p>
+            <p>Equipe de Suporte</p>
+        """
+
+        if enviar_email(user_data['email'], subject, body_html):
+            return jsonify({'success': True, 'message': 'E-mail de recuperação enviado com sucesso!'}), 200
+        else:
+            return jsonify({'success': False, 'message': 'Falha ao enviar o e-mail de recuperação.'}), 500
+
+    except Exception as e:
+        app_logger.error(f"Erro ao solicitar reset de senha para o usuário {user_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'message': f'Erro interno: {str(e)}'}), 500
+
+@app.route("/api/chamados/<string:id_chamado>/reabrir", methods=["POST"])
+@login_required
+def reabrir_chamado(id_chamado):
+    try:
+        dados = request.get_json()
+        motivo = dados.get("motivo")
+        anexo = dados.get("anexo_url")
+
+        if not motivo:
+            return jsonify({"success": False, "error": "Motivo da reabertura é obrigatório"}), 400
+
+        supabase.table("chamados").update({
+            "status_chamado": "Reaberto",
+            "data_atualizacao": datetime.now(pytz.timezone('America/Sao_Paulo')).isoformat()
+        }).eq("id_chamado", id_chamado).execute()
+
+        anexos = []
+        if anexo:
+            anexos.append({
+                "url": anexo.get("url"),
+                "filename": anexo.get("filename"),
+                "mimetype": anexo.get("mimetype", "application/octet-stream")
+            })
+
+        email_usuario = session.get('email', '')
+        nome_usuario = session.get('nome', 'Usuário')
+
+        comentario = {
+            "comentario_texto": f"Chamado reaberto devido ao seguinte motivo: {motivo}",
+            'email_usuario': email_usuario,
+            "nome_usuario": nome_usuario,
+            "data_hora": datetime.now(pytz.timezone('America/Sao_Paulo')).isoformat(),
+            "chamado_id": id_chamado,
+            "anexos": anexos
+        }
+
+        response_insert = supabase.table("comentarios_chamados").insert(comentario).execute()
+        
+        if not response_insert.data:
+            app_logger.error(f"Falha ao inserir comentário de reabertura para o chamado {id_chamado}: {response_insert.error}")
+            return jsonify({'error': 'Chamado reaberto, mas falha ao registrar o comentário.'}), 500
+
+
+        # if 'socketio' in globals():
+        #     socketio.emit('novo_comentario', {'id_chamado': id_chamado, 'comentario': comentario})
+
+        return jsonify({"success": True, "message": "Chamado reaberto com sucesso!", "comentario": comentario}), 200
+
+    except Exception as e:
+        app_logger.error(f"Erro ao reabrir chamado {id_chamado}: {e}", exc_info=True)
+        return jsonify({'error': 'Erro interno ao reabrir o chamado.'}), 500
+
+        
+
+@app.route("/api/chamados/<string:id_chamado>/comentarios", methods=["GET"])
+@login_required
+def get_chamado_comentarios(id_chamado):
+    try:
+        comentarios_local = get_comentarios_by_chamado_id(id_chamado)
+        response_supabase = supabase.table('chamados') \
+            .select('id_chamado_azure', 'plataforma') \
+            .eq('id_chamado', id_chamado) \
+            .single().execute()
+
+        id_azure = None
+        plataforma = None
+        if response_supabase.data:
+            id_azure = response_supabase.data.get('id_chamado_azure')
+            plataforma = response_supabase.data.get('plataforma')
+
+        comentarios_azure = []
+        if id_azure and plataforma:
+            resp_azure = consultar_comentarios(id_azure, plataforma)
+            if isinstance(resp_azure, Response):
+                try:
+                    json_data = json.loads(resp_azure.data)
+                    comentarios_azure = json_data.get('value', [])
+                except json.JSONDecodeError:
+                    app_logger.error(f"Erro ao decodificar JSON do Azure para o chamado {id_chamado}")
+                    comentarios_azure = []
+            else:
+                #comentarios_azure = resp_azure.get('value', [])
+                 comentarios_azure = resp_azure
+
+        return jsonify(comentarios_local + comentarios_azure)
+
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar comentários para o chamado {id_chamado}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários."}), 500
+@app.route("/api/chamado/<string:id_chamado_azure>/comentarios_azure", methods=["GET"])
+def buscar_comentios_azure(id_chamado_azure):
+    print(f"DEBUG: Entrando na função buscar_comentios_azure para o ID: {id_chamado_azure}")
+    try:                
+        from rotas import consultar_comentarios       
+        comentarios_azure = consultar_comentarios(id_chamado_azure)
+        return jsonify({"success": True, "comentarios_azure": comentarios_azure})
+    except Exception as e:
+        app_logger.error(f"Erro ao buscar comentários do Azure para o chamado {id_chamado_azure}: {e}")
+        return jsonify({"error": "Erro ao buscar comentários do Azure."}), 500
+@app.route("/api/chamado/<int:id_chamado_azure>/comentar", methods=["POST"])
+@login_required
+def api_adicionar_comentario_azure(id_chamado_azure):
+    try:
+        data = request.get_json()
+
+        comentario = data.get("comentario", "").strip()
+        anexos = data.get("anexos", [])
+
+        if not comentario:
+            return jsonify({"error": "Comentário é obrigatório"}), 400
+
+        nome_usuario = session.get("nome", "Usuário do sistema")
+        plataforma_fixa = "board_sustentacao"
+
+        resultado = adicionar_comentario_card(
+            id_chamado=id_chamado_azure,
+            comentario=comentario,
+            plataforma=plataforma_fixa,
+            anexos=anexos,
+            nome_usuario=nome_usuario
+        )
+
+        if resultado.get("success"):
+            return jsonify({"success": True, "mensagem": "Comentário enviado com sucesso."})
+        else:
+            return jsonify({"error": resultado.get("error", "Erro desconhecido ao adicionar comentário.")}), 500
+
+    except Exception as e:
+        print(f"[ERRO] Exceção na API de comentário: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chamado/estado_azure/<string:id_chamado_azure>', methods=['GET'])
+@login_required
+def api_estado_chamado_azure(id_chamado_azure):
+    try:
+        resultado = obter_estado_chamado_azure(id_chamado_azure)
+
+        if isinstance(resultado, dict) and 'state' in resultado:
+            return jsonify(resultado)
+        elif isinstance(resultado, dict) and 'error' in resultado:
+            return jsonify({"error": resultado['error']}), 404
+        else:
+            return jsonify({"error": "Estado não encontrado."}), 404
+    except Exception as e:
+        return jsonify({"error": f"Erro ao obter estado: {str(e)}"}), 500
+
+
+@app.route('/api/estados_chamados', methods=['POST'])
+@login_required
+def estados_chamados_api():
+    try:
+        data = request.get_json()
+        ids = data.get("ids", [])
+
+        if not ids or not isinstance(ids, list):
+            return jsonify({"error": "IDs inválidos"}), 400
+
+        resultados = {}
+        for id_azure in ids:
+            try:
+                resultado = obter_estado_chamado_azure(id_azure)
+                resultados[id_azure] = resultado.get("state", "Desconhecido")
+            except Exception as e:
+                resultados[id_azure] = f"Erro: {str(e)}"
+
+        return jsonify(resultados)
+
+    except Exception as e:
+        return jsonify({"error": f"Erro ao buscar estados: {str(e)}"}), 500
+    
+
+@app.route('/relatorio', methods=['GET'])
+@login_required
+def tela_relatorio():
+    return render_template('tela_relatorio.html', usuario_email=session.get('email'))
+
+@app.route('/relatorio', methods=['POST'])
+@login_required
+def relatorio():
+    data = request.get_json() or {}
+
+    campos = [
+        data.get('data_inicial', '').strip(),
+        data.get('data_final', '').strip(),
+        data.get('filial_chamado', '').strip(),
+        data.get('email', '').strip(),
+        data.get('empresa', '').strip(),
+        data.get('plataforma', '').strip(),
+        data.get('titulo', '').strip()
+    ]
+
+    if not any(campos):
+        return jsonify({"error": "Por favor, preencha pelo menos um campo."}), 400  
+
+    id_chamado_azure = data.get('id_chamado_azure', '').strip()
+    data_inicial = data.get('data_inicial', '').strip()
+    data_final = data.get('data_final', '').strip()
+    filtro_data = data.get('filtro_data', 'abertura').strip()
+    filial = data.get('filial_chamado', '').strip()
+    email = data.get('email', '').strip()
+    empresa = data.get('empresa', '').strip()
+    plataforma = data.get('plataforma', '').strip()
+    titulo = data.get('titulo', '').strip()
+
+    query = supabase.table('chamados').select('*')
+
+    # -----------------------------
+    # CORREÇÃO DO FILTRO DE DATAS
+    # -----------------------------
+    start_iso = None
+    end_iso = None
+
+    if data_inicial:
+        start_iso = data_inicial + "T00:00:00"
+
+    if data_final:
+        end_iso = data_final + "T23:59:59"
+
+    if filtro_data == 'abertura':
+
+        if start_iso:
+            query = query.gte('data_criacao', start_iso)
+
+        if end_iso:
+            query = query.lte('data_criacao', end_iso)
+
+    elif filtro_data == 'fechamento':
+
+        query = query.not_.is_('data_fechamento', None)
+
+        if start_iso:
+            query = query.gte('data_fechamento', start_iso)
+
+        if end_iso:
+            query = query.lte('data_fechamento', end_iso)
+
+    elif filtro_data == 'todos':
+
+        if start_iso and end_iso:
+            query = query.or_(
+                f"data_criacao.gte.{start_iso},"
+                f"data_criacao.lte.{end_iso},"
+                f"data_fechamento.gte.{start_iso},"
+                f"data_fechamento.lte.{end_iso}"
+            )
+
+    # -----------------------------
+    # OUTROS FILTROS (inalterados)
+    # -----------------------------
+    if filial:
+        query = query.ilike('filial_chamado', f'%{filial}%')
+
+    if email:
+        query = query.ilike('email_solicitante', f'%{email}%')
+
+    if empresa:
+        query = query.ilike('empresa_chamado', f'%{empresa}%')
+
+    if plataforma:
+        query = query.ilike('plataforma_chamado', f'%{plataforma}%')
+
+    if titulo:
+        query = query.ilike('titulo', f'%{titulo}%')
+
+    if id_chamado_azure:
+        query = query.eq('id_chamado_azure', id_chamado_azure)
+
+    query = query.order('data_criacao', desc=True).limit(1000)
+
+    resp = query.execute()
+
+    chamados_raw = resp.data or []
+
+    formatted = []
+    for c in chamados_raw:
+        data_criacao = c.get('data_criacao')
+        data_fechamento = c.get('data_fechamento')
+
+        def format_dt(v):
+            if not v:
+                return ''
+            if isinstance(v, str):
+                try:
+                    dt = datetime.fromisoformat(v.replace('Z', '+00:00'))
+                    return dt.strftime('%d/%m/%Y %H:%M:%S')
+                except ValueError:
+                    return v
+            try:
+                return v.strftime('%d/%m/%Y %H:%M:%S')
+            except Exception:
+                return str(v)
+
+        formatted.append({
+            'id_chamado_azure': c.get('id_chamado_azure') or '',
+            'titulo': c.get('titulo') or '',
+            'status_chamado': c.get('status_chamado') or '',
+            'prioridade': c.get('prioridade') or '',
+            'data_criacao': format_dt(data_criacao),
+            'data_fechamento': format_dt(data_fechamento),
+            'email': c.get('email_solicitante') or '',
+            'empresa': c.get('empresa_chamado') or '',
+            'filial': c.get('filial_chamado') or '',
+            'plataforma': c.get('plataforma_chamado') or '',
+            'descricao': c.get('descricao') or '',
+        })
+
+    return jsonify({"chamados": formatted})
+
+#@app.route('/relatorio/detalhar/<int:id_chamado>', methods=['GET'])
+#@login_required 
+
+#def relatorio_detalhar(id_chamado):
+ #   resp = supabase.table('chamados').select('*').eq('id_chamado', id_chamado).single().execute()
+ #   if resp.error:
+  #      return jsonify({'error': 'Chamado não encontrado'}), 404
+   # chamado = resp.data
+
+    #return jsonify(chamado)
+
+
+@app.route('/relatorio/exportar', methods=['POST'])
+@login_required
+def relatorio_exportar():
+    try:
+        filtros = request.get_json() or {}
+
+        dados = buscar_chamados_para_relatorio(filtros)
+        df = pd.DataFrame(dados)
+
+        cols = [
+            ('id_chamado_azure', 'ID'),
+            ('data_criacao', 'Abertura'),
+            ('data_fechamento', 'Fechamento'),
+            ('filial_chamado', 'Filial'),
+            ('email_solicitante', 'Email'),
+            ('empresa_chamado', 'Empresa'),
+            ('plataforma_chamado', 'Plataforma'),
+            ('titulo', 'Título'),
+        ]
+
+        df = df[[c[0] for c in cols if c[0] in df.columns]]
+        df.columns = [c[1] for c in cols if c[0] in df.columns]
+        excel_bytes = gerar_excel_relatorio(df, filtros)
+
+        return Response(
+            excel_bytes,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            headers={
+                "Content-Disposition": "attachment; filename=relatorio_chamados.xlsx"
+            }
+        )
+
+    except Exception as e:
+        app_logger.error(f"Erro ao exportar relatório: {e}", exc_info=True)
+        return jsonify({"error": "Erro ao exportar relatório."}), 500
+@app.route('/relatorio/export_email', methods=['POST'])
+@login_required
+def relatorio_export_email():
+    try:
+        data = request.get_json() or {}
+        dest_email = data.get('dest_email')
+        mensagem = data.get('mensagem', '').strip()
+
+        if not dest_email:
+            return jsonify({"error": "E-mail de destino é obrigatório."}), 400
+
+        filtros = data
+
+        dados = buscar_chamados_para_relatorio(filtros)
+        df = pd.DataFrame(dados)
+
+        cols = [
+            ('id_chamado_azure', 'ID'),
+            ('data_criacao', 'Abertura'),
+            ('data_fechamento', 'Fechamento'),
+            ('filial_chamado', 'Filial'),
+            ('email_solicitante', 'Email'),
+            ('empresa_chamado', 'Empresa'),
+            ('plataforma_chamado', 'Plataforma'),
+            ('titulo', 'Título'),
+        ]
+
+        df = df[[c[0] for c in cols if c[0] in df.columns]]
+        df.columns = [c[1] for c in cols if c[0] in df.columns]
+        excel_bytes = gerar_excel_relatorio(df, filtros)
+
+        assunto = "Relatório de Chamados"
+        corpo_html = f"""
+        <html>
+        <body style="font-family:Arial,sans-serif;">
+            <h2 style="color:#007bff;">Relatório de Chamados</h2>
+            <p>{mensagem or 'Segue em anexo o relatório solicitado.'}</p>
+            <p>
+                <strong>Total de registros:</strong> {len(df)}<br>
+                <strong>Período:</strong> {filtros.get('data_inicial','-')} até {filtros.get('data_final','-')}
+            </p>
+            <p>Atenciosamente,<br><strong>Equipe de Suporte</strong></p>
+        </body>
+        </html>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = assunto
+        remetente = "jonathanwillian710@gmail.com"
+        msg["From"] = remetente
+        msg["To"] = dest_email
+        msg.attach(MIMEText(corpo_html, "html"))
+
+        part = MIMEBase(
+            "application",
+            "vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        part.set_payload(excel_bytes)
+        encoders.encode_base64(part)
+        part.add_header(
+            "Content-Disposition",
+            "attachment",
+            filename="relatorio_chamados.xlsx"
+        )
+        msg.attach(part)
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(remetente, "ipwz cujh frdv ivjj")
+            server.sendmail(remetente, dest_email, msg.as_string())
+
+        return jsonify({"success": "E-mail enviado com sucesso."}), 200
+
+    except Exception as e:
+        app_logger.error(f"Erro ao exportar e-mail do relatório: {e}", exc_info=True)
+        return jsonify({"error": "Erro ao exportar e-mail do relatório."}), 500
+    
+            
+def buscar_chamados_para_relatorio(filtros):
+
+    data_inicial = filtros.get('data_inicial', '').strip()
+    data_final = filtros.get('data_final', '').strip()
+    filtro_data = filtros.get('filtro_data', 'abertura').strip()
+    filial = filtros.get('filial_chamado', '').strip()
+    email = filtros.get('email', '').strip()
+    empresa = filtros.get('empresa', '').strip()
+    plataforma = filtros.get('plataforma', '').strip()
+    titulo = filtros.get('titulo', '').strip()
+    id_chamado_azure = filtros.get('id_chamado_azure', '').strip()
+
+    data_col = 'data_criacao' if filtro_data == 'abertura' else 'data_fechamento'
+
+    query = supabase.table('chamados').select('*')   
+
+    if data_inicial:
+
+        start_iso = data_inicial + "T00:00:00Z"
+        query = query.gte(data_col, start_iso)
+
+    if data_final:
+
+        end_iso = data_final + "T23:59:59Z"
+        query = query.lte(data_col, end_iso)
+
+    if filial:
+        query = query.ilike('filial_chamado', f'%{filial}%')
+    if email:
+        query = query.ilike('email_solicitante', f'%{email}%')
+    if empresa:
+        query = query.ilike('empresa_chamado', f'%{empresa}%')
+    if plataforma:
+        query = query.ilike('plataforma_chamado', f'%{plataforma}%')
+    if titulo:
+        query = query.ilike('titulo', f'%{titulo}%')
+    if id_chamado_azure:
+        query = query.eq('id_chamado_azure', id_chamado_azure)
+
+    query = query.order('data_criacao', desc=True).limit(1000)
+
+    resp = query.execute()
+
+    chamados_raw = resp.data or []
+
+    formatted = []
+    for c in chamados_raw:
+
+        formatted.append({
+        'id_chamado_azure': c.get('id_chamado_azure'),
+        'data_criacao': c.get('data_criacao') or '',
+        'data_fechamento': c.get('data_fechamento') or '',
+        'filial_chamado': c.get('filial_chamado') or '',
+        'email_solicitante': c.get('email_solicitante') or '',
+        'empresa_chamado': c.get('empresa_chamado') or '',
+        'plataforma_chamado': c.get('plataforma_chamado') or '',
+        'titulo': c.get('titulo') or ''
+
+        })
+
+    return formatted

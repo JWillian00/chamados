@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atendimentos - Fila de Chamados</title>
+    <style>
+        body {
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .neon-alert {
+            border: 3px solid #00f;
+            animation: neonBlink 1s infinite;
+            border-radius: 10px;
+        }
+
+        @keyframes neonBlink {
+            0% { box-shadow: 0 0 10px #00f; }
+            50% { box-shadow: 0 0 20px #00f, 0 0 30px #00f; }
+            100% { box-shadow: 0 0 10px #00f; }
+        }
+
+        #visualizacao-anexo-modal button {
+        background-color: rgba(0,0,0,0.4);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        font-size: 20px;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        }
+
+        #visualizacao-anexo-modal button:hover {
+            background-color: rgba(0,0,0,0.7);
+        }
+        
+        .fila-container {
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .header-fila {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .contador-chamados {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+        }
+        .refresh-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .refresh-btn:hover {
+            background-color: #0056b3;
+        }
+         /* Layout da Esteira */
+        .esteira-container {
+            display: flex;
+            gap: 15px;
+            overflow-x: auto;
+            padding: 10px 0;
+            min-height: 400px;
+        }
+        
+        .coluna-esteira {
+            flex: 0 0 300px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .coluna-esteira h5 {
+            text-align: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #dee2e6;
+            color: #495057;
+        }
+        
+        .coluna-aberto h5 { border-bottom-color: #359fdc; }
+        .coluna-andamento h5 { border-bottom-color: #ffc107; }
+        .coluna-aguardando h5 { border-bottom-color: #fd7e14; }
+        .coluna-reaberto h5 { border-bottom-color: #eb0c0c; }
+        
+        .card-chamado-esteira {
+            background: white;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 10px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-left: 4px solid #359fdc;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .card-chamado-esteira:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        
+        .card-chamado-esteira.status-em-andamento { border-left-color: #ffc107; }
+        .card-chamado-esteira.status-aguardando { border-left-color: #fd7e14; }
+        .card-chamado-esteira.status-reaberto { border-left-color: #eb0c0c; }
+        
+        .chamado-id {
+            font-weight: bold;
+            font-size: 0.9em;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .chamado-solicitante {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 8px;
+        }
+        
+        .chamado-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8em;
+        }
+        
+        .status-badge {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: 500;
+        }
+        
+        .status-aberto { background-color: #d1ecf1; color: #0c5460; }
+        .status-andamento { background-color: #fff3cd; color: #856404; }
+        .status-aguardando { background-color: #ffeaa7; color: #856404; }
+        .status-reaberto { background-color: #f8d7da; color: #721c24; }
+        
+        .azure-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .azure-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .azure-in-progress { background-color: #007bff; }
+        .azure-closed { background-color: #28a745; }
+        .azure-unknown { background-color: #6c757d; }
+        
+        .chamado-novo {
+            animation: pulse 2s infinite;
+            border: 1px solid #007bff;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4); }
+            70% { box-shadow: 0 0 0 5px rgba(0, 123, 255, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 123, 255, 0); }
+        }
+        
+        .vazio-esteira {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 20px;
+        }
+        /* Estilos para o modal de detalhes */
+        #modalChamado .modal-dialog {
+            max-width: 1200px;
+        }
+        #modalChamado .modal-header {
+            background-color: #007bff;
+            color: white;
+            border-bottom: none;
+        }
+        #modalChamado .modal-title {
+            color: white;
+        }
+        #modalChamado .btn-close {
+            filter: invert(1);
+        }
+        #modalChamado .dl-horizontal dt {
+            text-align: right;
+            margin-bottom: 5px;
+        }
+        #modalChamado .dl-horizontal dd {
+            margin-bottom: 5px;
+        }
+        /* Estilos para a seção de comentários */
+        .comentario-card {
+            background: #f8f9fa;
+            border-left: 3px solid #007bff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .comentario-card .card-subtitle {
+            font-size: 0.85em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+        .comentario-card .card-text {
+            font-size: 0.95em;
+            color: #333;
+        }
+        .anexos-list {
+            margin-top: 10px;
+        }
+        .anexos-list a {
+            font-size: 0.85em;
+            color: #007bff;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+            margin-bottom: 5px;
+        }
+        .anexos-list a:hover {
+            text-decoration: underline;
+        }
+        /* Estilos para o visualizador de imagens */
+        #imageViewerCarousel .carousel-item {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 400px;
+            background-color: #333;
+        }
+        #imageViewerCarousel .carousel-item img,
+        #imageViewerCarousel .carousel-item video {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            object-fit: contain;
+        }
+        .carousel-control-prev, .carousel-control-next {
+            background-color: rgba(0,0,0,0.3);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        .carousel-control-prev-icon, .carousel-control-next-icon {
+            width: 20px;
+            height: 20px;
+        }
+        #tituloChamado {
+        white-space: pre-line;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        font-size: 1.1rem; 
+        }
+            
+        
+    </style>
+
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+   
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script type="module" src="{{ url_for('static', filename='js/notification.js') }}"></script> 
+    <script src="https://cdn.tailwindcss.com"></script>
+
+</head>
+<body>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script> -->
+
+    <div class="fila-container">
+        <div class="header-fila">
+            <h2 class="contador-chamados" id="contadorChamados">Chamados Abertos: 0</h2>
+            <button class="refresh-btn" id="refreshBtn">Atualizar Lista</button>
+        </div>
+
+        <!-- Esteira de Chamados -->
+        <div class="esteira-container" id="esteiraChamados">
+            <div class="coluna-esteira coluna-aberto">
+                <h5>Aberto</h5>
+                <div id="coluna-aberto" class="coluna-chamados"></div>
+            </div>
+            
+            <div class="coluna-esteira coluna-andamento">
+                <h5>Em Andamento</h5>
+                <div id="coluna-andamento" class="coluna-chamados"></div>
+            </div>
+            
+            <div class="coluna-esteira coluna-aguardando">
+                <h5>Aguardando</h5>
+                <div id="coluna-aguardando" class="coluna-chamados"></div>
+            </div>
+            
+            <div class="coluna-esteira">
+                <h5>Reaberto</h5>
+                <div id="coluna-reaberto" class="coluna-chamados"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="modalChamado" tabindex="-1" aria-labelledby="modalChamadoLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalChamadoLabel">Detalhes do Chamado</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formAtualizarChamado">
+                        <input type="hidden" id="modalIdChamado">
+
+                        <h6 class="mb-3">Informações do Chamado</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-8">ID chamado:</dt>
+                                    <dd class="col-sm-8" id="idChamado"></dd>
+                                    
+                                    <dt class="col-sm-8">Título:</dt>
+                                    <dd class="col-sm-8" id="tituloChamado"></dd>
+
+                                    <dt class="col-sm-8">Solicitante:</dt>
+                                    <dd class="col-sm-8" id="usuarioChamado"></dd>
+
+                                    <dt class="col-sm-8">Telefone:</dt>
+                                    <dd class="col-sm-8" id="telefoneChamado"></dd>
+                                   
+                                    <dt class="col-sm-8" id="azure-id-container" style="display: none;">ID card: </dt>
+                                    <dd class="col-sm-8" id="modal-id-azure">
+                                        <span id="azure-status-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px;"></span>
+                                        <span id="azure-id-text"></span>
+                                    </dd>    
+             
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Empresa:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalEmpresaChamado" name="empresa_chamado">
+                                    </dd>
+                                    
+                                    <dt class="col-sm-4">Plataforma:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalPlataformaChamado" name="plataforma_chamado">
+                                    </dd>
+
+                                    <dt class="col-sm-4">Filial:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalFilialChamado" name="filial_chamado">
+                                    </dd>
+
+                                    <dt class="col-sm-4">Categoria:</dt>
+                                    <dd class="col-sm-8">
+                                        <input readonly type="text" class="form-control form-control-sm" id="modalCategoria" name="categoria">
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <h6 class="mt-4 mb-3">Atendimento:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Status:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalStatusChamado" name="status_chamado">
+                                            <option value="Aberto">Aberto</option>
+                                            <option value="Em andamento">Em andamento</option>
+                                            <option value="Fechado">Fechado</option>
+                                            <option value="Reaberto">Reaberto</option>
+                                            <option value="Aguardando usuário">Aguardando usuário</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Prioridade:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalPrioridade" name="prioridade">
+                                            <option value="Baixa">Baixa</option>
+                                            <option value="Média">Média</option>
+                                            <option value="Alta">Alta</option>
+                                            <option value="Urgente">Urgente</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                            <div class="col-md-6">
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-4">Responsável:</dt>
+                                    <dd class="col-sm-8">
+                                        <select class="form-select form-select-sm" id="modalResponsavel" name="responsavel">
+                                            <option value="{{ usuario_logado_nome }}">{{ usuario_logado_nome }}</option>
+                                            <option value="Veplex">Veplex</option>
+                                            <option value="Globalsys">Globalsys</option>
+                                            <option value="Digital">Digital</option>
+                                        </select>
+                                    </dd>
+                                </dl>
+                            </div>
+                        </div>
+                        
+                    </form>                  
+                    
+
+                    <hr class="my-4">
+
+                    <h5 class="mb-3">Descrição</h5>
+
+                    <div class="card mb-4 p-3 shadow-sm">
+                        <div class="mb-3">
+                            <label for="comentarioTexto" class="form-label">Descrição do chamado</label>
+                            <textarea readonly class="form-control" id="descricaoChamado" rows="3"></textarea>
+                            <div id="anexosChamadoContainer" class="mt-2">                               
+                            </div>
+                            
+                        </div>
+
+                    <h5 class="mb-3">Comentários e Histórico</h5>
+
+                    <div class="card mb-4 p-3 shadow-sm">
+                        <div class="mb-3">
+                            <label for="comentarioTexto" class="form-label">Adicionar Novo Comentário:</label>
+                            <textarea class="form-control" id="comentarioTexto" rows="3" placeholder="Digite seu comentário aqui..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="anexosInput" class="form-label">Anexar Evidências:</label>
+                            <input type="file" class="form-control" id="anexosInput" multiple
+                                   accept="image/*,video/mp4,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json,text/xml,text/plain,image/gif">
+                            <small class="form-text text-muted">Formatos permitidos: imagens, mp4, pdf, doc, docx, xls, xlsx, json, xml, txt, gif.</small>
+                        </div>
+
+                        <div class="text-end">
+                            <button type="button" class="btn btn-success" id="btnAdicionarComentario">
+                                <i class="fas fa-comment-dots me-2"></i>Adicionar Comentário
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="listaComentarios" class="mt-4">
+                        <p class="text-muted text-center">Nenhum comentário ainda.</p>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarAlteracoes">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="visualizacao-anexo-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px; overflow: auto; text-align: center;">
+            <span onclick="fecharVisualizacaoAnexo()" style="position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; color: #555;">&times;</span>
+            <button onclick="anteriorAnexo()" style="left: 10px; position: absolute;">◀</button>
+            <div id="visualizacao-anexo-conteudo"></div>
+            <button onclick="proximoAnexo()" style="right: 10px; position: absolute;">▶</button>
+            <a id="btn-download-anexo" href="#" download style="margin-top: 15px; display: inline-block; background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">🔎 Visualizar</a>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data.min.js"></script>
+
+    <script>
+       // const socket = io();
+        // const socket = io({
+        //     transports: ['polling'],
+        //     reconnectionAttempts: 10,
+        //     timeout: 10000
+        // });
+
+        let cacheChamados = {};
+        let ultimaAtualizacao = null;
+        let intervaloAtualizacao = null; 
+
+        const SUPABASE_URL = '{{ supabase_url }}';
+        const SUPABASE_ANON_KEY = '{{ supabase_anon_key }}';
+        const SUPABASE_BUCKET_NAME = 'chamadoanexos';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        function fetchChamados() {
+            fetch('/api/chamados-abertos')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.json();
+                })
+                .then(chamados => {
+
+                    const hash = JSON.stringify(chamados);
+                    if (hash === ultimaAtualizacao) {
+                        return; 
+                    }
+                    ultimaAtualizacao = hash;
+                    
+                    atualizarEsteira(chamados);
+                    document.getElementById('contadorChamados').textContent = `Chamados Abertos: ${chamados.length}`;
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar chamados:', error);
+                });
+        }
+
+        function atualizarEsteira(chamados) {
+            const colunas = ['aberto', 'andamento', 'aguardando', 'reaberto'];
+            colunas.forEach(status => {
+                const coluna = document.getElementById(`coluna-${status}`);
+                coluna.innerHTML = '<div class="vazio-esteira">Nenhum chamado</div>';
+            });
+
+            if (chamados.length === 0) return;
+
+            const idsAzure = [];
+
+            chamados.forEach(chamado => {
+                const statusNormalizado = normalizarStatus(chamado.status_chamado);
+                const coluna = document.getElementById(`coluna-${statusNormalizado}`);
+                
+                if (coluna.querySelector('.vazio-esteira')) {
+                    coluna.innerHTML = '';
+                }
+
+                const card = criarCardChamado(chamado);
+                coluna.appendChild(card);
+
+                if (chamado.id_chamado_azure) {
+                    idsAzure.push(chamado.id_chamado_azure);
+                }
+            });
+
+            if (idsAzure.length > 0) {
+                atualizarEstadosAzure(idsAzure);
+            }
+        }
+
+        function normalizarStatus(status) {
+            if (!status) return 'aberto';
+            
+            const statusLower = status.toLowerCase();
+            if (statusLower.includes('andamento')) return 'andamento';
+            if (statusLower.includes('aguardando')) return 'aguardando';
+            if (statusLower.includes('reaberto')) return 'reaberto';
+            return 'aberto';
+        }
+
+        function criarCardChamado(chamado) {
+            const card = document.createElement('div');
+            const statusNormalizado = normalizarStatus(chamado.status_chamado);
+            
+            card.className = `card-chamado-esteira status-${statusNormalizado}`;
+            if (chamado.comentario_novo) {
+                card.classList.add('chamado-novo');
+            }
+            
+            const displayId = chamado.id_chamado_azure 
+                ? `Azure: ${chamado.id_chamado_azure}`
+                : `Interno: ${chamado.id_chamado}`;
+
+            const statusClass = `status-${statusNormalizado}`;
+            const statusText = chamado.status_chamado || 'Aberto';
+
+            card.innerHTML = `
+                <div class="chamado-id">${displayId}</div>
+                <div class="chamado-solicitante">
+                    <i class="fas fa-user"></i> ${chamado.usuario_nome || 'N/A'}
+                </div>
+                <div class="chamado-status">
+                    <span class="status-badge ${statusClass}">${statusText}</span>
+                    ${chamado.id_chamado_azure ? `
+                        <div class="azure-status">
+                            <span class="azure-dot azure-unknown" id="dot-${chamado.id_chamado_azure}" title="Carregando..."></span>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="chamado-actions">
+                    <button class="btn-detalhes-esteira" data-id="${chamado.id_chamado}">
+                        <i class="fas fa-search me-1"></i>Ver Detalhes
+                    </button>
+                </div>
+            `;
+
+            const btnDetalhes = card.querySelector('.btn-detalhes-esteira');
+            btnDetalhes.addEventListener('click', (e) => {
+                e.stopPropagation(); 
+                abrirDetalhesChamado(chamado.id_chamado);
+            });
+
+            card.addEventListener('click', () => abrirDetalhesChamado(chamado.id_chamado));
+
+            return card;
+        }
+
+        function atualizarEstadosAzure(idsAzure) {
+            fetch('/api/estados_chamados', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: idsAzure })
+            })
+            .then(res => res.json())
+            .then(estados => {
+                for (const [id, estado] of Object.entries(estados)) {
+                    const dot = document.getElementById(`dot-${id}`);
+                    if (!dot) continue;
+
+                    dot.classList.remove('azure-unknown', 'azure-in-progress', 'azure-closed');
+                    
+                    if (estado === "In Progress") {
+                        dot.classList.add('azure-in-progress');
+                        dot.title = "Em Andamento";
+                    } else if (estado === "Closed") {
+                        dot.classList.add('azure-closed');
+                        dot.title = "Fechado";
+                    } else {
+                        dot.classList.add('azure-unknown');
+                        dot.title = estado || "Desconhecido";
+                    }
+                }
+            })
+            .catch(err => console.error("Erro ao buscar estados Azure:", err));
+        }
+
+        async function abrirDetalhesChamado(idChamado) {
+            document.querySelectorAll('.chamado-novo').forEach(card => {
+                if (card.innerHTML.includes(idChamado)) {
+                    card.classList.remove('chamado-novo');
+                }
+            });
+            document.querySelectorAll('.neon-alert').forEach(card => {
+                if (card.innerHTML.includes(idChamado)) {
+                    card.classList.remove('neon-alert');
+                }
+            });
+
+            try {
+                await fetch(`/api/atualizar_chamado/${idChamado}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ comentario_novo: false })
+                });
+            } catch (error) {
+                console.error('Erro ao atualizar status de visualização:', error);
+            }
+
+            document.getElementById('modalIdChamado').value = idChamado;
+
+            document.getElementById('comentarioTexto').value = '';
+            document.getElementById('anexosInput').value = '';
+            document.getElementById('listaComentarios').innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+
+            try {
+                const response = await fetch(`/api/detalhes_chamado/${idChamado}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+
+                if (data.erro) {
+                    alert(data.erro);
+                    return;
+                }
+
+                const tituloFormatado = (data.titulo || 'N/A').replace(/\n/g, '<br>');
+                document.getElementById('idChamado').textContent = data.id_chamado || 'N/A';
+                document.getElementById('tituloChamado').innerHTML = tituloFormatado;
+                document.getElementById('usuarioChamado').textContent = data.usuario_nome || 'N/A';
+                document.getElementById('telefoneChamado').textContent = data.telefone || 'N/A';
+                document.getElementById('descricaoChamado').textContent = data.descricao || 'N/A';
+
+                document.getElementById('modalEmpresaChamado').value = data.empresa_chamado || '';
+                document.getElementById('modalPlataformaChamado').value = data.plataforma_chamado || '';
+                document.getElementById('modalFilialChamado').value = data.filial_chamado || '';
+                document.getElementById('modalCategoria').value = data.categoria || '';
+                document.getElementById('modalStatusChamado').value = data.status_chamado || 'Aberto';
+                document.getElementById('modalPrioridade').value = data.prioridade || 'Baixa';
+
+                const selectResponsavel = document.getElementById('modalResponsavel');
+                selectResponsavel.value = data.responsavel_atendimento || '';
+                let responsavelFound = false;
+                for (let i = 0; i < selectResponsavel.options.length; i++) {
+                    if (selectResponsavel.options[i].value === (data.responsavel_atendimento || '')) {
+                        responsavelFound = true;
+                        break;
+                    }
+                }
+                if (!responsavelFound && data.responsavel_atendimento) {
+                    const newOption = document.createElement('option');
+                    newOption.value = data.responsavel_atendimento;
+                    newOption.textContent = data.responsavel_atendimento;
+                    selectResponsavel.appendChild(newOption);
+                    selectResponsavel.value = data.responsavel_atendimento;
+                }
+
+                if (data.id_chamado_azure) {
+                    const azureContainer = document.getElementById('azure-id-container');
+                    if (azureContainer) {
+                        azureContainer.style.display = 'block';
+                    }
+                    const azureText = document.getElementById('azure-id-text');
+                    if (azureText) {
+                        azureText.textContent = data.id_chamado_azure;
+                    }
+
+                    fetch(`/api/chamado/estado_azure/${data.id_chamado_azure}`)
+                        .then(res => res.json())
+                        .then(result => {
+                            const estado = result.state || "Unknown";
+                            const statusDot = document.getElementById("azure-status-indicator");
+
+                            if (statusDot) {
+                                if (estado === "In Progress") {
+                                    statusDot.style.backgroundColor = "#007bff";
+                                } else if (estado === "Closed") {
+                                    statusDot.style.backgroundColor = "#28a745";
+                                } else {
+                                    statusDot.style.backgroundColor = "#6c757d";
+                                }
+                                statusDot.title = estado;
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Erro ao buscar estado Azure:", err);
+                        });
+                } else {
+                    document.getElementById('azure-id-container').style.display = 'none';
+                    document.getElementById('modal-id-azure').textContent = '';
+                }
+
+                const anexosContainer = document.getElementById("anexosChamadoContainer");
+                anexosContainer.innerHTML = `<strong>Anexos:</strong><br>`;
+                if (data.anexos && data.anexos.length > 0) {
+                    data.anexos.forEach((anexo, index) => {
+                        const link = document.createElement('a');
+                        link.href = "#";
+                        link.textContent = `📎 ${anexo.filename}`;
+                        link.classList.add('anexo-link');
+                        link.dataset.anexosAll = JSON.stringify(data.anexos);
+                        link.dataset.anexoIndex = index;
+                        link.dataset.anexoUrl = anexo.url;
+                        link.dataset.anexoFilename = anexo.filename;
+                        link.dataset.anexoMimetype = anexo.mimetype;
+                        link.addEventListener('click', openMediaViewer);
+                        link.style.display = "block";
+                        anexosContainer.appendChild(link);
+                    });
+                } else {
+                    anexosContainer.innerHTML = `<p class="text-muted">Nenhum anexo.</p>`;
+                }
+
+                await carregarComentarios(idChamado, data.id_chamado_azure || null, data.plataforma_chamado || null);
+
+                const modal = new bootstrap.Modal(document.getElementById('modalChamado'));
+                modal.show();
+
+            } catch (err) {
+                console.error('Erro ao buscar detalhes do chamado:', err);
+                let mensagemErro = 'Erro ao carregar detalhes do chamado.';
+                if (err?.message) {
+                    mensagemErro += ` ${err.message}`;
+                }
+                notificationSystem.error(mensagemErro);
+            }
+        }
+
+        document.getElementById('btnSalvarAlteracoes').addEventListener('click', async () => {
+            const id_chamado = document.getElementById('modalIdChamado').value;
+            const dataToUpdate = {
+                empresa_chamado: document.getElementById('modalEmpresaChamado').value,
+                plataforma_chamado: document.getElementById('modalPlataformaChamado').value,
+                filial_chamado: document.getElementById('modalFilialChamado').value,
+                categoria: document.getElementById('modalCategoria').value,
+                status_chamado: document.getElementById('modalStatusChamado').value,
+                prioridade: document.getElementById('modalPrioridade').value,
+                responsavel_atendimento: document.getElementById('modalResponsavel').value
+            };
+
+            try {
+                const response = await fetch(`/api/atualizar_chamado/${id_chamado}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dataToUpdate)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+                }
+
+                const result = await response.json();
+                if (result.message) {
+                    notificationSystem.info(result.message);
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('modalChamado'));
+                    modal.hide();
+                    fetchChamados(); 
+                } else {
+                    notificationSystem.error(result.error || 'Erro ao salvar as alterações.');
+                }
+            } catch (error) {
+                console.error('Erro ao salvar as alterações:', error);
+                notificationSystem.error('Erro de conexão ou servidor ao salvar as alterações: ' + error.message);
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const refreshBtn = document.getElementById('refreshBtn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', fetchChamados);
+            }
+
+            fetchChamados();
+            clearInterval(intervaloAtualizacao); 
+            intervaloAtualizacao = setInterval(fetchChamados, 10000); 
+        });
+
+        // socket.on('chamado_atualizado', function(data) {
+        //     console.log('Chamado atualizado:', data);
+        //     setTimeout(fetchChamados, 1000); 
+        // });
+
+        // socket.on('atualizacao_chamado', function() {
+        //     console.log('Atualização geral de chamados');
+        //     setTimeout(fetchChamados, 1000);
+        // });
+
+        // socket.on('novo_chamado_criado', function(data) {
+        //     console.log('Novo chamado criado:', data);
+        //     setTimeout(fetchChamados, 1000); 
+        // });
+
+        document.getElementById("btnAdicionarComentario").addEventListener("click", async () => {
+            await addComentario(); 
+            const idChamado = document.getElementById("modalIdChamado").value;
+            const idChamadoAzure = document.getElementById("modal-id-azure").innerText.trim();
+            const plataformaChamado = document.getElementById("modalPlataformaChamado").value; 
+            await carregarComentarios(idChamado, idChamadoAzure, plataformaChamado);
+        });
+
+        async function fetchComentarios(chamadoId) {
+            const listaComentariosDiv = document.getElementById('listaComentarios');
+            listaComentariosDiv.innerHTML = `<div class="text-center text-muted my-2">Carregando comentários...</div>`;
+
+            try {
+                const response = await fetch(`/api/chamados/${chamadoId}/comentarios`);
+                const comentarios = await response.json();
+
+                if (!comentarios || comentarios.length === 0) {
+                    listaComentariosDiv.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                    return;
+                }
+
+                listaComentariosDiv.innerHTML = comentarios.map(comentario => {
+                    const nome = comentario.nome_usuario || comentario.autor || 'Desconhecido';
+                    const texto = comentario.comentario_texto || comentario.comentario || '';
+                    const data = comentario.data_hora || comentario.data || new Date().toISOString();
+
+                    return `
+                        <div class="comentario-card">
+                            <h6 class="card-subtitle mb-2">
+                                <strong>${nome}</strong> - <small class="text-muted">${moment(data).format('DD/MM/YYYY HH:mm')}</small>
+                            </h6>
+                            <p class="card-text">${texto}</p>
+                        </div>
+                    `;
+                }).join('');
+            } catch (error) {
+                console.error('Erro ao carregar comentários:', error);
+                listaComentariosDiv.innerHTML = '<p class="text-danger text-center">Erro ao carregar comentários.</p>';
+            }
+        }        
+
+        function displayComentarios(comentarios) {
+            const listaComentariosDiv = document.getElementById('listaComentarios');
+            listaComentariosDiv.innerHTML = '';
+
+            if (comentarios.length === 0) {
+                listaComentariosDiv.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                return;
+            }
+
+            comentarios.forEach(comentario => {
+                const comentarioCard = document.createElement('div');
+                comentarioCard.className = 'comentario-card';
+
+                const dataFormatada = moment.utc(comentario.data_hora).local().format('DD/MM/YYYY HH:mm:ss');
+
+                comentarioCard.innerHTML = `
+                    <h6 class="card-subtitle mb-2">
+                        <strong>${comentario.nome_usuario}</strong> (${comentario.email_usuario}) -
+                        <small class="text-muted">${dataFormatada}</small>
+                    </h6>
+                    <p class="card-text">${comentario.comentario_texto}</p>
+                    ${comentario.anexos && comentario.anexos.length > 0 ? `
+                        <div class="anexos-list">
+                            <strong>Evidências:</strong><br>
+                            ${comentario.anexos.map((anexo, index) => `
+                                <a href="#" class="anexo-link"
+                                   data-anexo-url="${anexo.url}"
+                                   data-anexo-filename="${anexo.filename}"
+                                   data-anexo-mimetype="${anexo.mimetype}"
+                                   data-anexos-all='${JSON.stringify(comentario.anexos)}'
+                                   data-anexo-index="${index}"
+                                   title="Abrir ${anexo.filename}"
+                                   ><i class="${getFileIconClass(anexo.mimetype)} me-1"></i>${anexo.filename}</a>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                `;
+                listaComentariosDiv.appendChild(comentarioCard);
+            });
+            attachAnexoEventListeners();
+        }      
+
+
+        async function addComentario() {            
+            const chamadoId = document.getElementById('modalIdChamado').value;
+            const idChamadoAzure = document.getElementById('modal-id-azure').innerText.trim();
+            const plataforma = document.getElementById('modalPlataformaChamado').value;
+            const comentarioTexto = document.getElementById('comentarioTexto').value.trim();
+            const anexosInput = document.getElementById('anexosInput');
+            const files = anexosInput.files;
+
+            if (!comentarioTexto && files.length === 0) {
+                notificationSystem.error('Por favor, digite um comentário ou anexe um arquivo.');
+                return;
+            }
+
+            document.getElementById('btnAdicionarComentario').disabled = true;
+            document.getElementById('btnAdicionarComentario').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adicionando...';
+
+            const uploadedAnexos = [];
+            if (files.length > 0) {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
+                    try {
+                        const pathInStorage = `${chamadoId}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+
+                        const { data, error } = await supabaseClient.storage
+                            .from(SUPABASE_BUCKET_NAME)
+                            .upload(pathInStorage, file, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+
+                        if (error) throw error;
+
+                        const publicUrl = supabaseClient.storage.from(SUPABASE_BUCKET_NAME).getPublicUrl(pathInStorage).data.publicUrl;
+                        uploadedAnexos.push({
+                            url: publicUrl,
+                            filename: file.name,
+                            mimetype: file.type
+                        });
+                    } catch (error) {
+                        console.error('Erro ao fazer upload do arquivo:', error.message);
+                        alert(`Erro ao fazer upload do arquivo ${file.name}: ${error.message}. Por favor, tente novamente.`);
+                        document.getElementById('btnAdicionarComentario').disabled = false;
+                        document.getElementById('btnAdicionarComentario').innerHTML = '<i class="fas fa-comment-dots me-2"></i>Adicionar Comentário';
+                        return;
+                    }
+                }
+            }
+
+            try {
+                const response = await fetch(`/api/chamado/${idChamadoAzure}/comentar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        comentario: comentarioTexto,
+                        anexos: uploadedAnexos
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    let errorMessage = 'Erro desconhecido ao adicionar comentário.';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        if (errorJson.error) {
+                            errorMessage = errorJson.error;
+                        }
+                    } catch (e) {
+                        errorMessage = errorText;
+                    }
+                    notificationSystem.error(errorMessage, 'Erro ao Adicionar Comentário');
+                    throw new Error(errorMessage);
+                }
+
+                document.getElementById('comentarioTexto').value = '';
+                document.getElementById('anexosInput').value = '';
+                notificationSystem.success('Comentário enviado com sucesso!');
+
+            } catch (error) {
+                console.error('Erro ao adicionar comentário:', error);
+                notificationSystem.error(`Erro ao adicionar comentário: ${error.message || error}`, 'Erro');
+            } finally {
+                document.getElementById('btnAdicionarComentario').disabled = false;
+                document.getElementById('btnAdicionarComentario').innerHTML = '<i class="fas fa-comment-dots me-2"></i>Adicionar Comentário';
+            }
+        }
+
+        
+
+        function attachAnexoEventListeners() {
+            document.querySelectorAll('.anexo-link').forEach(link => {
+                link.removeEventListener('click', openMediaViewer);
+                link.addEventListener('click', openMediaViewer);
+            });
+        }
+
+        let anexosVisual = [];
+        let anexoAtualIndex = 0;
+
+        function openMediaViewer(event) {
+            event.preventDefault();
+
+            const targetLink = event.currentTarget;
+            const anexosAllString = targetLink.dataset.anexosAll;
+            const currentIndex = parseInt(targetLink.dataset.anexoIndex);
+
+            try {
+                anexosVisual = JSON.parse(anexosAllString);
+                anexoAtualIndex = currentIndex;
+                exibirAnexo(anexoAtualIndex);
+                document.getElementById('visualizacao-anexo-modal').style.display = 'flex';
+            } catch (e) {
+                console.error("Erro ao abrir visualização de anexo:", e);
+                alert("Erro ao abrir visualização do anexo.");
+            }
+        }
+
+        function exibirAnexo(index) {
+            const container = document.getElementById('visualizacao-anexo-conteudo');
+            const downloadBtn = document.getElementById('btn-download-anexo');
+
+            container.innerHTML = '';
+            const anexo = anexosVisual[index];
+            if (!anexo) return;
+
+            const url = anexo.url;
+            const fileName = anexo.filename || `Arquivo ${index + 1}`;
+            const ext = fileName.split('.').pop().toLowerCase();
+
+            if (["png", "jpg", "jpeg", "gif", "webp", "bmp"].includes(ext)) {
+                container.innerHTML = `<img src="${url}" alt="${fileName}" style="max-width: 100%; max-height: 80vh;">`;
+            } else if (["mp4", "webm", "ogg", "avi", "mov", "wmv"].includes(ext)) {
+                container.innerHTML = `<video controls style="max-width: 100%; max-height: 80vh;"><source src="${url}" type="video/${ext}">Seu navegador não suporta este vídeo.</video>`;
+            } else {
+                container.innerHTML = `<p>Pré-visualização não disponível para este tipo de arquivo.</p><a href="${url}" target="_blank" class="btn btn-primary">Abrir ${fileName}</a>`;
+            }
+
+            downloadBtn.href = url;
+            downloadBtn.download = fileName;
+
+            document.querySelector('#visualizacao-anexo-modal button:first-of-type').style.display = (anexoAtualIndex > 0) ? 'block' : 'none';
+            document.querySelector('#visualizacao-anexo-modal button:last-of-type').style.display = (anexoAtualIndex < anexosVisual.length - 1) ? 'block' : 'none';
+        }
+
+        function anteriorAnexo() {
+            if (anexoAtualIndex > 0) {
+                anexoAtualIndex--;
+                exibirAnexo(anexoAtualIndex);
+            }
+        }
+
+        function proximoAnexo() {
+            if (anexoAtualIndex < anexosVisual.length - 1) {
+                anexoAtualIndex++;
+                exibirAnexo(anexoAtualIndex);
+            }
+        }
+
+        function fecharVisualizacaoAnexo() {
+            document.getElementById('visualizacao-anexo-modal').style.display = 'none';
+            anexosVisual = [];
+            anexoAtualIndex = 0;
+            document.getElementById('visualizacao-anexo-conteudo').innerHTML = '';
+        }
+
+        function getFileIconClass(mimetype) {
+            if (mimetype.startsWith('image/')) return 'fas fa-image';
+            if (mimetype.startsWith('video/')) return 'fas fa-video';
+            if (mimetype === 'application/pdf') return 'fas fa-file-pdf';
+            if (mimetype.includes('wordprocessingml') || mimetype.includes('msword')) return 'fas fa-file-word';
+            if (mimetype.includes('spreadsheet') || mimetype.includes('ms-excel')) return 'fas fa-file-excel';
+            if (mimetype.includes('json')) return 'fas fa-file-code';
+            if (mimetype.includes('xml')) return 'fas fa-file-code';
+            if (mimetype.includes('text/plain')) return 'fas fa-file-alt';
+            return 'fas fa-file';
+        }   
+
+
+
+    //    socket.on('novo_comentario', function(data){
+      //      if (typeof notificationSystem !== 'undefined') {
+        //        notificationSystem.info(`Novo comentário ${data.comentario}`);
+          //  }
+            //const modalAberto = document.getElementById('modalIdChamado').value;
+          //  if (modalAberto !== data.id_chamado){
+            //    fetchChamados();
+           // } else {
+             //   fetchComentarios(data.id_chamado);
+            //}
+//        });
+
+        // socket.on('chamado_atualizado', function(data) {
+        //     console.log('Chamado atualizado:', data);
+        //     setTimeout(fetchChamados, 1000);
+        // });
+
+        // socket.on('atualizacao_chamado', function() {
+        //     console.log('Atualização geral de chamados');
+        //     fetchChamados();
+        // });
+
+        // socket.on('novo_chamado_criado', function(data) {
+        //     console.log('Novo chamado criado:', data);
+        //     fetchChamados(); 
+        // });
+
+
+        async function carregarComentarios(idChamado, idAzure, plataforma) { 
+            const listaComentarios = document.getElementById('listaComentarios');
+            listaComentarios.innerHTML = '<p class="text-muted text-center">Carregando comentários...</p>';
+
+            try {
+                const responseSupabase = await fetch(`/api/chamados/${idChamado}/comentarios`);
+                const comentariosSupabaseRaw = await responseSupabase.json();
+
+                const comentariosSupabase = comentariosSupabaseRaw.map(c => ({
+                    autor: c.nome_usuario,
+                    comentario: c.comentario_texto,
+                    data_criacao: c.data_hora,
+                    origem: "Supabase",
+                    anexos: c.anexos || []
+                }));
+
+                let comentariosTotais = comentariosSupabase;
+
+                if (idAzure) { 
+                    const azureResp = await fetch(`/api/chamado/${idAzure}/comentarios_azure`);
+
+                    if (azureResp.ok) {
+                        const azureData = await azureResp.json();
+                        const comentariosAzureRaw = azureData.comentarios_azure || [];
+
+                        const comentariosAzure = comentariosAzureRaw.map(c => ({
+                            autor: c.autor,
+                            comentario: c.comentario,
+                            data_criacao: c.data_criacao,
+                            origem: "Azure DevOps",
+                            anexos: []
+                        }));
+                        comentariosTotais = comentariosTotais.concat(comentariosAzure);
+                    } else {
+                        console.error("Erro ao buscar comentários do Azure:", azureResp.status, await azureResp.text());
+                    }
+                }
+
+                comentariosTotais.sort((a, b) => new Date(a.data_criacao) - new Date(b.data_criacao));
+
+                if (comentariosTotais.length === 0) {
+                    listaComentarios.innerHTML = '<p class="text-muted text-center">Nenhum comentário ainda.</p>';
+                    return;
+                }
+
+                listaComentarios.innerHTML = comentariosTotais.map(comentario => {
+                    const dataFormatada = moment(comentario.data_criacao).format('DD/MM/YYYY HH:mm:ss');
+                    let anexosHTML = '';
+                    if (comentario.anexos && comentario.anexos.length > 0) {
+                        anexosHTML = `
+                            <div class="anexos-list mt-2">
+                                <strong>Evidências:</strong><br>
+                                ${comentario.anexos.map((anexo, index) => `
+                                    <a href="#" class="anexo-link"
+                                    data-anexo-url="${anexo.url}"
+                                    data-anexo-filename="${anexo.filename}"
+                                    data-anexo-mimetype="${anexo.mimetype}"
+                                    data-anexos-all='${JSON.stringify(comentario.anexos)}'
+                                    data-anexo-index="${index}"
+                                    title="Abrir ${anexo.filename}"
+                                    ><i class="${getFileIconClass(anexo.mimetype)} me-1"></i>${anexo.filename}</a>
+                                `).join('')}
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="comentario-card">
+                            <h6 class="card-subtitle mb-1">
+                                <strong>${comentario.autor}</strong> (${comentario.origem}) -
+                                <small class="text-muted">${dataFormatada}</small>
+                            </h6>
+                            <p class="card-text">${comentario.comentario}</p>
+                            ${anexosHTML}
+                        </div>
+                    `;
+                }).join('');
+
+                attachAnexoEventListeners();
+            } catch (error) {
+                listaComentarios.innerHTML = '<p class="text-danger text-center">Erro ao carregar comentários.</p>';
+                console.error("Erro ao carregar comentários:", error);
+            }
+        }
+        
+
+    </script>
+    <div id="visualizacao-anexo-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.8); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="position: relative; max-width: 90%; max-height: 90%; background: white; padding: 20px; border-radius: 10px; overflow: auto; text-align: center;">
+        <span onclick="fecharVisualizacaoAnexo()" style="position: absolute; top: 10px; right: 20px; font-size: 28px; cursor: pointer; color: #555;">&times;</span>
+        <button onclick="anteriorAnexo()" style="left: 10px;">&#x25C0;</button>
+        <button onclick="proximoAnexo()" style="right: 10px;">&#x25B6;</button>
+        
+        <div id="visualizacao-anexo-conteudo"></div>        
+        <a id="btn-download-anexo" href="#" download style="margin-top: 15px; display: inline-block; background: #007bff; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none;">⬇️ Download</a>
+    </div>
+</div>
+</body>
+</html>
